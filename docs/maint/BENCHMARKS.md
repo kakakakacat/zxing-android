@@ -104,7 +104,7 @@ A result is tied to the machine that produced it.
 
 | Role | Machine | Notes |
 | --- | --- | --- |
-| Reference device | **DN-ENG41**, Android 14 (API 34), arm64, no GMS | the only physical device available |
+| Reference device | **DN-ENG41**, Android 14 (API 34), arm64, no GMS | the only physical device available; `userdebug`, `adb root` works |
 | Emulator, Android 15 | AVD `zxing_api35`, Pixel 7, arm64 | API 35 |
 | Emulator, Android 16 | AVD `zxing_api36`, Pixel 7, arm64 | API 36 |
 | Host | macOS 27.2 arm64, JDK 25 (JBR), Gradle toolchain 17 | L1 only |
@@ -120,7 +120,11 @@ Rules:
 - Before a device run: screen on, charger behaviour recorded, airplane mode on, no other
   foreground app, and `adb shell cmd thermalservice override-status 0` is *not* used — a
   masked thermal state produces numbers the product will never see.
-- **`adb shell svc power stayon true` first.** Microbenchmark's `IsolationActivity` stops
+- **Lock the clocks first: `./gradlew :benchmark-android:lockClocks`.** It needs root,
+  which DN-ENG41 has. Without it every result carries `UNLOCKED_CLOCKS` and §10.6 blocks
+  on it. `unlockClocks` restores the device by rebooting it, so a phone left locked will
+  feel slow until it is rebooted.
+- **`adb shell svc power stayon true` next.** Microbenchmark's `IsolationActivity` stops
   making progress when the screen goes off, and it does so silently: the run neither fails
   nor finishes, the process simply stops accumulating CPU time. Observed on DN-ENG41,
   which locked seven minutes into a run. If a run appears to hang, compare fields 14 and
@@ -371,28 +375,64 @@ Per case, on the median, using the 95% intervals from §7:
 
 | Verdict | Condition |
 | --- | --- |
-| **pass** (improvement) | candidate CI upper bound < baseline CI lower bound **and** the median improves by ≥ 5% |
-| **fail** (regression) | candidate CI lower bound > baseline CI upper bound **and** the median worsens by ≥ 5% |
+| **pass** (improvement) | candidate CI upper bound < baseline CI lower bound **and** the median improves by at least the effect floor |
+| **fail** (regression) | candidate CI lower bound > baseline CI upper bound **and** the median worsens by at least the effect floor |
 | **inconclusive** | anything else |
 
 "Anything else" explicitly includes all of these, each reported with its reason:
 
 - the intervals overlap;
-- the medians differ by less than 5% — below this fork's noise floor on the reference
-  device, so a difference is not resolvable;
+- the medians differ by less than the effect floor for a case of that size — below the
+  measured noise floor on the reference device, so a difference is not resolvable;
 - either side has fewer than 50 measured iterations;
 - either side carries a Microbenchmark warning that invalidates timing (debuggable build,
   unlocked clocks, thermal throttling detected);
 - either side is an emulator run and the other is not;
-- `alloc_count_p50` grew by more than 5% while time improved — a time win bought with
-  allocations is not a win until L4 says the GC cost is absorbed.
+- `alloc_count_p50` grew by more than that same floor while time improved — a time win
+  bought with allocations is not a win until L4 says the GC cost is absorbed.
 
 A run as a whole is `fail` if any case fails, `pass` only if at least one case passes and
 none fails, otherwise `inconclusive`.
 
-The 5% floor is a placeholder until the first B0 run measures the reference device's
-run-to-run spread. **It is replaced by the measured spread, in the same commit that lands
-the first baseline**, and the measurement is recorded here.
+#### The effect floor, measured
+
+No longer a placeholder. The full matrix was run twice on DN-ENG41 under one protocol
+with nothing changed between the runs, so everything the two runs disagreed about is
+noise. 135 cases, `benchmark/tools/noise_floor.py`, commit `edef9d0a0`:
+
+| Band | Cases | p50 | p90 | p95 | max |
+| --- | --- | --- | --- | --- | --- |
+| median ≥ 100 µs | 69 | 0.15% | 1.27% | 1.66% | **2.51%** |
+| median < 100 µs | 66 | 1.25% | 3.53% | 5.25% | **8.44%** |
+
+Per stage, which shows where the noise actually lives:
+
+| Stage | typical median | p50 | p90 | max |
+| --- | --- | --- | --- | --- |
+| `crop` | 195 ns | 1.47% | 2.76% | 3.04% |
+| `luminanceSource` | 160 ns | 2.49% | 6.00% | 8.44% |
+| `binarize` | 4.9 ms | 0.27% | 1.66% | 2.24% |
+| `decode` | 1.3 ms | 0.14% | 1.14% | 1.45% |
+| `endToEnd` | 2.9 ms | 0.18% | 0.97% | 2.51% |
+
+**The floor therefore depends on the size of the case**, because one global floor is wrong
+in both directions: at 5% it would have hidden a real 3% regression in `decode`, and it
+would still have called noise a result in `luminanceSource`.
+
+| Case | Floor |
+| --- | --- |
+| median ≥ 100 µs | **3%** |
+| median < 100 µs | **10%** |
+
+Each floor sits above the worst its own band was observed to do, with a little margin.
+From a single pair of runs the maximum is a weak estimate of the tail, so the conservative
+reading is the right one.
+
+Two things this does not mean. It is not a claim that the device is quiet — the noise
+lives almost entirely in the two stages that cost a few hundred nanoseconds and contribute
+nothing to a frame, and a 10% floor on a 160 ns stage is harmless because nobody will ever
+optimise it. And it is specific to this device and this protocol: re-measure after any
+change to either, which is two 40-minute runs and one command.
 
 ### 10.7 The B0 baseline
 
@@ -410,8 +450,9 @@ Before any Phase 5 work:
 1. Run the full matrix (`-Pl2.matrix=full`) on **DN-ENG41**.
 2. Commit the result sets under `docs/maint/reports/` as
    `l2-<commit>-DN-ENG41-<config>.json`.
-3. Record here the run date, the device's thermal state and the measured run-to-run spread
-   that replaces the 5% floor of §10.6.
+3. ~~Record the measured run-to-run spread that replaces the 5% floor~~ — **done**, see
+   §10.6. Two full-matrix runs on 2026-10-30/31, clocks locked, cool-down wait disabled;
+   the device was at thermal status SEVERE throughout, which is its normal state.
 4. Run **`FrameIntegrityTest` only** on the API 35 and API 36 emulators — not the
    benchmark.
 
@@ -514,13 +555,25 @@ different frames, device, API level or configuration, each named in the output.
 CI has no step for it yet; one is added when there is a baseline to compare against, so
 that a pull request touching the decode path carries a verdict instead of an opinion.
 
-#### The clock-lock problem, and the one switch
+#### Warnings that block, and the one switch
 
-§10.6 makes a run inconclusive when it carries a warning that invalidates timing. On an
-unrooted phone the CPU clocks cannot be locked, so **every** run on DN-ENG41 carries
-`UNLOCKED_CLOCKS` — and therefore every comparison on the only device this fork has comes
-back `inconclusive` by construction. That is a true statement about the evidence, and it
-is also a tool that always answers the same thing.
+§10.6 makes a run inconclusive when it carries a warning that invalidates timing.
+
+**`UNLOCKED_CLOCKS` no longer applies to DN-ENG41.** It is a `userdebug` build and `adb
+root` works, so the benchmark plugin's `lockClocks` task pins the cores — big cores to
+1344 of 2400 MHz, little cores to 1190 of 1900 MHz — and Microbenchmark reports
+`cpuLocked: true`. This is what made the measured floor in §10.6 possible: the same
+`decode[HD_HIT_QR]` case read 7.18 ms unlocked and 12.98 ms locked, and locking buys
+reproducibility rather than speed. Both sides of a comparison pay the same price.
+`unlockClocks` restores the device by rebooting it.
+
+**`THERMAL_THROTTLE` and `THROTTLE_WAIT_DISABLED` still do apply**, and they are the open
+question. DN-ENG41's skin throttling threshold is 40.0 °C, one skin sensor reads a
+constant 40.116 and the other sits around 46; the device is at thermal status SEVERE at
+rest and never leaves it. So either the harness waits — 270 s before every benchmark, 67
+of the first baseline's 72 minutes, and it never cools — or the wait is switched off and
+the result says so. Either way a warning is carried, and every comparison on this device
+is `inconclusive` by default.
 
 The tool separates the two kinds of warning rather than quietly softening the rule:
 
@@ -530,12 +583,18 @@ The tool separates the two kinds of warning rather than quietly softening the ru
   waiver is recorded in `verdict.json` and printed at the top of the Markdown report, so a
   number read under a suspended rule says so wherever it is quoted.
 
-**This is a stopgap, and the decision is not the tool's to make.** The real fix is one of:
-lock clocks on a rooted device; widen the effect floor to whatever the measured
-run-to-run spread on DN-ENG41 actually supports (§10.7 step 3, which is the plan); or
-accept that L2 on this hardware resolves large changes only — a 2× native decoder, not a
-5% tuning win. Until one of those is chosen, prefer leaving the waiver off and reading
-`inconclusive` as the honest answer.
+**This is a stopgap, and the decision is not the tool's to make.** Of the three ways out
+listed when this section was written, two are now done: the clocks are locked, and the
+effect floor is measured rather than guessed (§10.6). What is left is the thermal state,
+and the honest options are to cool the device physically, to accept that results from it
+always carry a thermal warning, or to amend §10.6 to say that on this device that
+particular warning may be read through. **Raising the vendor thermal thresholds is not on
+that list** — §6 rules it out, because it would produce numbers the shipped product never
+delivers and nothing in the result file would show it.
+
+With the floor now measured at 3% for the cases that matter, L2 on this hardware resolves
+rather more than "large changes only". But until the thermal question is settled, prefer
+leaving the waiver off and reading `inconclusive` as the honest answer.
 
 - Reads two result files of the same layer.
 - Refuses mismatched `dataset_hash`, frame hashes, device, API level or configuration, with

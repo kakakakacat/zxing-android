@@ -1,0 +1,67 @@
+{
+ "cases": 135,
+ "spread_p50": 0.00533041663570847,
+ "spread_p90": 0.028153478673134193,
+ "spread_p95": 0.03525043987078266,
+ "spread_max": 0.08442183141894465,
+ "suggested_floor": 0.04,
+ "worst_cases": [
+  {
+   "name": "luminanceSource[HD_MISS_DEFAULT]",
+   "stage": "luminanceSource",
+   "medians": [
+    175.47314932873323,
+    161.81263069845252
+   ],
+   "spread": 0.08442183141894465
+  },
+  {
+   "name": "luminanceSource[HD_HIT_1D_DEFAULT]",
+   "stage": "luminanceSource",
+   "medians": [
+    175.2641566039151,
+    165.1641131815045
+   ],
+   "spread": 0.061151561485462184
+  },
+  {
+   "name": "luminanceSource[HD_MISS_QR_ONLY]",
+   "stage": "luminanceSource",
+   "medians": [
+    165.21116777919448,
+    155.85724599895713
+   ],
+   "spread": 0.06001595703994376
+  },
+  {
+   "name": "luminanceSource[HD_HIT_QR_DEFAULT]",
+   "stage": "luminanceSource",
+   "medians": [
+    173.56362560556192,
+    164.907133243607
+   ],
+   "spread": 0.05249313472187538
+  },
+  {
+   "name": "luminanceSource[HD_HIT_1D_ONED_ONLY_UPCA]",
+   "stage": "luminanceSource",
+   "medians": [
+    159.67782944573614,
+    167.23269331733295
+   ],
+   "spread": 0.04731316738097447
+  }
+ ],
+ "runs": [
+  "full-run1-20261030-DN-ENG41",
+  "full-run2-20261031-DN-ENG41"
+ ],
+ "commit": "edef9d0a0",
+ "device": "DN-ENG41",
+ "protocol": {
+  "androidx.benchmark.output.enable": "true",
+  "androidx.benchmark.thermalThrottle.sleepDurationSeconds": "0",
+  "l2.matrix": "full"
+ },
+ "unmatched_cases": []
+}

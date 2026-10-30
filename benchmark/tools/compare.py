@@ -26,11 +26,35 @@ INCONCLUSIVE = "inconclusive"
 EXIT_CODES = {PASS: 0, FAIL: 1, INCONCLUSIVE: 2}
 EXIT_INCOMPARABLE = 3
 
-# section 10.6: below this, a difference is not resolvable on the reference device. It is
-# a placeholder until the first baseline measures the real run-to-run spread, and
-# BENCHMARKS.md section 10.7 says to replace it in the same commit as that baseline.
-EFFECT_FLOOR = 0.05
+# section 10.6: below this, a difference is not resolvable on the reference device.
+#
+# No longer a placeholder. Measured on DN-ENG41 by running the full matrix twice under
+# one protocol with nothing changed between the runs (benchmark/tools/noise_floor.py,
+# commit edef9d0a0, 135 cases): everything the two runs disagreed about is noise.
+#
+# The spread splits cleanly by magnitude, because the cheap stages are a few hundred
+# nanoseconds and a handful of nanoseconds there is several percent:
+#
+#   cases >= 100 us (69):  p50 0.15%  p90 1.27%  p95 1.66%  max 2.51%
+#   cases <  100 us (66):  p50 1.25%  p90 3.53%  p95 5.25%  max 8.44%
+#
+# So one global floor is wrong in both directions: it would hide a real 3% regression in
+# decode, and still call noise a result in luminanceSource. Each floor sits above the
+# worst its own band was observed to do, with a little margin — from a single pair of
+# runs the maximum is a weak estimate of the tail, so the conservative reading is the
+# right one. More pairs would sharpen these; they are specific to this device and this
+# protocol, and re-measuring is a few minutes of work.
+FLOOR_SPLIT_NS = 100_000
+EFFECT_FLOOR_LARGE = 0.03
+EFFECT_FLOOR_SMALL = 0.10
 MIN_ITERATIONS = 50
+
+
+def effect_floor(median_ns):
+    """The smallest difference this device can resolve for a case of this size."""
+    if median_ns is None:
+        return EFFECT_FLOOR_SMALL
+    return EFFECT_FLOOR_LARGE if median_ns >= FLOOR_SPLIT_NS else EFFECT_FLOOR_SMALL
 
 # A warning that makes a timing meaningless rather than merely noisy.
 INVALIDATING = ("DEBUGGABLE", "EMULATOR")
@@ -94,6 +118,7 @@ def compare_case(base, cand, blocking_warnings):
         "alloc_delta": alloc_delta,
         "verdict": INCONCLUSIVE,
         "reason": None,
+        "floor": None,
     }
 
     if blocking_warnings:
@@ -114,10 +139,12 @@ def compare_case(base, cand, blocking_warnings):
         row["reason"] = "a median or interval is missing, so nothing can be concluded"
         return row
 
-    if abs(delta) < EFFECT_FLOOR:
-        row["reason"] = ("the medians differ by %.1f%%, below the %.0f%% floor: not "
-                         "resolvable on this device"
-                         % (delta * 100, EFFECT_FLOOR * 100))
+    floor = effect_floor(base.get("ns_p50"))
+    row["floor"] = floor
+    if abs(delta) < floor:
+        row["reason"] = ("the medians differ by %.1f%%, below the %.0f%% floor measured "
+                         "for cases of this size: not resolvable on this device"
+                         % (delta * 100, floor * 100))
         return row
 
     improved = cand["ns_ci95_high"] < base["ns_ci95_low"]
@@ -126,15 +153,15 @@ def compare_case(base, cand, blocking_warnings):
         row["reason"] = "the 95%% intervals overlap"
         return row
 
-    if regressed and delta >= EFFECT_FLOOR:
+    if regressed and delta >= floor:
         row["verdict"] = FAIL
         row["reason"] = "%.1f%% slower, intervals disjoint" % (delta * 100)
         return row
 
-    if improved and delta <= -EFFECT_FLOOR:
+    if improved and delta <= -floor:
         # A time win bought with allocations is not a win until L4 says the GC cost is
         # absorbed. section 10.6.
-        if alloc_delta is not None and alloc_delta > EFFECT_FLOOR:
+        if alloc_delta is not None and alloc_delta > floor:
             row["reason"] = ("%.1f%% faster, but allocations grew %.1f%%: not a win until "
                              "L4 says the GC cost is absorbed"
                              % (delta * 100, alloc_delta * 100))
@@ -195,7 +222,9 @@ def compare(baseline, candidate, accept_noise_warnings=False):
         "candidate": {"run_id": candidate.get("run_id"), "commit": candidate.get("commit")},
         "device": (baseline.get("device") or {}).get("label"),
         "config": baseline.get("config"),
-        "effect_floor": EFFECT_FLOOR,
+        "effect_floor": {"split_ns": FLOOR_SPLIT_NS,
+                         "at_or_above_split": EFFECT_FLOOR_LARGE,
+                         "below_split": EFFECT_FLOOR_SMALL},
         "blocking_warnings": sorted(blocking),
         "waived_warnings": sorted(waived),
         "cases": rows,
@@ -253,7 +282,10 @@ def write_markdown(result, path):
                      % (result["candidate"]["run_id"], result["candidate"]["commit"]))
         lines.append("| Device | %s |" % result["device"])
         lines.append("| Configuration | %s |" % result["config"])
-        lines.append("| Effect floor | %.0f%% |" % (result["effect_floor"] * 100))
+        lines.append("| Effect floor | %.0f%% at or above %d µs, %.0f%% below |"
+                     % (result["effect_floor"]["at_or_above_split"] * 100,
+                        result["effect_floor"]["split_ns"] // 1000,
+                        result["effect_floor"]["below_split"] * 100))
         lines.append("")
         if result["blocking_warnings"]:
             lines.append("Every case is inconclusive: %s."

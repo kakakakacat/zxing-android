@@ -167,7 +167,11 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 - [x] Comparison tool with pass / fail / **inconclusive** verdicts and 95% intervals
       (`benchmark/tools/compare.py`) — exits 0 / 1 / 2, and 3 when the two result sets
       cannot be compared at all
-- [ ] B0 baseline results committed for every layer
+- [x] L2 baseline committed: DN-ENG41, clocks locked, the full 135-case matrix twice
+      plus an hd/default slice (`docs/maint/reports/`)
+- [x] Effect floor measured instead of guessed: 3% for cases at or above 100 µs, 10%
+      below, from two full-matrix runs of identical code
+- [ ] L3 and L4 baselines (neither harness exists yet)
 
 ### Phase 5 — Kotlin and native decoding
 
@@ -222,7 +226,7 @@ years of callers and buy nothing.
 | A-09 | In-app book search fails; cleartext HTTP is blocked | app |
 | A-10 | "Share → App" picker is mostly empty on Android 11+ | app |
 | A-16 | On a large screen, Android 16 forces the landscape-designed capture UI into portrait | app |
-| — | No performance numbers exist yet for any layer | all |
+| — | No L3 or L4 numbers exist: nothing is known about camera-ready or first-scan latency | all |
 | — | Only one device has been tested: Android 14, no GMS | all |
 | — | Maven Central publishing is not set up; GitHub Packages and JitPack only | release |
 | — | Decoder types are `io.github.kakakakacat.zxing.*`, so results cannot be passed straight to other ZXing-based libraries | AAR |
@@ -237,10 +241,18 @@ years of callers and buy nothing.
 
 ## Performance claims
 
-There are none yet. The benchmark harness exists so that any future claim comes with a
-baseline, a dataset hash, a device and a confidence interval. Where this fork has removed
-obviously wasteful work, that is described as simpler code, not as a measured speedup,
-until it has been measured. See [BENCHMARKS.md](docs/maint/BENCHMARKS.md).
+**Still none.** There is now an L2 baseline — what one preview frame costs on one device
+at one pinned operating point — but a baseline is not a claim. Nothing has been optimised
+and nothing has been compared, so there is nothing to be faster than.
+
+What the baseline does describe is where the cost sits. On DN-ENG41 with clocks locked, a
+1920×1080 frame containing no barcode takes **81 ms** with every format enabled and
+**1.2 ms** with one 1D format enabled. The no-barcode case is the live-preview case, and
+restricting the format set is worth up to 67× on it. That is a property of the decoder as
+it stands, not the effect of any change.
+
+Where this fork has removed obviously wasteful work, that is still described as simpler
+code rather than a measured speedup. See [BENCHMARKS.md](docs/maint/BENCHMARKS.md).
 
 ## Licence
 

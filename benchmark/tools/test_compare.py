@@ -125,6 +125,41 @@ class VerdictTest(unittest.TestCase):
         self.assertEqual(compare.PASS, row["verdict"])
 
 
+class EffectFloorTest(unittest.TestCase):
+    """The floor is measured, and it depends on how big the case is."""
+
+    def test_an_expensive_case_gets_the_tighter_floor(self):
+        self.assertEqual(compare.EFFECT_FLOOR_LARGE, compare.effect_floor(5_000_000))
+
+    def test_a_sub_microsecond_case_gets_the_looser_floor(self):
+        self.assertEqual(compare.EFFECT_FLOOR_SMALL, compare.effect_floor(195))
+
+    def test_an_unknown_median_gets_the_looser_floor(self):
+        # Not knowing how big a case is cannot be a reason to be more confident.
+        self.assertEqual(compare.EFFECT_FLOOR_SMALL, compare.effect_floor(None))
+
+    def test_a_four_percent_move_in_an_expensive_case_is_a_result(self):
+        row = compare.compare(
+            report([case(p50=5_000_000, low=4_990_000, high=5_010_000)]),
+            report([case(p50=4_800_000, low=4_790_000, high=4_810_000)]))["cases"][0]
+        self.assertEqual(compare.PASS, row["verdict"])
+        self.assertEqual(compare.EFFECT_FLOOR_LARGE, row["floor"])
+
+    def test_the_same_four_percent_move_in_a_tiny_case_is_not(self):
+        # 195 ns to 187 ns is eight nanoseconds. The two runs of identical code
+        # disagreed by more than that.
+        row = compare.compare(
+            report([case(p50=195, low=194, high=196)]),
+            report([case(p50=187, low=186, high=188)]))["cases"][0]
+        self.assertEqual(compare.INCONCLUSIVE, row["verdict"])
+        self.assertIn("below the 10% floor", row["reason"])
+
+    def test_the_floor_that_applied_is_recorded_on_every_case(self):
+        result = compare.compare(report([case(p50=5_000_000)]),
+                                 report([case(p50=5_000_000)]))
+        self.assertIsNotNone(result["cases"][0]["floor"])
+
+
 class WarningTest(unittest.TestCase):
 
     def test_unlocked_clocks_make_every_case_inconclusive_by_default(self):

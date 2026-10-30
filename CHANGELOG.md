@@ -31,6 +31,12 @@ API may still change between minor versions.
   than committed, and their SHA-256 values are committed instead, so a run that would not
   be comparable with the baseline fails on the host and again on the device rather than
   producing a number.
+- First Android measurements of any kind: an L2 baseline on DN-ENG41 with clocks locked —
+  the full 135-case matrix twice and an hd/default slice, in `docs/maint/reports/`. A
+  baseline, not a claim: nothing has been optimised and nothing compared.
+- `benchmark/tools/noise_floor.py` and the measured effect floor it produced: 3% for
+  cases at or above 100 µs, 10% below, from two runs of identical code. The 5%
+  placeholder in BENCHMARKS.md §10.6 is gone.
 - `benchmark/tools/compare.py`, which reads two result sets and returns pass / fail /
   **inconclusive** against the gates of BENCHMARKS.md §10.6, with a CSV, a JSON verdict
   and a Markdown report. It exits 0 / 1 / 2, and 3 when the two sets describe different
