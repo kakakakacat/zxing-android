@@ -34,8 +34,9 @@ MIN_ITERATIONS = 50
 
 # A warning that makes a timing meaningless rather than merely noisy.
 INVALIDATING = ("DEBUGGABLE", "EMULATOR")
-# A warning that widens the noise. Strict by default; see --accept-unlocked-clocks.
-NOISE_WARNINGS = ("UNLOCKED_CLOCKS", "NO_SUSTAINED_PERFORMANCE_MODE", "THERMAL_THROTTLE")
+# A warning that widens the noise. Strict by default; see --accept-noise-warnings.
+NOISE_WARNINGS = ("UNLOCKED_CLOCKS", "NO_SUSTAINED_PERFORMANCE_MODE", "THERMAL_THROTTLE",
+                  "THROTTLE_WAIT_DISABLED")
 
 # Fields that must agree before any case is compared at all.
 GUARDED = ("layer", "config", "dataset_hash", "frames", "frames_golden_version")
@@ -155,7 +156,7 @@ def roll_up(rows):
     return INCONCLUSIVE
 
 
-def compare(baseline, candidate, accept_unlocked_clocks=False):
+def compare(baseline, candidate, accept_noise_warnings=False):
     reasons = guard(baseline, candidate)
     if reasons:
         return {
@@ -173,7 +174,7 @@ def compare(baseline, candidate, accept_unlocked_clocks=False):
             if kind in INVALIDATING:
                 blocking.add(kind)
             elif kind in NOISE_WARNINGS:
-                if accept_unlocked_clocks:
+                if accept_noise_warnings:
                     waived.add(kind)
                 else:
                     blocking.add(kind)
@@ -259,7 +260,7 @@ def write_markdown(result, path):
                          % ", ".join(result["blocking_warnings"]))
             lines.append("")
         if result["waived_warnings"]:
-            lines.append("Waived by the operator with `--accept-unlocked-clocks`: %s. "
+            lines.append("Waived by the operator with `--accept-noise-warnings`: %s. "
                          "The numbers below are read under a rule that was switched off "
                          "on purpose." % ", ".join(result["waived_warnings"]))
             lines.append("")
@@ -286,7 +287,7 @@ def main(argv=None):
     parser.add_argument("--candidate", required=True)
     parser.add_argument("--out-dir", default="build/benchmark/compare")
     parser.add_argument(
-        "--accept-unlocked-clocks", action="store_true",
+        "--accept-noise-warnings", action="store_true",
         help="read the numbers although the run carries a noise warning such as unlocked "
              "CPU clocks. Section 10.6 says such a run is inconclusive; this switches that "
              "rule off deliberately, and the waiver is recorded in every output file.")
@@ -297,7 +298,7 @@ def main(argv=None):
     with open(args.candidate, encoding="utf-8") as handle:
         candidate = json.load(handle)
 
-    result = compare(baseline, candidate, args.accept_unlocked_clocks)
+    result = compare(baseline, candidate, args.accept_noise_warnings)
 
     os.makedirs(args.out_dir, exist_ok=True)
     with open(os.path.join(args.out_dir, "verdict.json"), "w", encoding="utf-8") as handle:

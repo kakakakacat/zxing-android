@@ -139,7 +139,7 @@ class WarningTest(unittest.TestCase):
         result = compare.compare(
             report([case(p50=1000, low=999, high=1001)], warnings=["UNLOCKED_CLOCKS: …"]),
             report([case(p50=500, low=499, high=501)]),
-            accept_unlocked_clocks=True)
+            accept_noise_warnings=True)
         self.assertEqual(compare.PASS, result["verdict"])
         self.assertEqual(["UNLOCKED_CLOCKS"], result["waived_warnings"])
         self.assertEqual([], result["blocking_warnings"])
@@ -148,9 +148,17 @@ class WarningTest(unittest.TestCase):
         result = compare.compare(
             report([case(p50=1000, low=999, high=1001)], warnings=["DEBUGGABLE: …"]),
             report([case(p50=500, low=499, high=501)]),
-            accept_unlocked_clocks=True)
+            accept_noise_warnings=True)
         self.assertEqual(compare.INCONCLUSIVE, result["verdict"])
         self.assertEqual(["DEBUGGABLE"], result["blocking_warnings"])
+
+    def test_a_disabled_cooling_wait_blocks_by_default(self):
+        result = compare.compare(
+            report([case(p50=1000, low=999, high=1001)],
+                   warnings=["THROTTLE_WAIT_DISABLED: …"]),
+            report([case(p50=500, low=499, high=501)]))
+        self.assertEqual(compare.INCONCLUSIVE, result["verdict"])
+        self.assertEqual(["THROTTLE_WAIT_DISABLED"], result["blocking_warnings"])
 
     def test_thermal_throttling_blocks_by_default(self):
         result = compare.compare(

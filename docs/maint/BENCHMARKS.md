@@ -113,8 +113,10 @@ Rules:
 
 - **L2 and above must name a device.** An emulator result is labelled as one and never
   compared against a physical-device result.
-- **Emulator timings are shape, not magnitude.** They run on the host CPU with no thermal
-  model; use them to catch a 10× regression, never to claim a 10% win.
+- **Emulator timings are not used at all.** They run on the host's cores with no thermal
+  model, and they distort the ratio between stages, not merely the magnitude — see §10.7
+  step 4. `compare.py` treats `EMULATOR` as invalidating and will not let it be waived.
+  An emulator is for correctness tests here, not for timings.
 - Before a device run: screen on, charger behaviour recorded, airplane mode on, no other
   foreground app, and `adb shell cmd thermalservice override-status 0` is *not* used — a
   masked thermal state produces numbers the product will never see.
@@ -410,7 +412,31 @@ Before any Phase 5 work:
    `l2-<commit>-DN-ENG41-<config>.json`.
 3. Record here the run date, the device's thermal state and the measured run-to-run spread
    that replaces the 5% floor of §10.6.
-4. Repeat the `hd`/`default` slice on both emulators, labelled as emulator results.
+4. Run **`FrameIntegrityTest` only** on the API 35 and API 36 emulators — not the
+   benchmark.
+
+   An earlier revision of this document said to repeat the `hd`/`default` slice on both
+   emulators as a labelled secondary result. That was wrong, and the position is left
+   empty on purpose rather than by oversight. An emulator runs on the host's cores, and
+   the damage is not only to the magnitude: `binarize` is memory-bandwidth bound and
+   `decode` is branch-heavy, so a host with several times the memory bandwidth distorts
+   the ratio *between* stages — and which stage dominates is the entire reason §10.3
+   breaks the pipeline up. A number whose shape is wrong is not "shape, not magnitude";
+   it is just wrong. Host CPU scaling and whatever else is running on the machine finish
+   the job.
+
+   What is worth running there is the correctness gate. The golden frame hashes are the
+   comparability key for every L2 result, and they were generated and verified on one
+   device's ART. If a different ART produced different bytes, the goldens would be
+   device-dependent and the whole comparability premise would fail. That is unlikely —
+   `xorshift64*` is `long` arithmetic the JLS pins down, the writer is pure Java and
+   SHA-256 is standard — so this is cheap insurance rather than a necessity. It costs
+   seconds:
+
+   ```sh
+   ANDROID_SERIAL=emulator-5554 ./gradlew :benchmark-android:connectedReleaseAndroidTest \
+       -Pl2.emulator=true --tests '*FrameIntegrityTest'
+   ```
 
 Nothing in Phase 5 may claim a speedup until step 1–3 exist.
 

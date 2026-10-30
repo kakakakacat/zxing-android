@@ -126,7 +126,36 @@ class WarningsTest(unittest.TestCase):
     def report_for(self, data, **kwargs):
         return l2_report.build_report(data, self.goldens.name, "run", "commit",
                                       kwargs.get("device_label"),
-                                      kwargs.get("config_label"))
+                                      kwargs.get("config_label"),
+                                      kwargs.get("runner_args_path"))
+
+    def write_runner_args(self, args):
+        handle = tempfile.NamedTemporaryFile(
+            "w", suffix=".json", delete=False, encoding="utf-8")
+        json.dump(args, handle)
+        handle.close()
+        self.addCleanup(os.unlink, handle.name)
+        return handle.name
+
+    def test_a_disabled_cooling_wait_is_recorded_as_a_warning(self):
+        path = self.write_runner_args(
+            {l2_report.THROTTLE_SLEEP_ARG: "0", "l2.matrix": "full"})
+        report = self.report_for(microbenchmark("crop[HD_MISS_DEFAULT]", [1] * 60),
+                                 runner_args_path=path)
+        self.assertTrue(any(w.startswith("THROTTLE_WAIT_DISABLED")
+                            for w in report["warnings"]), report["warnings"])
+        self.assertEqual("full", report["protocol"]["runner_args"]["l2.matrix"])
+
+    def test_a_normal_wait_setting_raises_no_such_warning(self):
+        path = self.write_runner_args({l2_report.THROTTLE_SLEEP_ARG: "90"})
+        report = self.report_for(microbenchmark("crop[HD_MISS_DEFAULT]", [1] * 60),
+                                 runner_args_path=path)
+        self.assertFalse(any(w.startswith("THROTTLE_WAIT_DISABLED")
+                             for w in report["warnings"]))
+
+    def test_the_protocol_block_is_empty_rather_than_missing_when_unknown(self):
+        report = self.report_for(microbenchmark("crop[HD_MISS_DEFAULT]", [1] * 60))
+        self.assertEqual({}, report["protocol"]["runner_args"])
 
     def test_unlocked_clocks_and_missing_sustained_mode_are_recorded(self):
         report = self.report_for(microbenchmark("crop[HD_MISS_DEFAULT]", [1] * 60))

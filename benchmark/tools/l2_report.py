@@ -147,9 +147,35 @@ def device_from_context(context, label):
     }
 
 
-def collect_warnings(context, cases, device):
+THROTTLE_SLEEP_ARG = "androidx.benchmark.thermalThrottle.sleepDurationSeconds"
+
+
+def load_runner_args(path):
+    """The instrumentation arguments the run was actually made with.
+
+    Written by the :benchmark-android recordL2RunnerArgs task, not retyped by whoever
+    converts the file. What protocol a run was made under is part of its result.
+    """
+    if not path:
+        return {}
+    with open(path, encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def collect_warnings(context, cases, device, runner_args=None):
     """Conditions section 10.6 turns into `inconclusive`, recorded rather than suppressed."""
+    runner_args = runner_args or {}
     warnings = []
+
+    # The cool-down wait was switched off. Without this the absence of a sleep would be
+    # indistinguishable from a device that simply never needed one, and the most
+    # flattering reading would be the silent one.
+    if str(runner_args.get(THROTTLE_SLEEP_ARG, "")).strip() == "0":
+        warnings.append(
+            "THROTTLE_WAIT_DISABLED: the between-benchmark cool-down wait was switched "
+            "off by the operator, so these numbers were taken under whatever thermal "
+            "state the device was already in. Throttling itself was not disabled.")
+
     if device.get("emulator"):
         warnings.append("EMULATOR: run on an emulator; shape only, never a magnitude")
     if context.get("cpuLocked") is False:
@@ -178,7 +204,8 @@ def load_goldens(path):
     return document.get("golden_version"), frames
 
 
-def build_report(microbenchmark, goldens_path, run_id, commit, device_label, config_label):
+def build_report(microbenchmark, goldens_path, run_id, commit, device_label, config_label,
+                 runner_args_path=None):
     context = microbenchmark.get("context") or {}
     cases = []
     skipped = []
@@ -192,6 +219,7 @@ def build_report(microbenchmark, goldens_path, run_id, commit, device_label, con
 
     golden_version, frames = load_goldens(goldens_path)
     device = device_from_context(context, device_label)
+    runner_args = load_runner_args(runner_args_path)
 
     return {
         "layer": "L2",
@@ -207,7 +235,8 @@ def build_report(microbenchmark, goldens_path, run_id, commit, device_label, con
         "frames_golden_version": golden_version,
         "frames": frames,
         "device": device,
-        "warnings": collect_warnings(context, cases, device),
+        "warnings": collect_warnings(context, cases, device, runner_args),
+        "protocol": {"runner_args": runner_args},
         "skipped_benchmarks": skipped,
         "bootstrap": {"resamples": BOOTSTRAP_RESAMPLES, "seed": BOOTSTRAP_SEED},
         "cases": cases,
@@ -226,13 +255,16 @@ def main(argv=None):
     parser.add_argument("--device-label", default=None,
                         help="the name this device is known by, e.g. DN-ENG41")
     parser.add_argument("--config-label", default=None)
+    parser.add_argument("--runner-args", default=None,
+                        help="benchmark/android/build/l2-runner-args.json, written by the "
+                             "recordL2RunnerArgs task; states the protocol the run used")
     args = parser.parse_args(argv)
 
     with open(args.input, encoding="utf-8") as handle:
         microbenchmark = json.load(handle)
 
     report = build_report(microbenchmark, args.goldens, args.run_id, args.commit,
-                          args.device_label, args.config_label)
+                          args.device_label, args.config_label, args.runner_args)
     with open(args.out, "w", encoding="utf-8") as handle:
         json.dump(report, handle, indent=1, sort_keys=False)
         handle.write("\n")

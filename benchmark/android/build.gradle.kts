@@ -22,6 +22,31 @@ android {
     // device run. -Pl2.matrix=full flips it.
     testInstrumentationRunnerArguments["l2.matrix"] =
       (project.findProperty("l2.matrix") as String?) ?: "ci"
+
+    // -Pl2.throttleWait=0 stops Microbenchmark waiting for a cool-down between
+    // benchmarks. On a device that is permanently above its skin threshold the wait
+    // buys nothing — measured on DN-ENG41: 270s slept per benchmark, SEVERE before and
+    // SEVERE after — but it is still a deviation from the default protocol, so it is
+    // never silent. The argument is recorded by recordL2RunnerArgs below and turns into
+    // a THROTTLE_WAIT_DISABLED warning in the result file.
+    //
+    // It switches off the *waiting*, not the throttling: the device stays throttled and
+    // the numbers are real numbers for a throttled device. Raising the thermal
+    // thresholds would be the other thing, and §6 rules it out.
+    (project.findProperty("l2.throttleWait") as String?)?.let { seconds ->
+      testInstrumentationRunnerArguments[
+        "androidx.benchmark.thermalThrottle.sleepDurationSeconds"] = seconds
+    }
+
+    // -Pl2.emulator=true lets a run happen on an emulator at all: Microbenchmark
+    // otherwise refuses outright. Suppressing the error only makes it *run* — §6 still
+    // says an emulator result is shape, never magnitude, l2_report.py still raises
+    // EMULATOR from the build fingerprint, and compare.py treats that as invalidating
+    // and will not let it be waived. So an emulator run is a harness check and an
+    // order-of-magnitude tripwire; it can never produce a verdict.
+    if ((project.findProperty("l2.emulator") as String?)?.toBoolean() == true) {
+      testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] = "EMULATOR"
+    }
   }
 
   // Microbenchmark numbers from a debuggable build are not numbers. Measuring against
@@ -64,6 +89,26 @@ android {
   lint {
     abortOnError = false
   }
+}
+
+// What protocol a run was made under is part of its result, not something a reader should
+// have to reconstruct from whoever typed the command. The arguments are written out here
+// and l2_report.py folds them into the result file.
+val l2RunnerArgs = android.defaultConfig.testInstrumentationRunnerArguments.toSortedMap()
+val recordL2RunnerArgs = tasks.register("recordL2RunnerArgs") {
+  val outFile = layout.buildDirectory.file("l2-runner-args.json")
+  outputs.file(outFile)
+  val args = l2RunnerArgs
+  doLast {
+    outFile.get().asFile.writeText(
+      args.entries.joinToString(",\n", "{\n", "\n}\n") {
+        "  \"${it.key}\": \"${it.value}\""
+      }
+    )
+  }
+}
+tasks.matching { it.name.startsWith("connected") }.configureEach {
+  dependsOn(recordL2RunnerArgs)
 }
 
 // The host unit test reads the golden file straight off disk; the device run reads the
