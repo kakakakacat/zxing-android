@@ -5,12 +5,12 @@ Two artifacts are published together, both under `io.github.kakakakacat.zxing`:
 | Artifact | What it is |
 | --- | --- |
 | `zxing-android-scanner` (AAR) | The scanning pipeline: `ScannerView`, `ScannerOptions`, camera and decode |
-| `zxing-core` (JAR) | This fork's build of ZXing `core`, which the AAR depends on |
+| `zxing-core` (JAR) | The decoder, forked from ZXing core and maintained here |
 
-`zxing-core` is published because the AAR is built against `core` **from source** in this
-repository rather than against upstream's released `com.google.zxing:core`. Without it a
-consumer would resolve a dependency that does not exist. If you want upstream core
-instead, depend on `com.google.zxing:core` directly and exclude this one.
+Both carry `io.github.kakakakacat.zxing.*` classes. Nothing this project publishes is
+named `com.google.zxing.*`, so a consumer can have upstream `com.google.zxing:core` on
+the same classpath without a duplicate-class failure. The flip side is that the decoder
+types are this fork's own and are not interchangeable with upstream's.
 
 > This is a community maintenance fork. It is **not** an official ZXing release and the
 > coordinates deliberately do not reuse `com.google.zxing`.

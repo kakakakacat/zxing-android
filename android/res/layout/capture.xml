@@ -18,7 +18,7 @@
        xmlns:tools="http://schemas.android.com/tools">
 
   <!-- Preview surface, viewfinder overlay and decode loop all live in the AAR. -->
-  <com.google.zxing.client.android.scanner.ScannerView
+  <io.github.kakakakacat.zxing.android.scanner.ScannerView
       android:id="@+id/scanner_view"
       android:layout_width="fill_parent"
       android:layout_height="fill_parent"/>

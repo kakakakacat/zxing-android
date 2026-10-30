@@ -57,11 +57,12 @@ jobs:
              dist/barcode-scanner-community-${{ steps.version.outputs.value }}-debug.apk
           cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
 
+      # Only the AAR is published. The in-tree :core is deliberately not: its classes
+      # are com.google.zxing.*, so a second artifact carrying them would collide with
+      # upstream's released core on any consumer's classpath.
       - name: Publish the AAR to GitHub Packages
         run: |
-          ./gradlew \
-            :core:publishMavenPublicationToGitHubPackagesRepository \
-            :scanner:publishReleasePublicationToGitHubPackagesRepository \
+          ./gradlew :scanner:publishReleasePublicationToGitHubPackagesRepository \
             -PscannerVersion=${{ steps.version.outputs.value }}
         env:
           GITHUB_ACTOR: ${{ github.actor }}

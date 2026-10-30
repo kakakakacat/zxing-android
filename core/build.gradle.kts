@@ -58,8 +58,10 @@ publishing {
       pom {
         name.set("ZXing core (Android maintenance fork)")
         description.set(
-          "The ZXing core decoding library, built from source in this Android maintenance " +
-            "fork. Tracks upstream; not an official ZXing release."
+          "Barcode decoding library. A fork of ZXing core, maintained for Android in " +
+            "this project and moved to the io.github.kakakakacat.zxing namespace so it " +
+            "cannot collide with upstream's com.google.zxing:core on a consumer's " +
+            "classpath. Not an official ZXing release."
         )
         url.set("https://github.com/kakakakacat/zxing-android")
         licenses {

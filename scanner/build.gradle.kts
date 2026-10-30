@@ -12,7 +12,7 @@ group = "io.github.kakakakacat.zxing"
 version = (project.findProperty("scannerVersion") as String?) ?: "0.1.0"
 
 android {
-  namespace = "com.google.zxing.client.android.scanner"
+  namespace = "io.github.kakakakacat.zxing.android.scanner"
   compileSdk = 36
 
   defaultConfig {
@@ -42,7 +42,14 @@ android {
 }
 
 dependencies {
-  // `api`: callers handle com.google.zxing.Result and BarcodeFormat directly.
+  // `api`: callers handle Result and BarcodeFormat directly, so the decoder has to be
+  // on their compile classpath.
+  //
+  // This fork maintains its own decoder rather than depending on upstream's released
+  // artifact. That is only safe because core was moved out of the com.google.zxing
+  // namespace: two artifacts publishing identical fully-qualified class names would
+  // hand consumers a "Duplicate class com.google.zxing.BarcodeFormat" build failure the
+  // moment anything else on their classpath pulled upstream core.
   api(project(":core"))
 
   testImplementation(libs.junit)

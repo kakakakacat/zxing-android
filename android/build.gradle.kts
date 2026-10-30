@@ -4,15 +4,15 @@ plugins {
 }
 
 android {
-  namespace = "com.google.zxing.client.android"
+  namespace = "io.github.kakakakacat.zxing.android"
   compileSdk = 36
 
   defaultConfig {
-    // Development default for this maintenance fork. It is deliberately NOT the
-    // upstream application id: this build is not signed with the upstream key and
-    // must not present itself as an update to the published Barcode Scanner.
+    // Deliberately not the upstream application id, and not inside the
+    // com.google.zxing namespace at all: this build is not signed with the upstream key
+    // and must not present itself as the published Barcode Scanner.
     // See docs/maint/MIGRATION.md.
-    applicationId = "com.google.zxing.client.android.community"
+    applicationId = "io.github.kakakakacat.zxing.android"
     minSdk = 21
     targetSdk = 36
     versionCode = 10800

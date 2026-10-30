@@ -74,7 +74,7 @@ functionally. Devices at API 19/20 remain served by the upstream published APK.
 This is recorded in `docs/maint/MIGRATION.md` as a breaking support change.
 
 **core version.** The Gradle build compiles `:core` from this repository's sources
-(3.5.5-SNAPSHOT) instead of the Maven build's pinned core 3.3.3 binary. The pin existed
+instead of the Maven build's pinned core 3.3.3 binary. The pin existed
 because the old `android-maven-plugin`/`dx` pipeline could not desugar core's Java 8
 constructs; D8 does. A scan of `core/src/main/java` found no API-24+ platform calls
 (lambdas and method references are desugared; `StandardCharsets` is API 19). This is a
@@ -157,6 +157,7 @@ reconstructed on every resume.
 | A-12 | medium | S | **Ambient-light torch control fights the autofocus manager.** `CameraManager.setTorch` tears down and rebuilds `AutoFocusManager` on every torch toggle, and `AmbientLightManager` can toggle on every sensor callback. Needs a hysteresis/rate check; behaviour on a device with a jittery light sensor is **D**. |
 | A-16 | high | R | **Android 16 ignores `android:screenOrientation` on large screens.** Reproduced at 1600x2560 @240dpi (1066dp wide) on an API 36 emulator: `CaptureActivity` runs portrait despite `sensorLandscape`. The crop mapping is now correct for that case (A-13), but the landscape-designed capture UI itself has not been reviewed for portrait, and the framing rect is still computed as a landscape-shaped band. Evidence: `reports/a16-large-screen-portrait.png`. |
 | A-14 | low | S | `Looper.myLooper().quit()` in `DecodeHandler` (`DecodeHandler.java:57`) dereferences a nullable return; harmless in practice because it runs on the decode thread, but it is an unchecked assumption. |
+| A-18 | high | S | **`layout-ldpi/capture.xml` was left on the pre-AAR layout** when the capture screen moved to `ScannerView`, so on an ldpi device `findViewById(R.id.scanner_view)` returned null and `CaptureActivity.onCreate` crashed. Introduced by this fork, found while renaming packages. Fixed in the rename commit. |
 | A-15 | info | S | `PreviewCallback.previewHandler` is written on the main thread and read on the camera thread without synchronization. The one-shot callback pattern makes a stale read benign today, but it is not guaranteed by the memory model and would become a real hazard under any continuous-callback change. |
 
 ### Needs device verification (D)
@@ -189,10 +190,16 @@ Recorded so that any later change to it is deliberate. Source: `Intents.java`,
   `SCAN_RESULT_BYTE_SEGMENTS_0..n`.
 - Cancel: `RESULT_CANCELED` with no extras, on back-press while
   `source == NATIVE_APP_INTENT`.
-- Explicit-package calls: `IntentIntegrator` sets the package to
-  `com.google.zxing.client.android`. **This fork's development applicationId is
-  `com.google.zxing.client.android.community`, so explicit calls aimed at the upstream
-  package will not reach it.** See `MIGRATION.md`.
+- Explicit-package calls: upstream's `IntentIntegrator` sets the package to
+  `com.google.zxing.client.android`. **This fork's applicationId is
+  `io.github.kakakakacat.zxing.android`, so explicit calls aimed at the upstream package
+  will not reach it.** The action strings themselves are unchanged. See `MIGRATION.md`.
+
+**Namespace.** Everything this fork ships, the decoder included, was moved from
+`com.google.zxing.**` to `io.github.kakakakacat.zxing.**`. Publishing classes with
+upstream's fully-qualified names from a different groupId is a duplicate-class build
+failure waiting for any consumer that also resolves `com.google.zxing:core`. Verified:
+the published AAR and jar contain zero `com/google` entries.
 
 ---
 

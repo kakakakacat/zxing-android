@@ -7,17 +7,45 @@ Baseline for comparison is upstream commit `56b8a9a7`.
 
 | | Upstream | This fork |
 | --- | --- | --- |
-| Application ID | `com.google.zxing.client.android` | `com.google.zxing.client.android.community` |
+| Java packages | `com.google.zxing.**` | `io.github.kakakakacat.zxing.**` |
+| Application ID | `com.google.zxing.client.android` | `io.github.kakakakacat.zxing.android` |
 | Signing key | The ZXing maintainers' | **Not held.** Debug key only |
 | Maven coordinates | `com.google.zxing:core`, `:android-integration` | `io.github.kakakakacat.zxing:zxing-core`, `:zxing-android-scanner` |
+
+### The package rename
+
+Every class this project ships moved out of `com.google.zxing`, the decoder included.
+Two reasons, in order of weight:
+
+1. **Duplicate classes.** Publishing `com.google.zxing.BarcodeFormat` from a second
+   groupId breaks any consumer that also resolves upstream core — directly or through
+   another barcode library — with `Duplicate class ... found in modules`. That is not a
+   theoretical conflict; it is a build failure on a classpath nobody fully controls.
+2. **Identity.** `com.google.zxing` is the upstream project's namespace. This fork has
+   no claim on it.
+
+What it costs you: `Result`, `BarcodeFormat`, `DecodeHintType` and the rest are now
+`io.github.kakakakacat.zxing.*`. They are not the same types as upstream's, so a result
+cannot be handed straight to other ZXing-based code — convert at the boundary. For a
+port, replacing `com.google.zxing.` with `io.github.kakakakacat.zxing.` on import lines
+is usually the whole migration.
+
+What it does **not** cost you: the Intent contract. `com.google.zxing.client.android.SCAN`,
+`.ENCODE`, `.SEARCH_BOOK_CONTENTS`, `.SHARE` and all the extra keys are unchanged. Those
+are strings; they name a protocol, not a class.
+
+`tools/maint/sync-core-from-upstream.sh` re-applies this namespace to freshly pulled
+upstream core sources, so tracking upstream stays a reviewable diff instead of a merge
+that conflicts on every package line.
 
 The application ID is a **development default**, chosen so this build cannot pose as the
 published Barcode Scanner. Consequences:
 
-- **Explicit-package Intent calls do not reach this app.** `IntentIntegrator` sets the
-  package to `com.google.zxing.client.android`. Callers that want this build must target
-  `com.google.zxing.client.android.community`, or drop the explicit package and let the
-  implicit `com.google.zxing.client.android.SCAN` action resolve.
+- **Explicit-package Intent calls do not reach this app.** Callers that want this build
+  must target `io.github.kakakakacat.zxing.android`, or drop the explicit package and
+  let the implicit `com.google.zxing.client.android.SCAN` action resolve. This fork's
+  `IntentIntegrator` lists both apps in `TARGET_ALL_KNOWN`, and adds
+  `TARGET_MAINTENANCE_FORK_ONLY` for targeting this build alone.
 - Both apps can be installed side by side, and both will then offer to handle the same
   actions. The user gets a disambiguation dialog. That is a real cost of the rename and
   is not hidden here.
@@ -48,8 +76,8 @@ and the Maven coordinates to their own identity in `android/build.gradle.kts` an
 - **`core` is built from source, not pinned to 3.3.3.** Upstream's `android/pom.xml`
   pinned `com.google.zxing:core` to 3.3.3 as "the last compatible version", because the
   old `dx` pipeline could not desugar core's Java 8 constructs. D8 can. The app therefore
-  gets current core (3.5.5-SNAPSHOT) including seven years of decoder fixes. This is the
-  single largest behavioural change in the fork.
+  gets current core, including seven years of decoder fixes. This is the single largest
+  behavioural change in the fork.
 - **`android-core` is gone.** Its one class, `CameraConfigurationUtils`, moved into
   `:scanner`.
 
@@ -67,6 +95,7 @@ app-internal classes no longer exist, having been replaced by library equivalent
 | `CaptureActivityHandler` | `ScannerView` owns the state machine |
 | `DecodeThread`, `DecodeHandler` | `DecoderThread` inside `:scanner` |
 | `FrontLightMode.readPref(SharedPreferences)` | `FrontLightMode.parse(String)` + `ScannerOptions` |
+| `ShareActivity` hardcoding the upstream package | targets `getPackageName()`, so the share flow reaches this app's encoder |
 | `AutoFocusManager(Context, Camera)` | `AutoFocusManager(Camera, boolean)` |
 | `CameraManager(Context)` | `CameraManager(Context, ScannerOptions)` |
 | `AmbientLightManager(Context)` | `AmbientLightManager(Context, FrontLightMode)` |

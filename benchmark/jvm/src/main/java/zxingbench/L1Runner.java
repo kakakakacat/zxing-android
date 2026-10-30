@@ -16,13 +16,13 @@
 
 package zxingbench;
 
-import com.google.zxing.BarcodeFormat;
-import com.google.zxing.BinaryBitmap;
-import com.google.zxing.DecodeHintType;
-import com.google.zxing.MultiFormatReader;
-import com.google.zxing.PlanarYUVLuminanceSource;
-import com.google.zxing.Result;
-import com.google.zxing.common.HybridBinarizer;
+import io.github.kakakakacat.zxing.BarcodeFormat;
+import io.github.kakakakacat.zxing.BinaryBitmap;
+import io.github.kakakakacat.zxing.DecodeHintType;
+import io.github.kakakakacat.zxing.MultiFormatReader;
+import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource;
+import io.github.kakakakacat.zxing.Result;
+import io.github.kakakakacat.zxing.common.HybridBinarizer;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -201,7 +201,7 @@ public final class L1Runner {
   }
 
   private static Result decodeOnce(Frame frame, Map<DecodeHintType,Object> hints)
-      throws com.google.zxing.NotFoundException {
+      throws io.github.kakakakacat.zxing.NotFoundException {
     PlanarYUVLuminanceSource source = new PlanarYUVLuminanceSource(
         frame.luminance, frame.width, frame.height, 0, 0, frame.width, frame.height, false);
     MultiFormatReader reader = new MultiFormatReader();
@@ -210,7 +210,7 @@ public final class L1Runner {
   }
 
   private static Status classify(Manifest.Sample sample, Result result, Throwable error) {
-    if (error != null && !(error instanceof com.google.zxing.NotFoundException)) {
+    if (error != null && !(error instanceof io.github.kakakakacat.zxing.NotFoundException)) {
       return Status.ERROR;
     }
     if (sample.isNegative()) {

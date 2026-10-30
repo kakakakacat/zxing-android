@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-  namespace = "com.google.zxing.integration.android"
+  namespace = "io.github.kakakakacat.zxing.android.integration"
   compileSdk = 36
 
   defaultConfig {

@@ -19,7 +19,7 @@ Android — and to make the scanning pipeline reusable instead of copy-pasteable
 | --- | --- |
 | `scanner/` | **The AAR.** `ScannerView` + the camera and decode pipeline |
 | `android/` | The Barcode Scanner app, built on the AAR |
-| `core/` | ZXing's decoder, tracked from upstream |
+| `core/` | The decoder. Forked from ZXing core and maintained here |
 | `android-integration/` | The Intent helper third-party apps embed |
 | `benchmark/` | Dataset manifest and the L1 correctness/timing runner |
 
@@ -30,6 +30,7 @@ The desktop (`javase`) and web modules are not maintained here; see
 
 ```kotlin
 dependencies {
+  // Brings the decoder (io.github.kakakakacat.zxing:zxing-core) with it.
   implementation("io.github.kakakakacat.zxing:zxing-android-scanner:0.1.0")
 }
 ```
@@ -38,7 +39,7 @@ Repository setup (GitHub Packages or JitPack) is in
 [docs/maint/PUBLISHING.md](docs/maint/PUBLISHING.md).
 
 ```xml
-<com.google.zxing.client.android.scanner.ScannerView
+<io.github.kakakakacat.zxing.android.scanner.ScannerView
     android:id="@+id/scanner_view"
     android:layout_width="match_parent"
     android:layout_height="match_parent"/>
@@ -179,6 +180,31 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       compatibility, APK size, startup latency and maintenance cost
 - [ ] If adopted: preview, ROI, result points and screen-coordinate mapping verified
 
+## Namespace and independence
+
+Everything this project ships lives under `io.github.kakakakacat.zxing`, including the
+decoder. Nothing at runtime depends on an upstream ZXing artifact.
+
+That namespace move is not cosmetic. Publishing a second artifact whose classes are
+named `com.google.zxing.*` would break any consumer that also had upstream core on its
+classpath — directly or pulled in by some other barcode library — with
+`Duplicate class com.google.zxing.BarcodeFormat found in modules ...`. Moving the
+package makes the two coexist.
+
+The cost is real and worth stating: `Result`, `BarcodeFormat` and the rest are
+`io.github.kakakakacat.zxing.*` types, so they are **not** interchangeable with
+`com.google.zxing.*` types from other libraries. Code that needs to hand a result to
+something else ZXing-based has to convert at the boundary.
+
+Upstream fixes are still reachable:
+`tools/maint/sync-core-from-upstream.sh` pulls fresh core sources from `zxing/zxing` and
+re-applies this namespace mechanically, so a sync is a reviewable diff rather than a
+merge that conflicts on every package line.
+
+**The Intent contract is deliberately unchanged.** `com.google.zxing.client.android.SCAN`
+and friends are action *strings*, not class names; renaming them would break fifteen
+years of callers and buy nothing.
+
 ## Known problems right now
 
 | ID | Problem | Where |
@@ -191,6 +217,7 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 | — | No performance numbers exist yet for any layer | all |
 | — | Only one device has been tested: Android 14, no GMS | all |
 | — | Maven Central publishing is not set up; GitHub Packages and JitPack only | release |
+| — | Decoder types are `io.github.kakakakacat.zxing.*`, so results cannot be passed straight to other ZXing-based libraries | AAR |
 
 ## Documentation
 

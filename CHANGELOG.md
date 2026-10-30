@@ -40,6 +40,9 @@ API may still change between minor versions.
   a screen that has already been torn down.
 - Compilation under current AGP: `switch` over `R.id` no longer works, as R fields are not
   compile-time constants.
+- `layout-ldpi/capture.xml` still declared the pre-AAR `SurfaceView` and `ViewfinderView`,
+  so on an ldpi device `findViewById(R.id.scanner_view)` returned null and the capture
+  screen crashed on start.
 - **Android 15/16: the bottom status hint was invisible**, drawn under the gesture
   navigation bar once API 35 began enforcing edge-to-edge for targetSdk 35+.
 - **The decoded region now follows the viewfinder.** The crop was mapped from screen to
@@ -49,6 +52,19 @@ API may still change between minor versions.
   screens and running the activity in portrait.
 
 ### Changed
+- **Everything moved out of the `com.google.zxing` namespace** into
+  `io.github.kakakakacat.zxing`, the decoder included, and `applicationId` is now
+  `io.github.kakakakacat.zxing.android`. Publishing classes named `com.google.zxing.*`
+  from a second groupId would break any consumer that also resolved upstream core with
+  `Duplicate class ... found in modules`. The cost: decoder types are this fork's own and
+  are not interchangeable with upstream's. The **Intent contract is unchanged** —
+  `com.google.zxing.client.android.SCAN` and friends are strings naming a protocol.
+  `tools/maint/sync-core-from-upstream.sh` keeps upstream core syncs a reviewable diff.
+- `ShareActivity` targets this app's own encoder instead of the hardcoded upstream
+  package, which in a fork would have handed the share flow to a different app or to
+  nothing at all.
+- `IntentIntegrator` separates the action namespace from the package to launch, and
+  lists this fork's app in `TARGET_ALL_KNOWN`.
 - `core` is built from source (3.5.5-SNAPSHOT) instead of the pin to 3.3.3 that upstream's
   `android/pom.xml` carried. The app gains seven years of decoder fixes; this is the
   largest behavioural change in the fork.
