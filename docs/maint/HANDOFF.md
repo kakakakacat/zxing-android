@@ -111,6 +111,9 @@ Ordered as the user asked for it. The README carries the same list as tickboxes.
 
 ### Next up — Phase 4, L2 before any optimisation
 
+The method, the layers and the gates are now written down in `docs/maint/BENCHMARKS.md`;
+the section numbers quoted below point into it.
+
 The point of doing this first: the native-decoder work in Phase 5 cannot be judged
 without a frame-pipeline baseline. Building it after the optimisation would be writing
 the scoreboard after the game.

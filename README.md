@@ -153,6 +153,8 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 
 ### Phase 4 — measurement before optimisation
 
+- [x] Measurement method, layers and comparison gates written down
+      ([BENCHMARKS.md](docs/maint/BENCHMARKS.md)) — before the numbers, on purpose
 - [x] Versioned dataset manifest (1168 licensed source images, SHA-256 per sample)
 - [x] L1 correctness/timing runner on the host JVM
 - [ ] L2 Android frame-pipeline benchmark (AndroidX Microbenchmark)

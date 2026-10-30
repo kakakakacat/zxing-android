@@ -24,6 +24,10 @@ API may still change between minor versions.
   samples through the device's own ART.
 - Benchmark groundwork: a versioned dataset manifest over the 1168 licensed blackbox
   images in `core/`, and `:benchmark-jvm`, an L1 correctness/timing runner.
+- `docs/maint/BENCHMARKS.md`: the measurement standard — four layers, dataset and device
+  rules, statistics, result schema, and the pass / fail / **inconclusive** gates a
+  comparison has to clear. Written before the harness, so the method cannot be fitted to
+  the numbers.
 - CI: assemble + test + lint on every push, instrumentation tests on API 21/34/35/36
   emulators, and a tagged release workflow that publishes to GitHub Packages.
 
