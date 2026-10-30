@@ -40,6 +40,13 @@ API may still change between minor versions.
   a screen that has already been torn down.
 - Compilation under current AGP: `switch` over `R.id` no longer works, as R fields are not
   compile-time constants.
+- **Android 15/16: the bottom status hint was invisible**, drawn under the gesture
+  navigation bar once API 35 began enforcing edge-to-edge for targetSdk 35+.
+- **The decoded region now follows the viewfinder.** The crop was mapped from screen to
+  frame coordinates with independent x/y ratios, which ignores the rotation applied to
+  the preview and the front camera's mirroring. Only correct at rotation 0 — which is all
+  upstream ever hit, until Android 16 started ignoring `screenOrientation` on large
+  screens and running the activity in portrait.
 
 ### Changed
 - `core` is built from source (3.5.5-SNAPSHOT) instead of the pin to 3.3.3 that upstream's

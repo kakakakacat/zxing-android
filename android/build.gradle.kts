@@ -28,10 +28,12 @@ android {
       manifest.srcFile("AndroidManifest.xml")
       resources.setSrcDirs(emptyList<String>())
     }
+    // The app has no tests of its own yet; the pipeline is covered by :scanner's
+    // unit and instrumentation tests. Point these at paths that do not exist so the
+    // legacy layout above cannot accidentally be picked up as test sources.
     getByName("androidTest") {
       java.setSrcDirs(listOf("src-androidTest/java"))
       res.setSrcDirs(emptyList<String>())
-      manifest.srcFile("src-androidTest/AndroidManifest.xml")
     }
     getByName("test") {
       java.setSrcDirs(listOf("src-test/java"))

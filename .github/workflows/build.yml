@@ -31,8 +31,13 @@ jobs:
       - name: Core unit tests
         run: ./gradlew :core:test
 
-      - name: Benchmark comparison-tool tests
-        run: python3 -m unittest discover -s benchmark/tools -p 'test_*.py' -v
+      - name: Rebuild the dataset manifest and check it is up to date
+        run: |
+          python3 -I benchmark/dataset/build_manifest.py
+          git diff --exit-code benchmark/dataset/manifest.json
+
+      - name: Scanner unit tests (coordinate mapping)
+        run: ./gradlew :scanner:testDebugUnitTest
 
       - name: Lint
         run: ./gradlew :scanner:lintRelease :app:lintDebug

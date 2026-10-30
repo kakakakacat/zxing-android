@@ -125,12 +125,16 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 
 ### Phase 2 — Android 15 / 16 compatibility
 
-- [ ] Edge-to-edge enforcement (API 35+): the viewfinder and status text must not sit
-      under the system bars
-- [ ] Orientation and resizability restrictions ignored on large screens (API 36):
-      `CaptureActivity` forces `sensorLandscape`
+- [x] **A-17** Edge-to-edge enforcement (API 35+): the status hint no longer sits under
+      the gesture navigation bar — reproduced and fixed, verified on API 35 and 36
+- [x] **A-13** The decoded region now follows the viewfinder through the display-to-camera
+      rotation and front-camera mirroring — 9 unit tests, reproduced on API 36
+- [ ] **A-16** Android 16 ignores `screenOrientation` on large screens, so the
+      landscape-designed capture UI runs portrait. Crop mapping is fixed; the layout and
+      the framing rect shape still assume landscape
 - [ ] Predictive back
-- [ ] Instrumentation suite green on API 35 and API 36 emulators
+- [x] App launches, previews and survives on API 35 and API 36 emulators
+- [ ] Instrumentation suite run on API 35 and API 36 in CI (workflow written, not yet run)
 - [ ] Verified on a physical Android 15 or 16 device *(no such device available here —
       will stay unticked until one is)*
 
@@ -145,8 +149,6 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 - [ ] **A-10** App-share picker and the browser special case are hit by Android 11
       package visibility
 - [ ] **A-12** Ambient-light torch control rebuilds the autofocus manager on every toggle
-- [ ] **A-13** Framing rect maps screen→preview by independent x/y ratios, so the scan
-      region drifts from the drawn viewfinder when aspect ratios differ
 
 ### Phase 4 — measurement before optimisation
 
@@ -185,7 +187,7 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 | A-08 | Scanning a `WIFI:` barcode silently does nothing on Android 10+ | app |
 | A-09 | In-app book search fails; cleartext HTTP is blocked | app |
 | A-10 | "Share → App" picker is mostly empty on Android 11+ | app |
-| — | Android 15 / 16 behaviour is **unverified**; edge-to-edge and large-screen orientation are expected to need work | app |
+| A-16 | On a large screen, Android 16 forces the landscape-designed capture UI into portrait | app |
 | — | No performance numbers exist yet for any layer | all |
 | — | Only one device has been tested: Android 14, no GMS | all |
 | — | Maven Central publishing is not set up; GitHub Packages and JitPack only | release |
