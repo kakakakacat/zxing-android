@@ -32,8 +32,11 @@ import com.google.zxing.client.android.result.ResultHandlerFactory;
 import com.google.zxing.client.android.result.supplement.SupplementalInfoRetriever;
 import com.google.zxing.client.android.share.ShareActivity;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
@@ -42,11 +45,14 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.content.pm.PackageManager;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.preference.PreferenceManager;
+import android.provider.Settings;
 import android.util.Log;
 import android.util.TypedValue;
 import android.view.KeyEvent;
@@ -88,6 +94,7 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
   private static final String[] ZXING_URLS = { "http://zxing.appspot.com/scan", "zxing://scan/" };
 
   private static final int HISTORY_REQUEST_CODE = 0x0000bacc;
+  private static final int CAMERA_PERMISSION_REQUEST_CODE = 0x0000cafe;
 
   private static final Collection<ResultMetadataType> DISPLAYABLE_METADATA_TYPES =
       EnumSet.of(ResultMetadataType.ISSUE_NUMBER,
@@ -114,6 +121,10 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
   private InactivityTimer inactivityTimer;
   private BeepManager beepManager;
   private AmbientLightManager ambientLightManager;
+  /** True between asking for CAMERA and the user answering, so we ask exactly once. */
+  private boolean awaitingCameraPermission;
+  /** Set when the user answered "no", so onResume explains instead of asking again. */
+  private boolean cameraPermissionDenied;
 
   ViewfinderView getViewfinderView() {
     return viewfinderView;
@@ -257,11 +268,84 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
     if (hasSurface) {
       // The activity was paused but not stopped, so the surface still exists. Therefore
       // surfaceCreated() won't be called, so init the camera here.
-      initCamera(surfaceHolder);
+      maybeInitCamera(surfaceHolder);
     } else {
       // Install the callback and wait for surfaceCreated() to init the camera.
       surfaceHolder.addCallback(this);
     }
+  }
+
+  private boolean hasCameraPermission() {
+    return Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
+        checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+  }
+
+  /**
+   * Opens the camera if we are allowed to. Otherwise asks for CAMERA once, and explains
+   * the situation if the user says no. Without this the app used to call
+   * {@link android.hardware.Camera#open} regardless, get a RuntimeException from the camera
+   * service, and tell the user to restart their device.
+   */
+  private void maybeInitCamera(SurfaceHolder surfaceHolder) {
+    if (hasCameraPermission()) {
+      initCamera(surfaceHolder);
+      return;
+    }
+    if (cameraPermissionDenied) {
+      cameraPermissionDenied = false;
+      displayCameraPermissionDeniedAndExit();
+      return;
+    }
+    if (!awaitingCameraPermission) {
+      awaitingCameraPermission = true;
+      requestPermissions(new String[] { Manifest.permission.CAMERA }, CAMERA_PERMISSION_REQUEST_CODE);
+    }
+  }
+
+  @Override
+  public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    if (requestCode != CAMERA_PERMISSION_REQUEST_CODE) {
+      super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+      return;
+    }
+    awaitingCameraPermission = false;
+    // Remember the refusal only; onResume runs next and drives the camera either way.
+    cameraPermissionDenied =
+        grantResults.length == 0 || grantResults[0] != PackageManager.PERMISSION_GRANTED;
+  }
+
+  /**
+   * Distinguishes "not now" from "don't ask again": in the latter case the only way back
+   * is the system settings screen, so offer it rather than leaving a dead end.
+   */
+  private void displayCameraPermissionDeniedAndExit() {
+    boolean canAskAgain = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+        shouldShowRequestPermissionRationale(Manifest.permission.CAMERA);
+    AlertDialog.Builder builder = new AlertDialog.Builder(this);
+    builder.setTitle(getString(R.string.app_name));
+    builder.setMessage(canAskAgain ? R.string.msg_camera_permission_denied
+                                   : R.string.msg_camera_permission_denied_permanently);
+    if (canAskAgain) {
+      builder.setPositiveButton(R.string.button_ok, new FinishListener(this));
+    } else {
+      builder.setPositiveButton(R.string.button_open_settings, new DialogInterface.OnClickListener() {
+        @Override
+        public void onClick(DialogInterface dialog, int which) {
+          Intent intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                     Uri.fromParts("package", getPackageName(), null));
+          intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+          try {
+            startActivity(intent);
+          } catch (ActivityNotFoundException anfe) {
+            Log.w(TAG, "No settings activity to open", anfe);
+          }
+          finish();
+        }
+      });
+      builder.setNegativeButton(R.string.button_cancel, new FinishListener(this));
+    }
+    builder.setOnCancelListener(new FinishListener(this));
+    builder.show();
   }
 
   private int getCurrentOrientation() {
@@ -415,7 +499,7 @@ public final class CaptureActivity extends Activity implements SurfaceHolder.Cal
     }
     if (!hasSurface) {
       hasSurface = true;
-      initCamera(holder);
+      maybeInitCamera(holder);
     }
   }
 
