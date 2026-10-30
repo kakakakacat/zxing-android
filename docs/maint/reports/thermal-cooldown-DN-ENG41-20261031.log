@@ -1,0 +1,54 @@
+# Passive cooldown of DN-ENG41 on AC power, 2026-10-31 00:30-01:15
+#
+# Taken after a reboot, with the device idle and plugged in, to test whether a cold
+# device clears its 40.0 C skin throttling threshold. It does not: 45 minutes, one
+# sample a minute, Thermal Status 3 (SEVERE) throughout.
+#
+# Sensor A reported 47.207 for all 45 samples - one distinct value, never updated.
+# Sensor B decayed normally and floored at exactly 40.0, the threshold itself.
+#
+00:30:31 skin=[47.207 42.383  ] Thermal Status: 3
+00:31:32 skin=[47.207 42.151  ] Thermal Status: 3
+00:32:33 skin=[47.207 42.034  ] Thermal Status: 3
+00:33:33 skin=[47.207 41.86  ] Thermal Status: 3
+00:34:34 skin=[47.207 41.802  ] Thermal Status: 3
+00:35:35 skin=[47.207 41.627  ] Thermal Status: 3
+00:36:35 skin=[47.207 41.511  ] Thermal Status: 3
+00:37:36 skin=[47.207 41.395  ] Thermal Status: 3
+00:38:37 skin=[47.207 41.279  ] Thermal Status: 3
+00:39:37 skin=[47.207 41.22  ] Thermal Status: 3
+00:40:38 skin=[47.207 41.104  ] Thermal Status: 3
+00:41:39 skin=[47.207 41.046  ] Thermal Status: 3
+00:42:39 skin=[47.207 40.988  ] Thermal Status: 3
+00:43:40 skin=[47.207 40.93  ] Thermal Status: 3
+00:44:41 skin=[47.207 40.93  ] Thermal Status: 3
+00:45:41 skin=[47.207 40.813  ] Thermal Status: 3
+00:46:42 skin=[47.207 40.697  ] Thermal Status: 3
+00:47:43 skin=[47.207 40.697  ] Thermal Status: 3
+00:48:43 skin=[47.207 40.813  ] Thermal Status: 3
+00:49:44 skin=[47.207 40.697  ] Thermal Status: 3
+00:50:45 skin=[47.207 40.581  ] Thermal Status: 3
+00:51:45 skin=[47.207 40.523  ] Thermal Status: 3
+00:52:46 skin=[47.207 40.465  ] Thermal Status: 3
+00:53:47 skin=[47.207 40.406  ] Thermal Status: 3
+00:54:48 skin=[47.207 40.348  ] Thermal Status: 3
+00:55:48 skin=[47.207 40.406  ] Thermal Status: 3
+00:56:49 skin=[47.207 40.29  ] Thermal Status: 3
+00:57:50 skin=[47.207 40.232  ] Thermal Status: 3
+00:58:50 skin=[47.207 40.232  ] Thermal Status: 3
+00:59:51 skin=[47.207 40.232  ] Thermal Status: 3
+01:00:52 skin=[47.207 40.232  ] Thermal Status: 3
+01:01:52 skin=[47.207 40.174  ] Thermal Status: 3
+01:02:53 skin=[47.207 40.116  ] Thermal Status: 3
+01:03:54 skin=[47.207 40.116  ] Thermal Status: 3
+01:04:54 skin=[47.207 40.116  ] Thermal Status: 3
+01:05:55 skin=[47.207 40.116  ] Thermal Status: 3
+01:06:56 skin=[47.207 40.116  ] Thermal Status: 3
+01:07:56 skin=[47.207 40.058  ] Thermal Status: 3
+01:08:57 skin=[47.207 40.058  ] Thermal Status: 3
+01:09:58 skin=[47.207 40.058  ] Thermal Status: 3
+01:10:58 skin=[47.207 40.058  ] Thermal Status: 3
+01:11:59 skin=[47.207 40.0  ] Thermal Status: 3
+01:13:00 skin=[47.207 40.0  ] Thermal Status: 3
+01:14:00 skin=[47.207 40.0  ] Thermal Status: 3
+01:15:01 skin=[47.207 40.0  ] Thermal Status: 3

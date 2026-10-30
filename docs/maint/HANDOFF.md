@@ -106,15 +106,23 @@ latency, first-scan latency, CPU, memory, GC or power.
    throttling, and the result records `THROTTLE_WAIT_DISABLED`. Full matrix: 11 hours
    with the wait, 40 minutes without, same thermal state either way.
 
-   **Do not read that as "this device is permanently SEVERE".** During the session one
-   skin sensor sat at exactly 40.116 for over twenty minutes without moving, which looked
-   like a pinned value and led to that conclusion. It did not survive a reboot: both
-   sensors then reported ordinary varying numbers (47.2 and 48.6 after two hours of
-   load). So the stuck reading was a runtime anomaly, not a fixed configuration, and
-   **whether a genuinely cold device gets below 40 °C skin has never been tested.** It is
-   worth testing, because it is the cheapest route to a baseline with no thermal warning
-   at all: unplug the phone, let it cool properly, and run the hd/default slice from
-   cold.
+   **Tested, and on AC power at rest it does not clear the threshold.** Evidence:
+   `reports/thermal-cooldown-DN-ENG41-20261031.log` — rebooted, idle, plugged in, one
+   sample a minute for 45 minutes. `Thermal Status: 3` for all 45 samples.
+
+   Two things that log settles, because both were guessed at wrongly in between:
+
+   - **One skin sensor pins and stops updating.** It read 47.207 for all 45 samples —
+     one distinct value in 45 minutes. Before the reboot it had been pinned at 40.116.
+     So this is reproducible behaviour and not a one-off, and it is not a configured
+     constant either: 40.116 turns out to be a point on the *other* sensor's cooling
+     curve, so the pinned sensor had frozen at a real value it passed through.
+   - **The other sensor decays normally and floors at exactly 40.0** — 42.383, 41.511,
+     40.988, 40.813, 40.348, 40.232, 40.116, 40.0 — and then sits on the threshold
+     value itself and stops.
+
+   What is still untested is the device physically unplugged and actively cooled, which
+   needs hands. Everything reachable over adb has been tried.
 4. **A Microbenchmark run stalls when the screen goes off.** `IsolationActivity` stops
    making progress and says nothing: no failure, no timeout, the process just stops using
    CPU. DN-ENG41 locked seven minutes into the first L2 run and sat there. Run
@@ -201,17 +209,25 @@ either `THERMAL_THROTTLE` or `THROTTLE_WAIT_DISABLED`, because the device was ho
 whole session. `compare.py` blocks on both, so **every comparison against these baselines
 is `inconclusive` by default**.
 
-**Try the cheap thing first**: unplug the phone, let it cool properly, and run the
-hd/default slice from cold. Trap 3 explains why this is now worth doing — the belief that
-the device is permanently SEVERE rested on a sensor reading that turned out to be a
-runtime anomaly. If a cold device clears 40 °C, the warning disappears and the question
-answers itself for 72 minutes of machine time and no judgement calls.
+**The cheap way out was tried and it failed.** Letting the device cool on AC for 45
+minutes does not clear the 40 °C skin threshold; it asymptotes on the threshold and stays
+at `Thermal Status: 3` (trap 3, with the log). So the remaining options are:
 
-If that fails, the honest options are to accept that results from this device always
-carry a thermal warning and read them with `--accept-noise-warnings`, which records the
-waiver in every output file, or to amend §10.6 to say the warning may be read through on
-this device. Raising the vendor thermal thresholds is not one of them — see the decisions
-above.
+1. **Unplug it and cool it physically**, then run the hd/default slice from cold. This is
+   the only untried route that could produce a baseline with no thermal warning at all,
+   and it needs hands — nothing reachable over adb is left.
+2. **Accept the warning** and read these results with `--accept-noise-warnings`, which
+   records the waiver in every output file it writes.
+3. **Amend §10.6** to say that on this device the thermal warning may be read through,
+   with the reasoning written down.
+
+Raising the vendor thermal thresholds is not one of them — see the decisions above.
+
+Worth weighing against option 1: the measured effect floor is 3% for the cases that
+matter, and it was measured *under* this thermal state across two full matrices. So the
+throttling is not obviously costing resolution — it is costing the right to call a result
+a result. That is an argument for option 3 over spending much effort on option 1, but it
+is an argument, not a decision.
 
 **One finding worth carrying into Phase 5.** The full matrix shows the cost of a frame is
 dominated by how many formats the reader is asked to try, far more than by resolution.

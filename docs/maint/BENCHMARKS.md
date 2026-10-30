@@ -574,16 +574,26 @@ waits — 270 s before every benchmark, 67 of the first baseline's 72 minutes, a
 cools — or the wait is switched off and the result says so. Either way a warning is
 carried, and every comparison against these baselines is `inconclusive` by default.
 
-**A correction, and a cheap thing to try.** This section previously said the device is at
-SEVERE *at rest* and never leaves it. That was inferred from one skin sensor reading
-exactly 40.116 for over twenty minutes without moving, which looked like a pinned value.
-It did not survive a reboot: both sensors then reported ordinary varying numbers. The
-stuck reading was a runtime anomaly rather than a fixed configuration, and the device had
-in any case been under benchmark load for hours. **Whether a cold DN-ENG41 sits below
-40 °C has never been tested.** Unplugging it, letting it cool and running the hd/default
-slice from cold is a 72-minute experiment that might remove the thermal warning from this
-fork's baselines entirely, and it should be tried before anyone considers waiving the
-warning or amending the gate.
+**Measured, after two wrong guesses.** This section first asserted the device is at
+SEVERE at rest and never leaves it, inferred from a sensor reading that looked pinned.
+It was then corrected to say that reading was a runtime anomaly which a reboot cleared.
+Both were guesses; here is the measurement.
+
+Rebooted, idle, on AC, one sample a minute for 45 minutes
+(`reports/thermal-cooldown-DN-ENG41-20261031.log`): `Thermal Status: 3` for all 45
+samples. One skin sensor reported 47.207 every single time — so the pinning is real and
+reproducible, and it re-pins at a different value after a reboot. The other decayed
+normally (42.383 → 41.511 → 40.988 → 40.813 → 40.348 → 40.232 → 40.116 → 40.0) and then
+sat on 40.0, the threshold itself, and stopped. Incidentally that explains the earlier
+40.116: it is a point on this cooling curve, so the pinned sensor had frozen at a real
+value rather than reporting a configured constant.
+
+**So passive cooling over adb does not clear the threshold.** The device unplugged and
+physically cooled is the one route left that might, and it needs hands. The alternative
+is to accept that results from this device carry a thermal warning and decide, in §10.6,
+whether that warning may be read through — noting that the effect floor of 3% was itself
+measured under this thermal state, so the throttling is costing the right to call a
+result a result rather than obviously costing resolution.
 
 The tool separates the two kinds of warning rather than quietly softening the rule:
 
