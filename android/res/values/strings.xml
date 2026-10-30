@@ -65,6 +65,8 @@
   <string name="msg_camera_permission_rationale">Barcode Scanner needs the camera to read barcodes. It does not use the camera for anything else.</string>
   <string name="msg_camera_permission_denied">Barcode Scanner cannot scan without camera access. Grant the camera permission and try again.</string>
   <string name="msg_camera_permission_denied_permanently">Camera access is turned off for Barcode Scanner. Turn it on in Settings &#8594; Permissions to scan barcodes.</string>
+  <string name="msg_camera_none">This device has no camera that Barcode Scanner can use.</string>
+  <string name="msg_camera_unavailable">The camera could not be opened. Another app may be using it. Close it and try again.</string>
   <string name="msg_camera_framework_bug">Sorry, the Android camera encountered a problem. You may need to restart the device.</string>
   <string name="msg_default_format">Format</string>
   <string name="msg_default_meta">Metadata</string>

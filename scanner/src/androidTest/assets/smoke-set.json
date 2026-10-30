@@ -1,0 +1,256 @@
+{
+ "note": "Deterministic pass set: every sample here decodes correctly at the B0 baseline with default hints and no rotation (see docs/maint/BENCHMARKS.md). Samples that do not decode at baseline are hard samples, not bugs, and are kept in the full dataset rather than being dropped.",
+ "derived_from": {
+  "layer": "L1",
+  "config": "DEFAULT",
+  "dataset_hash": "e8d584f33612f641ed5e400692947a7b8911f6c8457bc02e5d2f912d4c16a5a4",
+  "commit": "16c44927d"
+ },
+ "samples": [
+  {
+   "sample_id": "aztec-1/7",
+   "file": "aztec-1__7.png",
+   "expected_format": "AZTEC",
+   "expected_text": "Code 2D!",
+   "sha256": "60e470e448449629174f605a0a05c273d158d0548ec6070e49ad25dd9e1fa60f"
+  },
+  {
+   "sample_id": "aztec-1/dlusbs",
+   "file": "aztec-1__dlusbs.png",
+   "expected_format": "AZTEC",
+   "expected_text": "3333h3i3jITIT",
+   "sha256": "9549457445725dfea43a4af239fc4c509ddfc711ab7bbd5a48b7bad826be98e0"
+  },
+  {
+   "sample_id": "codabar-1/14",
+   "file": "codabar-1__14.png",
+   "expected_format": "CODABAR",
+   "expected_text": "31117013206375",
+   "sha256": "4f84f8842b2dc976ab8d13cbba88d5f44ae36a23d430093cf83071a9a19507aa"
+  },
+  {
+   "sample_id": "codabar-1/04",
+   "file": "codabar-1__04.png",
+   "expected_format": "CODABAR",
+   "expected_text": "123455",
+   "sha256": "2fb7ad891423ab931c26e384a13f9f8e4d3530a1f638148ffb814544660b4c0a"
+  },
+  {
+   "sample_id": "code128-1/6",
+   "file": "code128-1__6.png",
+   "expected_format": "CODE_128",
+   "expected_text": "\u00f3\u00f3\u00f3\u00f31234\u00f3\u00f3ab\u00f3zz",
+   "sha256": "4d53014ad5600e04f680a1f3ed38da360ec1c7c4ba779b5f1d20d0677403033c"
+  },
+  {
+   "sample_id": "code128-3/1",
+   "file": "code128-3__1.png",
+   "expected_format": "CODE_128",
+   "expected_text": "10064908",
+   "sha256": "12a87b8dae3e9d229507867ede5a627af14a18a6fd960ad053c1d4f090edda81"
+  },
+  {
+   "sample_id": "code39-1/3",
+   "file": "code39-1__3.png",
+   "expected_format": "CODE_39",
+   "expected_text": "MOROVIA",
+   "sha256": "dc06d76a28db293e8bcc574246c110f75934432d9fba80a1ff2a387f57b46009"
+  },
+  {
+   "sample_id": "code39-1/4",
+   "file": "code39-1__4.png",
+   "expected_format": "CODE_39",
+   "expected_text": "ABC123",
+   "sha256": "b7f7dd951b5f13d70c2d4472a3e5e162c0908b7889537e0ed36a1e06466a50c5"
+  },
+  {
+   "sample_id": "code93-1/1",
+   "file": "code93-1__1.png",
+   "expected_format": "CODE_93",
+   "expected_text": "1234567890",
+   "sha256": "6c99838fa4abaf32c4aba6ef761ca77b72c87bee3f934dc972b074661f794f39"
+  },
+  {
+   "sample_id": "code93-1/3",
+   "file": "code93-1__3.png",
+   "expected_format": "CODE_93",
+   "expected_text": "DATA",
+   "sha256": "5d5a2ef27b7558cbd07849e3f160bf75ed77242f59f7499415d09189f950de01"
+  },
+  {
+   "sample_id": "datamatrix-3/abcd-48x8",
+   "file": "datamatrix-3__abcd-48x8.png",
+   "expected_format": "DATA_MATRIX",
+   "expected_text": "abcdefghijklmnopqrstuvwxy",
+   "sha256": "ea31c351cff408631919c75c47e89feb83b13eb27ba4c6eab3fb4f203a49f553"
+  },
+  {
+   "sample_id": "datamatrix-3/abcd-36x20",
+   "file": "datamatrix-3__abcd-36x20.png",
+   "expected_format": "DATA_MATRIX",
+   "expected_text": "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijkl",
+   "sha256": "cf8b46087166190705940f3f6ec9af8af63890bdce7e3614de178ea3aa10b2bc"
+  },
+  {
+   "sample_id": "ean13-3/01",
+   "file": "ean13-3__01.png",
+   "expected_format": "EAN_13",
+   "expected_text": "9780764544200",
+   "sha256": "42bde3cb14b6f7c194413af1341974be78701cc48cd6b41340bf0c8363c84d27"
+  },
+  {
+   "sample_id": "ean13-3/02",
+   "file": "ean13-3__02.png",
+   "expected_format": "EAN_13",
+   "expected_text": "9780764544200",
+   "sha256": "f09593f31814a07f047bc2f4e4a789556078856a810e44beb17f8817a5d5b6b2"
+  },
+  {
+   "sample_id": "ean8-1/3",
+   "file": "ean8-1__3.png",
+   "expected_format": "EAN_8",
+   "expected_text": "12345670",
+   "sha256": "79231ac206b80489019d7343e79d1efd418a44bd7f10150bf60efbb34b857d0e"
+  },
+  {
+   "sample_id": "ean8-1/8",
+   "file": "ean8-1__8.png",
+   "expected_format": "EAN_8",
+   "expected_text": "55123457",
+   "sha256": "a32b3a89c61ccd8d07f6b2dd28328d5d5e83db6b05b4fed20a3592aa98fa2f51"
+  },
+  {
+   "sample_id": "itf-1/6",
+   "file": "itf-1__6.png",
+   "expected_format": "ITF",
+   "expected_text": "0829220874",
+   "sha256": "97ce38049d042e3bc6996e86ceeb9d5ed7ea67d6fa4919fe00dcb855d3e7eb42"
+  },
+  {
+   "sample_id": "itf-1/1",
+   "file": "itf-1__1.png",
+   "expected_format": "ITF",
+   "expected_text": "30712345000010",
+   "sha256": "b5e77ebf242658012777405b7e3e4f73d796bef2c1b6758692ef1baf03ae4eff"
+  },
+  {
+   "sample_id": "maxicode-1/mode4-mixed-sets",
+   "file": "maxicode-1__mode4-mixed-sets.png",
+   "expected_format": "MAXICODE",
+   "expected_text": "ABCDE12abcde1\u00c0\u00c1\u00c2\u00c3\u00a2\u00a3\u00a4\u00a51\u00e0\u00e1\u00e2\u00e3abcde123A123456789\u00e0\u00e1\u00e2\u00e3\u00a2\u00a3\u00a4\u00a5abcd\u00da\u00db\u00dc\u00dd123456789\u00be",
+   "sha256": "6a6a9a50a6a0ae46e50a2f9167934ad3cd2732c640d82e1e3ad368190f38c603"
+  },
+  {
+   "sample_id": "maxicode-1/MODE3",
+   "file": "maxicode-1__MODE3.png",
+   "expected_format": "MAXICODE",
+   "expected_text": "[)>\u001e01\u001d96123450000\u001d222\u001d111\u001dMODE3",
+   "sha256": "118debb8878a8d871c27abf99c72a075148ad05dffdaeb52f42c3ce1ddab49dc"
+  },
+  {
+   "sample_id": "pdf417-1/04",
+   "file": "pdf417-1__04.png",
+   "expected_format": "PDF_417",
+   "expected_text": "-ActiveBarcode-ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+   "sha256": "c0e2e4a2981ca507cf6dffb3e4f812a2fef7bbbec7256dce1c82a0bc83e0b126"
+  },
+  {
+   "sample_id": "pdf417-1/05",
+   "file": "pdf417-1__05.png",
+   "expected_format": "PDF_417",
+   "expected_text": "-ActiveBarcode-ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890-ActiveBarcode-ABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890",
+   "sha256": "f88b2a2e07d692d68f409f7c1966b97f0ab59cb13e706e971ca1d94d330e8792"
+  },
+  {
+   "sample_id": "qrcode-2/32",
+   "file": "qrcode-2__32.png",
+   "expected_format": "QR_CODE",
+   "expected_text": "BEGIN:VCARD\r\nN:Kennedy;Steve\r\nTEL:+44 (0)7775 755503\r\nADR;HOME:;;Flat 2, 43 Howitt Road, Belsize Park;London;;NW34LU;UK\r\nORG:NetTek Ltd;\r\nTITLE:Consultant\r\nEMAIL:steve@nettek.co.uk\r\nURL:www.nettek.co.uk\r\nEMAIL;IM:MSN:steve@gbnet.net\r\nNOTE:Testing 1 2 3\r\nBDAY:19611105\r\nEND:VCARD",
+   "sha256": "09e1a453ff4d943395b591bce1a00c24ed453e34d412a424bb4871425f48814d"
+  },
+  {
+   "sample_id": "qrcode-2/10",
+   "file": "qrcode-2__10.png",
+   "expected_format": "QR_CODE",
+   "expected_text": "Google \u30e2\u30d0\u30a4\u30eb\r\nhttp://google.jp",
+   "sha256": "92723a6b541e0b08db1c5233b8768c227288ae5cab61b7bc01611d37ee827ae8"
+  },
+  {
+   "sample_id": "rss14-2/13",
+   "file": "rss14-2__13.png",
+   "expected_format": "RSS_14",
+   "expected_text": "02001234567893",
+   "sha256": "ababfc13a57a619988c361aab8ae6ec8fe0b44c5dbc47728d3e2e0c7d5cf83a6"
+  },
+  {
+   "sample_id": "rss14-2/24",
+   "file": "rss14-2__24.png",
+   "expected_format": "RSS_14",
+   "expected_text": "00012345678905",
+   "sha256": "68f49ccf7e84b5e334f7b3e6ea43f95d201cf134259d9facfa453bef8c951402"
+  },
+  {
+   "sample_id": "rssexpanded-1/25",
+   "file": "rssexpanded-1__25.png",
+   "expected_format": "RSS_EXPANDED",
+   "expected_text": "(10)123",
+   "sha256": "0f426c108fbfa219feb2e4a6a0318ffb8958dbca19e00c9f0ca2c3fd496f624a"
+  },
+  {
+   "sample_id": "rssexpanded-3/115",
+   "file": "rssexpanded-3__115.png",
+   "expected_format": "RSS_EXPANDED",
+   "expected_text": "(10)1",
+   "sha256": "c1bf4c7f35bd68b86aff18735a74af919961efab683c00f65d4a83c7b23e90b4"
+  },
+  {
+   "sample_id": "upca-2/03",
+   "file": "upca-2__03.png",
+   "expected_format": "UPC_A",
+   "expected_text": "890444000335",
+   "sha256": "7a841482238c535efb2d967e1108bb5b0b3d51f4966a1e55ebcc2e74874e276b"
+  },
+  {
+   "sample_id": "upca-2/07",
+   "file": "upca-2__07.png",
+   "expected_format": "UPC_A",
+   "expected_text": "890444000335",
+   "sha256": "9a905b56131007c37fe13636a641dff10c3462e207850d685e73f43116e97ceb"
+  },
+  {
+   "sample_id": "upce-1/4",
+   "file": "upce-1__4.png",
+   "expected_format": "UPC_E",
+   "expected_text": "01234531",
+   "sha256": "c0937b2ca2be6619acbb42c06922fdd09aed0a47065d27ffd3e38f0aa2bb4ce6"
+  },
+  {
+   "sample_id": "upce-1/2",
+   "file": "upce-1__2.png",
+   "expected_format": "UPC_E",
+   "expected_text": "00123457",
+   "sha256": "dea97a22a0412c59a8b6f15995602005dccbcfa420c3999cc7bfcf8658daaf85"
+  },
+  {
+   "sample_id": "inverted/datamatrix-0123456789",
+   "file": "inverted__datamatrix-0123456789.png",
+   "expected_format": null,
+   "expected_text": "0123456789",
+   "sha256": "420e37f8d7cd6a1ce65f1cc9df7a9e7417fad484f1376c76988742c8e3a2e342"
+  },
+  {
+   "sample_id": "falsepositives-2/01",
+   "file": "falsepositives-2__01.png",
+   "expected_format": null,
+   "expected_text": null,
+   "sha256": "1e99e694791f4e083bff9cb0ffe83a1b198875095d32adab1c832ebff8571cb9"
+  },
+  {
+   "sample_id": "falsepositives-2/02",
+   "file": "falsepositives-2__02.png",
+   "expected_format": null,
+   "expected_text": null,
+   "sha256": "cf39bd3a874f023c3506b4484c4fcbd0088548b526ca096854a587b1659da2c1"
+  }
+ ]
+}

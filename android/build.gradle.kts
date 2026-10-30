@@ -68,8 +68,8 @@ android {
 }
 
 dependencies {
-  implementation(project(":core"))
-  implementation(project(":android-core"))
+  // :scanner brings :core along as an api dependency.
+  implementation(project(":scanner"))
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
   testImplementation(libs.junit)

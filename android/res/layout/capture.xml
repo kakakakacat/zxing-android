@@ -17,12 +17,9 @@
 <merge xmlns:android="http://schemas.android.com/apk/res/android"
        xmlns:tools="http://schemas.android.com/tools">
 
-  <SurfaceView android:id="@+id/preview_view"
-               android:layout_width="fill_parent"
-               android:layout_height="fill_parent"/>
-
-  <com.google.zxing.client.android.ViewfinderView
-      android:id="@+id/viewfinder_view"
+  <!-- Preview surface, viewfinder overlay and decode loop all live in the AAR. -->
+  <com.google.zxing.client.android.scanner.ScannerView
+      android:id="@+id/scanner_view"
       android:layout_width="fill_parent"
       android:layout_height="fill_parent"/>
 

@@ -1,5 +1,5 @@
 // Gradle build for the Android side of this maintenance fork.
-// The upstream Maven build (pom.xml) is left untouched and still builds core/javase.
+// Gradle is the only build: :core is the decoder, :scanner is the AAR, :app is the Barcode Scanner app.
 pluginManagement {
   repositories {
     google()
@@ -18,12 +18,14 @@ dependencyResolutionManagement {
 rootProject.name = "zxing-android"
 
 include(":core")
-include(":android-core")
+include(":scanner")
 include(":android-integration")
 include(":app")
+include(":benchmark-jvm")
 
 // Upstream keeps these modules at their historical paths.
 project(":core").projectDir = file("core")
-project(":android-core").projectDir = file("android-core")
+project(":scanner").projectDir = file("scanner")
 project(":android-integration").projectDir = file("android-integration")
 project(":app").projectDir = file("android")
+project(":benchmark-jvm").projectDir = file("benchmark/jvm")
