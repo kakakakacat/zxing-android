@@ -48,6 +48,7 @@ import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
+import android.graphics.Insets;
 import android.graphics.Paint;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
@@ -69,6 +70,7 @@ import android.view.Surface;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
+import android.view.WindowInsets;
 import android.view.WindowManager;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -137,10 +139,52 @@ public final class CaptureActivity extends Activity implements ScannerView.Liste
     uiHandler = new Handler(Looper.getMainLooper());
     scannerView = (ScannerView) findViewById(R.id.scanner_view);
     scannerView.setListener(this);
+    applySystemBarInsets();
     inactivityTimer = new InactivityTimer(this);
     beepManager = new BeepManager(this);
 
     PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
+  }
+
+  /**
+   * Keeps the text and result panels clear of the system bars while the camera preview
+   * stays edge to edge.
+   *
+   * <p>Android 15 (API 35) enforces edge-to-edge for apps targeting 35+, so the status
+   * hint — laid out at bottom|center — ended up underneath the gesture navigation bar and
+   * was simply not visible. Verified on API 35 and 36 emulators: the inset frame starts
+   * at y=1017 of 1080 and the text occupied 1029..1080.
+   */
+  private void applySystemBarInsets() {
+    final View statusHint = findViewById(R.id.status_view);
+    final View resultPanel = findViewById(R.id.result_view);
+    View root = findViewById(android.R.id.content);
+    root.setOnApplyWindowInsetsListener(new View.OnApplyWindowInsetsListener() {
+      @Override
+      public WindowInsets onApplyWindowInsets(View v, WindowInsets insets) {
+        int left;
+        int top;
+        int right;
+        int bottom;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+          Insets bars = insets.getInsets(
+              WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+          left = bars.left;
+          top = bars.top;
+          right = bars.right;
+          bottom = bars.bottom;
+        } else {
+          left = insets.getSystemWindowInsetLeft();
+          top = insets.getSystemWindowInsetTop();
+          right = insets.getSystemWindowInsetRight();
+          bottom = insets.getSystemWindowInsetBottom();
+        }
+        statusHint.setPadding(left, statusHint.getPaddingTop(), right, bottom);
+        resultPanel.setPadding(left, top, right, bottom);
+        return insets;
+      }
+    });
+    root.requestApplyInsets();
   }
 
   @Override

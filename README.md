@@ -102,12 +102,101 @@ Verified on **Android 14 (API 34), DN-ENG41, no GMS**. Other versions are listed
 expected-to-work until they have been run; the current state of that matrix is in
 [docs/maint/AUDIT.md](docs/maint/AUDIT.md).
 
+## Status
+
+Ticked when the work is done **and verified**, with the evidence named. Items are the
+audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague intention.
+
+### Phase 1 — build and basic compatibility
+
+- [x] **A-03** Android modules build again (Gradle + AGP 9.4.1; upstream's Maven build was
+      gated on JDK < 9) — `./gradlew :app:assembleDebug` from a clean tree
+- [x] **A-04** Compiles under current AGP (`switch` over `R.id` removed)
+- [x] **A-02** Launcher icon and the externally-reachable activities work on API 31+
+      (`exported` fixed) — installed and launched on Android 14
+- [x] **A-01** `CAMERA` requested at runtime, with a real message on refusal and a route
+      into system settings when permanently denied — reproduced and re-verified on device
+- [x] **A-05** Dead permissions dropped (`FLASHLIGHT`, `READ_HISTORY_BOOKMARKS`,
+      `WRITE_EXTERNAL_STORAGE`)
+- [x] Reusable scanning library extracted and published as an AAR
+- [x] 100× open/close stability loop: 0 crashes, 0 camera errors on Android 14
+      — [report](docs/maint/reports/stability-100-b0-DN-ENG41.log)
+- [x] Deterministic on-device decode test: 35 fixed frames, 16 formats, 0 false positives
+
+### Phase 2 — Android 15 / 16 compatibility
+
+- [ ] Edge-to-edge enforcement (API 35+): the viewfinder and status text must not sit
+      under the system bars
+- [ ] Orientation and resizability restrictions ignored on large screens (API 36):
+      `CaptureActivity` forces `sensorLandscape`
+- [ ] Predictive back
+- [ ] Instrumentation suite green on API 35 and API 36 emulators
+- [ ] Verified on a physical Android 15 or 16 device *(no such device available here —
+      will stay unticked until one is)*
+
+### Phase 3 — carried-forward defects
+
+- [ ] **A-06** History CSV export writes to the legacy external storage root; broken under
+      scoped storage since Android 10
+- [ ] **A-07** Share-barcode-as-image has the same problem
+- [ ] **A-08** Wi-Fi result handler cannot add networks on Android 10+
+- [ ] **A-09** Book search and several outbound links use cleartext `http://`, blocked
+      from targetSdk 28
+- [ ] **A-10** App-share picker and the browser special case are hit by Android 11
+      package visibility
+- [ ] **A-12** Ambient-light torch control rebuilds the autofocus manager on every toggle
+- [ ] **A-13** Framing rect maps screen→preview by independent x/y ratios, so the scan
+      region drifts from the drawn viewfinder when aspect ratios differ
+
+### Phase 4 — measurement before optimisation
+
+- [x] Versioned dataset manifest (1168 licensed source images, SHA-256 per sample)
+- [x] L1 correctness/timing runner on the host JVM
+- [ ] L2 Android frame-pipeline benchmark (AndroidX Microbenchmark)
+- [ ] L3 app/camera benchmark (Macrobenchmark) on a real device
+- [ ] L4 sustained-scanning CPU/memory/thermal run
+- [ ] Comparison tool with pass / fail / **inconclusive** verdicts and 95% intervals
+- [ ] B0 baseline results committed for every layer
+
+### Phase 5 — Kotlin and native decoding
+
+- [ ] Convert the maintained Android code to Kotlin, module by module, keeping the Java
+      API source-compatible
+- [ ] **zxing-cpp + ARM NEON** backend behind the existing decoder interface: CMake
+      building `arm64-v8a` / `armeabi-v7a`, shipped in the same AAR
+- [ ] Feed `ImageProxy` `YUV_420_888` straight to the decoder: honour `rowStride` /
+      `pixelStride`, crop to the scan region, no full-frame copy
+- [ ] API to enable/disable formats per scan, so the native reader does less work
+- [ ] 16 KB page-size alignment for the native libraries (required by Android 15+)
+- [ ] A/B the native backend against the Java one on the fixed dataset, then decide the
+      default. No speedup is claimed before that comparison exists
+
+### Phase 6 — camera backend
+
+- [ ] Decision record comparing Camera1 / Camera2 / CameraX on OS coverage, device
+      compatibility, APK size, startup latency and maintenance cost
+- [ ] If adopted: preview, ROI, result points and screen-coordinate mapping verified
+
+## Known problems right now
+
+| ID | Problem | Where |
+| --- | --- | --- |
+| A-06 / A-07 | History export and image sharing fail on Android 10+ (scoped storage) | app |
+| A-08 | Scanning a `WIFI:` barcode silently does nothing on Android 10+ | app |
+| A-09 | In-app book search fails; cleartext HTTP is blocked | app |
+| A-10 | "Share → App" picker is mostly empty on Android 11+ | app |
+| — | Android 15 / 16 behaviour is **unverified**; edge-to-edge and large-screen orientation are expected to need work | app |
+| — | No performance numbers exist yet for any layer | all |
+| — | Only one device has been tested: Android 14, no GMS | all |
+| — | Maven Central publishing is not set up; GitHub Packages and JitPack only | release |
+
 ## Documentation
 
 - [AUDIT.md](docs/maint/AUDIT.md) — what was found, with evidence levels, and what is fixed
 - [MIGRATION.md](docs/maint/MIGRATION.md) — what changed against upstream and why
 - [PUBLISHING.md](docs/maint/PUBLISHING.md) — releasing and consuming the AAR
 - [BENCHMARKS.md](docs/maint/BENCHMARKS.md) — how performance is measured, and what is not yet measured
+- [CHANGELOG.md](CHANGELOG.md) — release notes, one section per version
 
 ## Performance claims
 

@@ -67,15 +67,21 @@ jobs:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Release notes live in CHANGELOG.md; the Release quotes that section rather
+      # than keeping a second copy that can drift from it.
+      - name: Extract the release notes for this version
+        id: notes
+        run: |
+          python3 tools/maint/changelog_section.py \
+            --version "${{ steps.version.outputs.value }}" \
+            --changelog CHANGELOG.md > dist/RELEASE_NOTES.md
+          cat dist/RELEASE_NOTES.md
+
       - name: Create the GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: dist/*
-          generate_release_notes: true
-          body: |
-            Community maintenance build of the ZXing Android client.
-            Not an official ZXing release and not signed with the upstream key:
-            this APK cannot update the published Barcode Scanner app.
-
-            AAR coordinates (GitHub Packages):
-            `io.github.kakakakacat.zxing:zxing-android-scanner:${{ steps.version.outputs.value }}`
+          files: |
+            dist/*.aar
+            dist/*.apk
+            dist/SHA256SUMS.txt
+          body_path: dist/RELEASE_NOTES.md
