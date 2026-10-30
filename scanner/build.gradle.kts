@@ -45,6 +45,7 @@ dependencies {
   // `api`: callers handle com.google.zxing.Result and BarcodeFormat directly.
   api(project(":core"))
 
+  testImplementation(libs.junit)
   androidTestImplementation(libs.junit)
   androidTestImplementation(libs.androidx.test.runner)
   androidTestImplementation(libs.androidx.test.core)

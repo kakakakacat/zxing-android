@@ -274,18 +274,27 @@ public final class CameraManager {
       if (framingRect == null) {
         return null;
       }
-      Rect rect = new Rect(framingRect);
       Point cameraResolution = configManager.getCameraResolution();
       Point screenResolution = configManager.getScreenResolution();
-      if (cameraResolution == null || screenResolution == null) {
+      Point previewOnScreen = configManager.getPreviewSizeOnScreen();
+      if (cameraResolution == null || screenResolution == null || previewOnScreen == null) {
         // Called early, before init even finished
         return null;
       }
-      rect.left = rect.left * cameraResolution.x / screenResolution.x;
-      rect.right = rect.right * cameraResolution.x / screenResolution.x;
-      rect.top = rect.top * cameraResolution.y / screenResolution.y;
-      rect.bottom = rect.bottom * cameraResolution.y / screenResolution.y;
-      framingRectInPreview = rect;
+      // Upstream scaled x and y independently from screen size to camera resolution,
+      // which is only correct when the display-to-camera rotation is 0. See
+      // PreviewCoordinateMapper.
+      int[] box = PreviewCoordinateMapper.toFrameCoordinates(
+          framingRect.left, framingRect.top, framingRect.right, framingRect.bottom,
+          screenResolution.x, screenResolution.y,
+          previewOnScreen.x, previewOnScreen.y,
+          cameraResolution.x, cameraResolution.y,
+          configManager.getCWRotationFromDisplayToCamera(),
+          configManager.isMirrored());
+      if (box == null) {
+        return null;
+      }
+      framingRectInPreview = new Rect(box[0], box[1], box[2], box[3]);
     }
     return framingRectInPreview;
   }

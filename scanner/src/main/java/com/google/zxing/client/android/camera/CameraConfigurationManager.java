@@ -45,6 +45,7 @@ final class CameraConfigurationManager {
   private Point cameraResolution;
   private Point bestPreviewSize;
   private Point previewSizeOnScreen;
+  private boolean mirrored;
 
   CameraConfigurationManager(Context context, ScannerOptions options) {
     this.context = context;
@@ -93,6 +94,7 @@ final class CameraConfigurationManager {
       Log.i(TAG, "Front camera overriden to: " + cwRotationFromNaturalToCamera);
     }
 
+    mirrored = camera.getFacing() == CameraFacing.FRONT;
     cwRotationFromDisplayToCamera =
         (360 + cwRotationFromNaturalToCamera - cwRotationFromNaturalToDisplay) % 360;
     Log.i(TAG, "Final display orientation: " + cwRotationFromDisplayToCamera);
@@ -203,6 +205,16 @@ final class CameraConfigurationManager {
 
   int getCWNeededRotation() {
     return cwNeededRotation;
+  }
+
+  /** Clockwise rotation applied to frames for display, as passed to setDisplayOrientation. */
+  int getCWRotationFromDisplayToCamera() {
+    return cwRotationFromDisplayToCamera;
+  }
+
+  /** Front-facing previews are mirrored on screen, which the crop mapping has to undo. */
+  boolean isMirrored() {
+    return mirrored;
   }
 
   boolean getTorchState(Camera camera) {
