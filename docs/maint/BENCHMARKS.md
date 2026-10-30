@@ -568,12 +568,22 @@ reproducibility rather than speed. Both sides of a comparison pay the same price
 `unlockClocks` restores the device by rebooting it.
 
 **`THERMAL_THROTTLE` and `THROTTLE_WAIT_DISABLED` still do apply**, and they are the open
-question. DN-ENG41's skin throttling threshold is 40.0 °C, one skin sensor reads a
-constant 40.116 and the other sits around 46; the device is at thermal status SEVERE at
-rest and never leaves it. So either the harness waits — 270 s before every benchmark, 67
-of the first baseline's 72 minutes, and it never cools — or the wait is switched off and
-the result says so. Either way a warning is carried, and every comparison on this device
-is `inconclusive` by default.
+question. DN-ENG41's skin throttling threshold is 40.0 °C, and throughout the benchmarking
+session the skin sensors read around 46 °C and never came down. So either the harness
+waits — 270 s before every benchmark, 67 of the first baseline's 72 minutes, and it never
+cools — or the wait is switched off and the result says so. Either way a warning is
+carried, and every comparison against these baselines is `inconclusive` by default.
+
+**A correction, and a cheap thing to try.** This section previously said the device is at
+SEVERE *at rest* and never leaves it. That was inferred from one skin sensor reading
+exactly 40.116 for over twenty minutes without moving, which looked like a pinned value.
+It did not survive a reboot: both sensors then reported ordinary varying numbers. The
+stuck reading was a runtime anomaly rather than a fixed configuration, and the device had
+in any case been under benchmark load for hours. **Whether a cold DN-ENG41 sits below
+40 °C has never been tested.** Unplugging it, letting it cool and running the hd/default
+slice from cold is a 72-minute experiment that might remove the thermal warning from this
+fork's baselines entirely, and it should be tried before anyone considers waiving the
+warning or amending the gate.
 
 The tool separates the two kinds of warning rather than quietly softening the rule:
 

@@ -98,13 +98,23 @@ latency, first-scan latency, CPU, memory, GC or power.
    Without the lock every result carries `UNLOCKED_CLOCKS` and §10.6 blocks on it.
    **`unlockClocks` restores the device by rebooting it** — a phone left locked runs at
    1344 of 2400 MHz and will feel slow until someone reboots it.
-3. **The device is at thermal status SEVERE at rest and never leaves it.** Its skin
-   throttling threshold is 40.0 °C; one skin sensor reads a constant 40.116 and another
-   sits around 46. So Microbenchmark's cool-down wait never completes: it sleeps the
-   full 270 s before every benchmark and runs anyway. That was 67 of the first
-   baseline's 72 minutes. `-Pl2.throttleWait=0` switches the waiting off — not the
-   throttling — and the result records `THROTTLE_WAIT_DISABLED`. Full matrix: 11 hours
-   with the wait, 40 minutes without, and the same thermal state either way.
+3. **The device was at thermal status SEVERE for the whole benchmarking session, and
+   the cool-down wait never completed.** Its skin throttling threshold is 40.0 °C. Over
+   several hours of benchmarking the skin sensors read ~46 °C and never came down, so
+   Microbenchmark slept the full 270 s before every benchmark and ran anyway — 67 of the
+   first baseline's 72 minutes. `-Pl2.throttleWait=0` switches the waiting off, not the
+   throttling, and the result records `THROTTLE_WAIT_DISABLED`. Full matrix: 11 hours
+   with the wait, 40 minutes without, same thermal state either way.
+
+   **Do not read that as "this device is permanently SEVERE".** During the session one
+   skin sensor sat at exactly 40.116 for over twenty minutes without moving, which looked
+   like a pinned value and led to that conclusion. It did not survive a reboot: both
+   sensors then reported ordinary varying numbers (47.2 and 48.6 after two hours of
+   load). So the stuck reading was a runtime anomaly, not a fixed configuration, and
+   **whether a genuinely cold device gets below 40 °C skin has never been tested.** It is
+   worth testing, because it is the cheapest route to a baseline with no thermal warning
+   at all: unplug the phone, let it cool properly, and run the hd/default slice from
+   cold.
 4. **A Microbenchmark run stalls when the screen goes off.** `IsolationActivity` stops
    making progress and says nothing: no failure, no timeout, the process just stops using
    CPU. DN-ENG41 locked seven minutes into the first L2 run and sat there. Run
@@ -186,14 +196,22 @@ guess.
   against, but no workflow runs it. CI cannot produce a trustworthy timing on a shared
   runner, so this needs a decision about where candidate runs come from.
 
-**One open question, and it is the user's.** Every result from DN-ENG41 carries either
-`THERMAL_THROTTLE` or `THROTTLE_WAIT_DISABLED`, because the device sits at thermal status
-SEVERE at rest. `compare.py` blocks on both, so **every comparison against these baselines
-is `inconclusive` by default**. The honest options are: cool the device physically;
-accept that results from it always carry a thermal warning and read them with
-`--accept-noise-warnings`, which records the waiver in every output file; or amend §10.6
-to say that on this device that warning may be read through. Raising the vendor thermal
-thresholds is not one of them — see the decisions above.
+**One open question, and it is the user's.** Every result from DN-ENG41 so far carries
+either `THERMAL_THROTTLE` or `THROTTLE_WAIT_DISABLED`, because the device was hot for the
+whole session. `compare.py` blocks on both, so **every comparison against these baselines
+is `inconclusive` by default**.
+
+**Try the cheap thing first**: unplug the phone, let it cool properly, and run the
+hd/default slice from cold. Trap 3 explains why this is now worth doing — the belief that
+the device is permanently SEVERE rested on a sensor reading that turned out to be a
+runtime anomaly. If a cold device clears 40 °C, the warning disappears and the question
+answers itself for 72 minutes of machine time and no judgement calls.
+
+If that fails, the honest options are to accept that results from this device always
+carry a thermal warning and read them with `--accept-noise-warnings`, which records the
+waiver in every output file, or to amend §10.6 to say the warning may be read through on
+this device. Raising the vendor thermal thresholds is not one of them — see the decisions
+above.
 
 **One finding worth carrying into Phase 5.** The full matrix shows the cost of a frame is
 dominated by how many formats the reader is asked to try, far more than by resolution.
