@@ -117,8 +117,8 @@ public final class HistoryActivity extends ListActivity {
 
   @Override
   public boolean onOptionsItemSelected(MenuItem item) {
-    switch (item.getItemId()) {
-      case R.id.menu_history_send:
+    int itemId = item.getItemId();
+    if (itemId == R.id.menu_history_send) {
         CharSequence history = historyManager.buildHistory();
         Parcelable historyFile = HistoryManager.saveHistory(history.toString());
         if (historyFile == null) {
@@ -140,8 +140,7 @@ public final class HistoryActivity extends ListActivity {
             Log.w(TAG, anfe.toString());
           }
         }
-        break;
-      case R.id.menu_history_clear_text:
+    } else if (itemId == R.id.menu_history_clear_text) {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage(R.string.msg_sure);
         builder.setCancelable(true);
@@ -155,8 +154,7 @@ public final class HistoryActivity extends ListActivity {
         });
         builder.setNegativeButton(R.string.button_cancel, null);
         builder.show();
-        break;
-      default:
+    } else {
         return super.onOptionsItemSelected(item);
     }
     return true;
