@@ -49,6 +49,7 @@ jobs:
         run: |
           python3 -I benchmark/tools/test_l2_report.py
           python3 -I benchmark/tools/test_compare.py
+          python3 -I benchmark/tools/test_noise_floor.py
 
       - name: Assemble the L2 benchmark APK
         # Not run here — a shared CI runner cannot produce a timing worth keeping. This
