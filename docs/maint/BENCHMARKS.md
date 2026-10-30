@@ -471,7 +471,45 @@ Its tests are `benchmark/tools/test_l2_report.py` (`python3 -I` to run).
 
 ### 13.2 `compare.py` — the verdict
 
-Not built yet.
+**Built**, with `benchmark/tools/test_compare.py` covering every gate of §10.6, including
+each reason a comparison must come back `inconclusive`.
+
+```sh
+python3 -I benchmark/tools/compare.py \
+    --baseline docs/maint/reports/l2-<commit>-DN-ENG41-default.json \
+    --candidate build/l2-candidate.json \
+    --out-dir build/benchmark/compare
+```
+
+It writes `verdict.json`, `cases.csv` and `report.md`, and exits **0** `pass`, **1**
+`fail`, **2** `inconclusive`, **3** the two result sets could not be compared at all —
+different frames, device, API level or configuration, each named in the output.
+
+CI has no step for it yet; one is added when there is a baseline to compare against, so
+that a pull request touching the decode path carries a verdict instead of an opinion.
+
+#### The clock-lock problem, and the one switch
+
+§10.6 makes a run inconclusive when it carries a warning that invalidates timing. On an
+unrooted phone the CPU clocks cannot be locked, so **every** run on DN-ENG41 carries
+`UNLOCKED_CLOCKS` — and therefore every comparison on the only device this fork has comes
+back `inconclusive` by construction. That is a true statement about the evidence, and it
+is also a tool that always answers the same thing.
+
+The tool separates the two kinds of warning rather than quietly softening the rule:
+
+- **Invalidating** — `DEBUGGABLE`, `EMULATOR`. These cannot be waived at all.
+- **Noise** — `UNLOCKED_CLOCKS`, `NO_SUSTAINED_PERFORMANCE_MODE`, `THERMAL_THROTTLE`.
+  Blocking by default. `--accept-unlocked-clocks` switches that off deliberately, and the
+  waiver is recorded in `verdict.json` and printed at the top of the Markdown report, so a
+  number read under a suspended rule says so wherever it is quoted.
+
+**This is a stopgap, and the decision is not the tool's to make.** The real fix is one of:
+lock clocks on a rooted device; widen the effect floor to whatever the measured
+run-to-run spread on DN-ENG41 actually supports (§10.7 step 3, which is the plan); or
+accept that L2 on this hardware resolves large changes only — a 2× native decoder, not a
+5% tuning win. Until one of those is chosen, prefer leaving the waiver off and reading
+`inconclusive` as the honest answer.
 
 - Reads two result files of the same layer.
 - Refuses mismatched `dataset_hash`, frame hashes, device, API level or configuration, with

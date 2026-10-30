@@ -45,8 +45,10 @@ jobs:
         # before anyone reaches a device and takes a number that cannot be compared.
         run: ./gradlew :benchmark-android:testReleaseUnitTest
 
-      - name: Benchmark report converter tests
-        run: python3 -I benchmark/tools/test_l2_report.py
+      - name: Benchmark tooling tests (report converter and comparison gates)
+        run: |
+          python3 -I benchmark/tools/test_l2_report.py
+          python3 -I benchmark/tools/test_compare.py
 
       - name: Assemble the L2 benchmark APK
         # Not run here — a shared CI runner cannot produce a timing worth keeping. This

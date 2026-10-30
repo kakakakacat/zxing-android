@@ -164,8 +164,9 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       (`benchmark/tools/l2_report.py`)
 - [ ] L3 app/camera benchmark (Macrobenchmark) on a real device
 - [ ] L4 sustained-scanning CPU/memory/thermal run
-- [ ] Comparison tool with pass / fail / **inconclusive** verdicts and 95% intervals
-      (`benchmark/tools/compare.py`)
+- [x] Comparison tool with pass / fail / **inconclusive** verdicts and 95% intervals
+      (`benchmark/tools/compare.py`) — exits 0 / 1 / 2, and 3 when the two result sets
+      cannot be compared at all
 - [ ] B0 baseline results committed for every layer
 
 ### Phase 5 — Kotlin and native decoding

@@ -31,6 +31,10 @@ API may still change between minor versions.
   than committed, and their SHA-256 values are committed instead, so a run that would not
   be comparable with the baseline fails on the host and again on the device rather than
   producing a number.
+- `benchmark/tools/compare.py`, which reads two result sets and returns pass / fail /
+  **inconclusive** against the gates of BENCHMARKS.md §10.6, with a CSV, a JSON verdict
+  and a Markdown report. It exits 0 / 1 / 2, and 3 when the two sets describe different
+  measurements and cannot be compared at all.
 - `benchmark/tools/l2_report.py`, which turns Microbenchmark's output into the common
   result envelope with bootstrap confidence intervals, and records every condition that
   makes a comparison inconclusive instead of suppressing it.

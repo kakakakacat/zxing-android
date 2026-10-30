@@ -137,13 +137,16 @@ the scoreboard after the game.
    `BENCHMARKS.md` §10.7: the baseline cannot be taken at B0, because the harness does not
    exist at B0. It is taken at the first commit that contains the harness, and the result
    file records that commit.
-5. `benchmark/tools/compare.py` + its own unit tests: reads two result sets, emits
-   grouped CSV/JSON and a Markdown report, and returns **pass / fail / inconclusive**
-   against the gates in `BENCHMARKS.md` §10.6. It must say `inconclusive` rather than
-   `pass` when the data cannot support a conclusion. CI currently has no step for it;
-   add one when it exists. The input side is already built:
-   `benchmark/tools/l2_report.py` turns a Microbenchmark run into the §8 envelope, with
-   the bootstrap intervals and the inconclusive-reason warnings already computed.
+5. ~~`benchmark/tools/compare.py` + its own unit tests~~ — **done**, along with
+   `l2_report.py` on the input side. 22 tests, one per gate. CI runs both tools' tests
+   but has no comparison step yet: there is nothing to compare against until step 4.
+
+**Read `BENCHMARKS.md` §13.2 before using the comparison tool.** On an unrooted phone the
+CPU clocks cannot be locked, so every run on DN-ENG41 carries `UNLOCKED_CLOCKS` and every
+comparison comes back `inconclusive` by construction. There is a deliberate
+`--accept-unlocked-clocks` waiver that records itself in the output, but the real decision
+— lock clocks on a rooted device, widen the effect floor to the measured spread, or accept
+that L2 here resolves only large changes — is the user's, and it is still open.
 
 ### Phase 5 — Kotlin and the native decoder
 
