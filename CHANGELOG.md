@@ -24,6 +24,16 @@ API may still change between minor versions.
   samples through the device's own ART.
 - Benchmark groundwork: a versioned dataset manifest over the 1168 licensed blackbox
   images in `core/`, and `:benchmark-jvm`, an L1 correctness/timing runner.
+- `:benchmark-android`, the L2 frame-pipeline benchmark (BENCHMARKS.md §10): the crop,
+  luminance source, binarize and decode stages plus the whole path, measured on the
+  device's own ART with AndroidX Microbenchmark, over nine generated replay frames at
+  640x480 / 1280x720 / 1920x1080 and three hint sets. The frames are generated rather
+  than committed, and their SHA-256 values are committed instead, so a run that would not
+  be comparable with the baseline fails on the host and again on the device rather than
+  producing a number.
+- `benchmark/tools/l2_report.py`, which turns Microbenchmark's output into the common
+  result envelope with bootstrap confidence intervals, and records every condition that
+  makes a comparison inconclusive instead of suppressing it.
 - `docs/maint/BENCHMARKS.md`: the measurement standard — four layers, dataset and device
   rules, statistics, result schema, and the pass / fail / **inconclusive** gates a
   comparison has to clear. Written before the harness, so the method cannot be fitted to

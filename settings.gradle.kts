@@ -22,6 +22,7 @@ include(":scanner")
 include(":android-integration")
 include(":app")
 include(":benchmark-jvm")
+include(":benchmark-android")
 
 // Upstream keeps these modules at their historical paths.
 project(":core").projectDir = file("core")
@@ -29,3 +30,4 @@ project(":scanner").projectDir = file("scanner")
 project(":android-integration").projectDir = file("android-integration")
 project(":app").projectDir = file("android")
 project(":benchmark-jvm").projectDir = file("benchmark/jvm")
+project(":benchmark-android").projectDir = file("benchmark/android")

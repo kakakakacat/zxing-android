@@ -13,3 +13,4 @@ build/
 */build/
 local.properties
 .idea/
+__pycache__/

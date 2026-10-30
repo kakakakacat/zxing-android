@@ -157,10 +157,15 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       ([BENCHMARKS.md](docs/maint/BENCHMARKS.md)) — before the numbers, on purpose
 - [x] Versioned dataset manifest (1168 licensed source images, SHA-256 per sample)
 - [x] L1 correctness/timing runner on the host JVM
-- [ ] L2 Android frame-pipeline benchmark (AndroidX Microbenchmark)
+- [x] L2 Android frame-pipeline benchmark (`:benchmark-android`, AndroidX
+      Microbenchmark): five stages, nine generated replay frames, three hint sets,
+      with the frame hashes committed as the comparability key
+- [x] Microbenchmark output converted into the common result envelope
+      (`benchmark/tools/l2_report.py`)
 - [ ] L3 app/camera benchmark (Macrobenchmark) on a real device
 - [ ] L4 sustained-scanning CPU/memory/thermal run
 - [ ] Comparison tool with pass / fail / **inconclusive** verdicts and 95% intervals
+      (`benchmark/tools/compare.py`)
 - [ ] B0 baseline results committed for every layer
 
 ### Phase 5 — Kotlin and native decoding

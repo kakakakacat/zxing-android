@@ -39,6 +39,20 @@ jobs:
       - name: Scanner unit tests (coordinate mapping)
         run: ./gradlew :scanner:testDebugUnitTest
 
+      - name: Benchmark frame generator and goldens (L2, host side)
+        # The generated replay frames are the comparability key for every L2 result
+        # (BENCHMARKS.md §10.4). If a change moves a single pixel, this fails here,
+        # before anyone reaches a device and takes a number that cannot be compared.
+        run: ./gradlew :benchmark-android:testReleaseUnitTest
+
+      - name: Benchmark report converter tests
+        run: python3 -I benchmark/tools/test_l2_report.py
+
+      - name: Assemble the L2 benchmark APK
+        # Not run here — a shared CI runner cannot produce a timing worth keeping. This
+        # only proves the benchmark still builds against the current frame path.
+        run: ./gradlew :benchmark-android:assembleReleaseAndroidTest
+
       - name: Lint
         run: ./gradlew :scanner:lintRelease :app:lintDebug
 

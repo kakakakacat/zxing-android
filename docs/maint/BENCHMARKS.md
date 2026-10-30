@@ -118,6 +118,11 @@ Rules:
 - Before a device run: screen on, charger behaviour recorded, airplane mode on, no other
   foreground app, and `adb shell cmd thermalservice override-status 0` is *not* used — a
   masked thermal state produces numbers the product will never see.
+- **`adb shell svc power stayon true` first.** Microbenchmark's `IsolationActivity` stops
+  making progress when the screen goes off, and it does so silently: the run neither fails
+  nor finishes, the process simply stops accumulating CPU time. Observed on DN-ENG41,
+  which locked seven minutes into a run. If a run appears to hang, compare fields 14 and
+  15 of `/proc/<pid>/stat` a few seconds apart before suspecting the benchmark.
 - Microbenchmark's own warnings (debuggable, emulator, unlocked clocks, thermal throttle)
   are recorded in the result file rather than suppressed.
 - **One device and one Android version is the current, stated limitation.** Nothing here
@@ -154,14 +159,24 @@ all of them:
   "run_id": "b0-DN-ENG41-20261030",
   "commit": "50e6e3860",
   "config": "DEFAULT",
-  "dataset_hash": "e8d584f3…",
-  "device": { "model": "DN-ENG41", "api": 34, "abi": "arm64-v8a", "emulator": false },
-  "warnings": ["…microbenchmark warnings, verbatim…"],
-  "cases": [ { "name": "…", "stage": "…", "ns_p50": 0, "ns_p90": 0,
-               "ns_ci95_low": 0, "ns_ci95_high": 0, "iterations": 0,
-               "alloc_bytes": 0, "gc_count": 0 } ]
+  "dataset_hash": null,
+  "frames": { "hd/hit_qr": "f70e4a4c…", "…": "…" },
+  "device": { "label": "DN-ENG41", "api": 34, "emulator": false, "cpu_locked": false },
+  "warnings": ["…conditions §10.6 turns into `inconclusive`…"],
+  "bootstrap": { "resamples": 10000, "seed": 20261030 },
+  "cases": [ { "name": "…", "stage": "…", "resolution": "hd", "variant": "hit_qr",
+               "config": "default", "decodes": true,
+               "ns_p50": 0, "ns_p90": 0, "ns_ci95_low": 0, "ns_ci95_high": 0,
+               "iterations": 0, "alloc_count_p50": 0 } ]
 }
 ```
+
+L2 replays generated frames rather than the L1 corpus, so its `dataset_hash` is null and
+`frames` carries the comparability key instead (§10.4). Allocations are reported as a
+**count**, not bytes: that is what the platform's own counter gives, and converting it to
+bytes would be arithmetic on an assumption. A measurement that is absent is `null`, never
+zero — "no allocation metric was collected" and "it allocated nothing" are different
+claims.
 
 L1's existing file is this envelope with a `samples` array and `status_counts` instead of
 `cases`; it also carries `note`, which states that host timings are diagnostic only.
@@ -216,15 +231,46 @@ is not a scanning improvement until L3 says so.
 
 ### 10.2 Module
 
-`:benchmark-android` at `benchmark/android`, added to `settings.gradle.kts`:
+`:benchmark-android` at `benchmark/android`. **Built.** Never published, never shipped.
 
-- `androidx.benchmark:benchmark-junit4`, the `androidx.benchmark` Gradle plugin, and the
-  module built as an instrumentation test target against `:scanner` and `:core`.
-- `minSdk` 21, matching the library.
-- Release-with-minification build type, as Microbenchmark requires for trustworthy numbers;
-  a debuggable run must fail the task, not warn.
-- Fixed frames ship as module assets, generated from the dataset manifest, so a run needs
-  no camera, no barcode and no steady hand.
+- `androidx.benchmark:benchmark-junit4` 1.5.0 and the `androidx.benchmark` Gradle plugin;
+  the benchmarks are instrumentation tests against `:scanner` and `:core`.
+- `minSdk` 21, matching the library, so the benchmark cannot measure a path the shipped
+  AAR does not take on an old device.
+- `testBuildType = "release"` with R8 on: the code under measurement is the code a consumer
+  gets. Microbenchmark numbers from a debuggable build are not numbers.
+- No camera, no printed barcode, no steady hand: `FrameFactory` generates the frames
+  (§10.4), so a run is deterministic and can fail a change rather than drift.
+
+| File | What it is |
+| --- | --- |
+| `ScanGeometry` | the pinned viewing scenario and stage 1's call into `PreviewCoordinateMapper` |
+| `FrameFactory` | generates the nine replay frames and their SHA-256 |
+| `FramePipeline` | the five stages, calling what `DecoderThread` calls, how it calls it |
+| `L2Config` | the three hint sets, and which variants each one can decode at all |
+| `FrameGoldens` | reads the committed frame hashes; one file, three readers |
+| `FramePipelineBenchmark` | the benchmark itself, parameterised over the matrix |
+| `FrameIntegrityTest` | the device-side gate in front of the benchmark |
+| `FrameFactoryTest`, `FrameGoldensTest` | the host tests §10.4 requires |
+
+How to run it:
+
+```sh
+# the CI slice: 1280x720, default hints, all three variants
+./gradlew :benchmark-android:connectedReleaseAndroidTest
+
+# the full 3 x 3 x 3 matrix, for a baseline
+./gradlew :benchmark-android:connectedReleaseAndroidTest -Pl2.matrix=full
+
+# the host tests alone — no device needed
+./gradlew :benchmark-android:testReleaseUnitTest
+```
+
+`FrameIntegrityTest` runs before the benchmark on purpose. It re-generates all nine frames
+on the device, checks them against the committed goldens, and checks that every hit frame
+still hits and every miss frame still misses. A miss frame that quietly started decoding
+would turn the most expensive case in the matrix into the cheapest, and every comparison
+after it would be wrong in the flattering direction.
 
 ### 10.3 The pipeline, stage by stage
 
@@ -260,11 +306,38 @@ Each resolution is replayed in three variants, so the hit/miss split is explicit
 - **`hit_1d`** — a UPC-A/EAN-13 barcode inside the framing rectangle, decodes
 - **`miss`** — no barcode present; the reader exhausts every enabled format
 
-Frames are generated deterministically from manifest samples: the source image is scaled
-into the target resolution at a fixed position, the rest filled with a fixed noise pattern
-from a seeded PRNG. Generation is a committed script with its own test, and the generated
-frames' SHA-256 values are recorded in the result file. **A result set whose frame hashes
-differ from the baseline's is not comparable.**
+Frames are **generated, not committed**. Nine raw luminance planes at these resolutions is
+about ten megabytes of binary in the repository, and a committed blob is no more
+reproducible than a tested generator — only harder to review. `FrameFactory` fills the
+plane with a fixed xorshift64\* noise band, encodes the barcode with this fork's own writer
+(`ZX-L2-QR`, UPC-A `012345678905`) and draws it into the crop rectangle with a quiet zone,
+so a hit frame decodes through the *real* crop rather than only when the whole frame is
+read. The PRNG is written out in that file rather than taken from `java.util.Random`, so
+the byte stream is defined by this fork and cannot move under a JDK or ART update.
+
+The comparability key is `benchmark/android/goldens/frames.golden.json`: the committed
+SHA-256 of all nine frames, plus the geometry they were built against. One file, three
+readers — the host unit test, the on-device run and the report converter.
+**A result set whose frame hashes differ from the baseline's is not comparable**, and both
+the host test and `FrameIntegrityTest` on the device fail outright rather than let such a
+run produce a number. Regenerating the goldens is a deliberate commit that says why, and
+it invalidates every baseline taken before it.
+
+The crop that geometry produces, for the record:
+
+| Input | Frame | Crop in frame coordinates | Crop size |
+| --- | --- | --- | --- |
+| `vga` | 640 × 480 | `[107, 151, 533, 329]` | 426 × 178 |
+| `hd` | 1280 × 720 | `[213, 227, 1067, 493]` | 854 × 266 |
+| `fhd` | 1920 × 1080 | `[320, 340, 1600, 740]` | 1280 × 400 |
+
+The scenario behind those numbers is pinned in `ScanGeometry`: a 1080 × 2400 portrait
+display, a tall viewfinder band at `[340, 400, 740, 2000]`, and a display-to-camera
+rotation of **90**. That is the Android 16 large-screen portrait case — the one `A-13`
+fixed — so the crop goes through the rotation path rather than the identity path that only
+ever worked by accident, and a regression in it shows up here instead of on a user's large
+screen. A tall band on screen rotates into a wide band in frame space, which is the only
+shape a 95-module 1D symbol can be measured in.
 
 Stride is set to width for the Camera1 path. When Phase 5 feeds `ImageProxy`
 `YUV_420_888` in directly, a `stride != width` variant is added here and baselined before
@@ -278,8 +351,13 @@ Run and reported separately, never pooled:
 2. `qr_only` — `POSSIBLE_FORMATS = [QR_CODE]`; the common library-consumer case.
 3. `oned_only_upca` — a single specified 1D format, the cheapest realistic hint set.
 
-3 resolutions × 3 variants × 3 configurations × 5 stages is the full matrix. CI runs
-`hd` + `default` only; the full matrix is a manual device run.
+3 resolutions × 3 variants × 3 configurations × 5 stages is the full matrix, selected with
+`-Pl2.matrix=full`. CI runs the `hd` + `default` slice, which is the default.
+
+The cross product is deliberately complete, so it contains cases that cannot decode —
+`hit_qr` under `oned_only_upca`, for instance. Those are legitimate: they measure a miss,
+and an expensive one. `L2Config#canDecode` names them, and the result file records
+`decodes` per case, so nothing in a report has to be inferred from a case name.
 
 ### 10.6 Gates — pass, fail, inconclusive
 
@@ -304,7 +382,7 @@ Per case, on the median, using the 95% intervals from §7:
 - either side carries a Microbenchmark warning that invalidates timing (debuggable build,
   unlocked clocks, thermal throttling detected);
 - either side is an emulator run and the other is not;
-- `alloc_bytes` grew by more than 5% while time improved — a time win bought with
+- `alloc_count_p50` grew by more than 5% while time improved — a time win bought with
   allocations is not a win until L4 says the GC cost is absorbed.
 
 A run as a whole is `fail` if any case fails, `pass` only if at least one case passes and
@@ -316,12 +394,22 @@ the first baseline**, and the measurement is recorded here.
 
 ### 10.7 The B0 baseline
 
+**A correction to this document's own plan.** Earlier revisions said the L2 baseline is
+taken at B0, `50e6e3860`. It cannot be: the harness did not exist at B0, and a benchmark
+cannot be run on a commit that does not contain it. The baseline is therefore taken at the
+first commit where `:benchmark-android` exists, and that commit id is what the result file
+records. This is not a loophole — between B0 and here the decode path changed only by the
+namespace rename and the crop-mapping fix, both of which are in the result anyway — but a
+baseline that claims a commit it was not run on is exactly the kind of tidy fiction this
+document exists to prevent.
+
 Before any Phase 5 work:
 
-1. Run the full matrix on **DN-ENG41** at B0 (`50e6e3860`).
-2. Commit the result sets under `docs/maint/reports/` as `l2-b0-DN-ENG41-<config>.json`.
+1. Run the full matrix (`-Pl2.matrix=full`) on **DN-ENG41**.
+2. Commit the result sets under `docs/maint/reports/` as
+   `l2-<commit>-DN-ENG41-<config>.json`.
 3. Record here the run date, the device's thermal state and the measured run-to-run spread
-   that replaces the 5% floor.
+   that replaces the 5% floor of §10.6.
 4. Repeat the `hd`/`default` slice on both emulators, labelled as emulator results.
 
 Nothing in Phase 5 may claim a speedup until step 1–3 exist.
@@ -359,7 +447,31 @@ The existing 100-cycle open/close stability loop
 
 ## 13. The comparison tool
 
-`benchmark/tools/compare.py`, with its own unit tests. Not built.
+Two pieces. `benchmark/tools/l2_report.py` **is built**; `benchmark/tools/compare.py` is not.
+
+### 13.1 `l2_report.py` — Microbenchmark output into the §8 envelope
+
+Microbenchmark's own JSON is a fine record of a run and a poor basis for a comparison: it
+carries per-repeat samples but no interval, and it knows nothing about which frames were
+measured. The converter computes the median, p90 and the bootstrap interval of §7 from
+those samples, attaches the committed frame hashes and the device, and records every
+condition §10.6 turns into `inconclusive` — unlocked clocks, no sustained performance
+mode, an emulator fingerprint, thermal throttling, fewer than 50 repeats — rather than
+suppressing them. It invents nothing: a field it cannot fill from the input is `null`.
+
+```sh
+python3 -I benchmark/tools/l2_report.py \
+    --input <path>/…-benchmarkData.json \
+    --goldens benchmark/android/goldens/frames.golden.json \
+    --run-id b0-DN-ENG41-20261030 --commit 50e6e3860 --device-label DN-ENG41 \
+    --out docs/maint/reports/l2-b0-DN-ENG41-default.json
+```
+
+Its tests are `benchmark/tools/test_l2_report.py` (`python3 -I` to run).
+
+### 13.2 `compare.py` — the verdict
+
+Not built yet.
 
 - Reads two result files of the same layer.
 - Refuses mismatched `dataset_hash`, frame hashes, device, API level or configuration, with

@@ -67,7 +67,7 @@ be quoted as an Android result.
 - No Android 15/16 **physical** device is available. Anything needing a real camera on
   those versions stays unverified, and the README says so.
 
-### Two traps
+### Three traps
 
 1. **DroidLens global Gradle init script.** `~/.gradle/init.d/droidlens.gradle` injects a
    third-party SDK into debug builds of any project listed in
@@ -76,7 +76,12 @@ be quoted as an Android result.
    kakacat.android.helper:runtime-network`. The user has since disabled auto-attach. If
    it ever comes back, the symptom is that error or an unexpected SDK inside the APK;
    check `unzip -l app-debug.apk | grep kakacat`.
-2. **Emulator `wm size` changes persist.** The Android 16 large-screen reproduction ran
+2. **A Microbenchmark run stalls when the screen goes off.** `IsolationActivity` stops
+   making progress and says nothing: no failure, no timeout, the process just stops using
+   CPU. DN-ENG41 locked seven minutes into the first L2 run and sat there. Run
+   `adb shell svc power stayon true` before any device benchmark; to tell a stall from
+   slow work, watch fields 14/15 of `/proc/<pid>/stat`.
+3. **Emulator `wm size` changes persist.** The Android 16 large-screen reproduction ran
    `wm size 1600x2560 && wm density 240`. Both were reset afterwards, but if an emulator
    behaves oddly, `adb shell wm size reset && adb shell wm density reset`.
 
@@ -118,19 +123,27 @@ The point of doing this first: the native-decoder work in Phase 5 cannot be judg
 without a frame-pipeline baseline. Building it after the optimisation would be writing
 the scoreboard after the game.
 
-1. `:benchmark-android` module using **AndroidX Microbenchmark**, measuring the frame path
-   on-device: fixed frame in → crop/rotate → `PlanarYUVLuminanceSource` → binarize →
-   decode → result, with per-stage timings, allocations and GC.
-2. Fixed replay inputs at 640×480, 1280×720 and 1920×1080, per
-   `BENCHMARKS.md` §10.4.
-3. Configurations: default all-formats, QR-only, one specified 1D format — reported
-   separately, never pooled.
-4. Commit a B0 result set for every configuration.
+1. ~~`:benchmark-android` module using **AndroidX Microbenchmark**~~ — **done.** Five
+   stages (crop, luminance source, binarize, decode, end to end) measured on the device's
+   own ART.
+2. ~~Fixed replay inputs at 640×480, 1280×720 and 1920×1080~~ — **done**, and generated
+   rather than committed; `benchmark/android/goldens/frames.golden.json` holds their
+   SHA-256 values and is the comparability key. Both the host test and the on-device
+   `FrameIntegrityTest` fail a run whose frames do not match it.
+3. ~~Configurations: default, QR-only, one specified 1D format~~ — **done**, reported
+   separately. The matrix is the full cross product, so it includes cases that cannot
+   decode; those measure a miss and are labelled as such.
+4. **Commit a baseline result set for every configuration.** Note the correction in
+   `BENCHMARKS.md` §10.7: the baseline cannot be taken at B0, because the harness does not
+   exist at B0. It is taken at the first commit that contains the harness, and the result
+   file records that commit.
 5. `benchmark/tools/compare.py` + its own unit tests: reads two result sets, emits
    grouped CSV/JSON and a Markdown report, and returns **pass / fail / inconclusive**
    against the gates in `BENCHMARKS.md` §10.6. It must say `inconclusive` rather than
    `pass` when the data cannot support a conclusion. CI currently has no step for it;
-   add one when it exists.
+   add one when it exists. The input side is already built:
+   `benchmark/tools/l2_report.py` turns a Microbenchmark run into the §8 envelope, with
+   the bootstrap intervals and the inconclusive-reason warnings already computed.
 
 ### Phase 5 — Kotlin and the native decoder
 
