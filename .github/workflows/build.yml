@@ -1,0 +1,47 @@
+name: Build
+
+on:
+  push:
+    branches: [ maint/android, master ]
+  pull_request:
+    branches: [ maint/android, master ]
+
+jobs:
+  build:
+    name: Assemble and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Assemble the scanner AAR
+        run: ./gradlew :scanner:assembleRelease
+
+      - name: Assemble the app
+        run: ./gradlew :app:assembleDebug
+
+      - name: Core unit tests
+        run: ./gradlew :core:test
+
+      - name: Benchmark comparison-tool tests
+        run: python3 -m unittest discover -s benchmark/tools -p 'test_*.py' -v
+
+      - name: Lint
+        run: ./gradlew :scanner:lintRelease :app:lintDebug
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-outputs
+          path: |
+            scanner/build/outputs/aar/*.aar
+            android/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

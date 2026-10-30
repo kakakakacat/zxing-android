@@ -1,99 +1,121 @@
-<img align="right" src="https://raw.github.com/wiki/zxing/zxing/zxing-logo.png"/>
+# ZXing Android — community maintenance fork
 
-## Project in Maintenance Mode Only; Barcode Scanner not available
+An independent, community-maintained fork of the Android side of
+[zxing/zxing](https://github.com/zxing/zxing): the **Barcode Scanner** app and a reusable
+scanning library.
 
-The project is in maintenance mode, meaning, changes are driven by contributed patches.
-Only bug fixes and minor enhancements will be considered. The Barcode Scanner app can
-no longer be published, so it's unlikely any changes will be accepted for it. 
-It does not work with Android 14 and will not be updated. Please don't file an issue for it.
-There is otherwise no active development or roadmap for this project. It is "DIY".
+> **Not affiliated with, endorsed by, or published by the ZXing project.** This fork is
+> not signed with the upstream key and cannot update the published Barcode Scanner app.
+> The original project's copyright and Apache-2.0 licence are preserved.
 
-## Get Started Developing
+Upstream's Android modules stopped being buildable years ago: they only compile through a
+Maven profile gated on `<jdk>[,9)</jdk>` and the unmaintained `android-maven-plugin`, with
+`targetSdk 22`. This fork exists to make that code build, run and keep evolving on current
+Android — and to make the scanning pipeline reusable instead of copy-pasteable.
 
-To get started, please visit: https://github.com/zxing/zxing/wiki/Getting-Started-Developing
+## What is here
 
-ZXing ("zebra crossing") is an open-source, multi-format 1D/2D barcode image processing
-library implemented in Java, with ports to other languages.
+| Module | What it is |
+| --- | --- |
+| `scanner/` | **The AAR.** `ScannerView` + the camera and decode pipeline |
+| `android/` | The Barcode Scanner app, built on the AAR |
+| `core/` | ZXing's decoder, tracked from upstream |
+| `android-integration/` | The Intent helper third-party apps embed |
+| `benchmark/` | Dataset manifest and the L1 correctness/timing runner |
 
-## Supported Formats
+The desktop (`javase`) and web modules are not maintained here; see
+[docs/maint/MIGRATION.md](docs/maint/MIGRATION.md).
 
-| 1D product            | 1D industrial | 2D             |
-|:----------------------|:--------------|:---------------|
-| UPC-A                 | Code 39       | QR Code        |
-| UPC-E                 | Code 93       | Data Matrix    |
-| EAN-8                 | Code 128      | Aztec          |
-| EAN-13                | Codabar       | PDF 417        |
-| UPC/EAN Extension 2/5 | ITF           | MaxiCode       |
-|                       |               | RSS-14         |
-|                       |               | RSS-Expanded   |
+## Using the scanner library
 
-## Components
+```kotlin
+dependencies {
+  implementation("io.github.kakakakacat.zxing:zxing-android-scanner:0.1.0")
+}
+```
 
-### Active
+Repository setup (GitHub Packages or JitPack) is in
+[docs/maint/PUBLISHING.md](docs/maint/PUBLISHING.md).
 
-| Module              | Description
-| ------------------- | -----------
-| core                | The core image decoding library, and test code
-| javase              | JavaSE-specific client code
-| android             | Android client Barcode Scanner 
-| android-integration | Supports integration with Barcode Scanner via `Intent`
-| android-core        | Android-related code shared among `android`, other Android apps
-| zxingorg            | The source behind `zxing.org`
-| zxing.appspot.com   | The source behind web-based barcode generator at `zxing.appspot.com`
+```xml
+<com.google.zxing.client.android.scanner.ScannerView
+    android:id="@+id/scanner_view"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"/>
+```
 
-### Available in previous releases
+```java
+scannerView = findViewById(R.id.scanner_view);
+scannerView.setOptions(new ScannerOptions.Builder()
+    .setAutoFocus(true)
+    .setFrontLightMode(FrontLightMode.AUTO)
+    .build());
+scannerView.setFormats(EnumSet.of(BarcodeFormat.QR_CODE));   // or null for everything
+scannerView.setListener(new ScannerView.Listener() {
+  @Override public void onScanned(ScanOutcome outcome) {
+    String text = outcome.getResult().getText();
+    // ... then scannerView.resumeScanning() to scan again
+  }
+  @Override public void onScannerError(ScannerError error, Exception cause) {
+    // PERMISSION_DENIED / NO_CAMERA / CAMERA_UNAVAILABLE / PREVIEW_FAILED
+  }
+});
 
-| Module | Description
-| ------ | -----------
-| [cpp](https://github.com/zxing/zxing/tree/00f634024ceeee591f54e6984ea7dd666fab22ae/cpp)                   | C++ port
-| [iphone](https://github.com/zxing/zxing/tree/00f634024ceeee591f54e6984ea7dd666fab22ae/iphone)             | iPhone client
-| [objc](https://github.com/zxing/zxing/tree/00f634024ceeee591f54e6984ea7dd666fab22ae/objc)                 | Objective C port
-| [actionscript](https://github.com/zxing/zxing/tree/c1df162b95e07928afbd4830798cc1408af1ac67/actionscript) | Partial ActionScript port
-| [jruby](https://github.com/zxing/zxing/tree/a95a8fee842f67fb43799a8e0e70e4c68b509c43/jruby)               | JRuby wrapper
+@Override protected void onResume() { super.onResume(); scannerView.resume(); }
+@Override protected void onPause()  { scannerView.pause(); super.onPause(); }
+```
 
-### ZXing-based third-party open source projects
+**You request `CAMERA` yourself.** `ScannerView` never shows a permission dialog; if the
+permission is missing it reports `ScannerError.PERMISSION_DENIED` and leaves the
+conversation with the user to the host app. `CaptureActivity` in `android/` is a worked
+example of doing it, including the "don't ask again" case.
 
-| Module                                                                                    | Description
-| ----------------------------------------------------------------------------------------- | -----------
-| [Barcode-Lib4J](https://github.com/vws-java/Barcode-Lib4J)                                | Java library for printing and exporting 1D/2D barcodes to vector/raster image formats (CMYK+RGB), high precision, DPI awareness, and GS1 validation.
-| [SCodes](https://github.com/scytheStudio/SCodes)                                          | Qt & Qml wrapper
-| [QZXing](https://github.com/ftylitak/qzxing)                                              | port to Qt framework
-| [glassechidna/zxing-cpp](https://github.com/glassechidna/zxing-cpp)                       | port to C++ (forked from the [deprecated official C++ port](https://github.com/zxing/zxing/tree/00f634024ceeee591f54e6984ea7dd666fab22ae/cpp))
-| [zxing-cpp/zxing-cpp](https://github.com/zxing-cpp/zxing-cpp)                             | latest/active port to C++, includes Android, C, iOS, .NET, Rust, Python, WASM and WinRT wrappers
-| [zxing_cpp.rb](https://github.com/glassechidna/zxing_cpp.rb)                              | bindings for Ruby (not just JRuby), powered by [zxing-cpp](https://github.com/glassechidna/zxing-cpp)
-| [jsqrcode](https://github.com/LazarSoft/jsqrcode)                                         | port to JavaScript
-| [python-zxing](https://github.com/oostendo/python-zxing)                                  | bindings for Python
-| [ZXing .NET](https://github.com/micjahn/ZXing.Net)                                        | port to .NET and C#, and related Windows platform
-| [php-qrcode-detector-decoder](https://github.com/khanamiryan/php-qrcode-detector-decoder) | port to PHP
-| [ZXing Delphi](https://github.com/Spelt/ZXing.Delphi)                                     | Port to native Delphi object pascal, targeted at Firemonkey compatible devices (IOS/Android/Win/OSX) and VCL.
-| [ZXingObjC](https://github.com/zxingify/zxingify-objc)                                    | Port to Objective-C
-| [php-zxing](https://github.com/dsiddharth2/php-zxing)                                     | PHP wrapper to Zxing Java library
-| [zxing-js/library](https://github.com/zxing-js/library)                                   | TypeScript port of ZXing library
-| [pyzxing](https://github.com/ChenjieXu/pyzxing)                                           | Python wrapper to ZXing library
-| [zxing-dart](https://github.com/shirne/zxing-dart)                                        | Port to dart
-| [rxing](https://github.com/rxing-core/rxing)                                                | Port to rust
-| [Barleader](https://github.com/kamilkrzywanski/barleader)                                 | Pure Java port of the zxing-cpp reader (no JNI or native code), with writers for every ZXing and Barcode-Lib4J symbology
+Results arrive on the main thread, and each carries the id of the scanning session that
+produced it, so a decode that finishes after `pause()` is dropped rather than delivered
+into a screen that is already gone.
 
-### Other related third-party open source projects
+## Building
 
-| Module                                         | Description
-| ---------------------------------------------- | -----------
-| [Barcode4J](https://barcode4j.sourceforge.net/) | Generator library in Java
-| [BoofCV](https://boofcv.org) | Generator and reader library in Java
-| [ZBar](https://zbar.sourceforge.net/)           | Reader library in C99
-| [OkapiBarcode](https://github.com/woo-j/OkapiBarcode)  | Generator library in Java |
+Requires JDK 17+ and an Android SDK with platform 36 and build-tools 36.0.0.
+Gradle and AGP versions are pinned; the wrapper fetches Gradle itself.
 
-## Links
+```sh
+./gradlew :scanner:assembleRelease     # the AAR
+./gradlew :app:assembleDebug           # the app, debug-signed
+./gradlew :scanner:connectedDebugAndroidTest   # fixed-frame decode test, needs a device
+./gradlew :benchmark-jvm:run --args="--config default"   # L1 correctness/timing
+```
 
-  * [Online Decoder](https://zxing.org/w/decode.jspx)
-  * [QR Code Generator](https://zxing.appspot.com/generator)
-  * [Javadoc](https://zxing.github.io/zxing/apidocs/)
-  * [Documentation Site](https://zxing.github.io/zxing/)
+`assembleRelease` for the app produces an **unsigned** APK: no production signing config
+is checked in, and none should be.
 
-## Etcetera
+## Support range
 
-[![codecov](https://codecov.io/gh/zxing/zxing/branch/master/graph/badge.svg?token=6RrJHvUMDl)](https://codecov.io/gh/zxing/zxing)
+| | |
+| --- | --- |
+| `minSdk` | 21 (raised from upstream's 19 — rationale in [AUDIT.md](docs/maint/AUDIT.md) §2) |
+| `compileSdk` / `targetSdk` | 36 |
+| Camera | Camera1 (`android.hardware.Camera`), as upstream. A Camera2/CameraX backend is under evaluation, not yet decided |
+| Google Play Services | Not required. The scan path is fully offline |
 
-QR code is trademarked by Denso Wave, inc. Thanks to Haase & Martin OHG for contributing the logo.
+Verified on **Android 14 (API 34), DN-ENG41, no GMS**. Other versions are listed as
+expected-to-work until they have been run; the current state of that matrix is in
+[docs/maint/AUDIT.md](docs/maint/AUDIT.md).
 
-Optimized with [![JProfiler](https://www.ej-technologies.com/images/banners/jprofiler_small.png)](https://www.ej-technologies.com/products/jprofiler/overview.html)
+## Documentation
+
+- [AUDIT.md](docs/maint/AUDIT.md) — what was found, with evidence levels, and what is fixed
+- [MIGRATION.md](docs/maint/MIGRATION.md) — what changed against upstream and why
+- [PUBLISHING.md](docs/maint/PUBLISHING.md) — releasing and consuming the AAR
+- [BENCHMARKS.md](docs/maint/BENCHMARKS.md) — how performance is measured, and what is not yet measured
+
+## Performance claims
+
+There are none yet. The benchmark harness exists so that any future claim comes with a
+baseline, a dataset hash, a device and a confidence interval. Where this fork has removed
+obviously wasteful work, that is described as simpler code, not as a measured speedup,
+until it has been measured. See [BENCHMARKS.md](docs/maint/BENCHMARKS.md).
+
+## Licence
+
+Apache 2.0, as upstream. See [LICENSE](LICENSE), [NOTICE](NOTICE) and [AUTHORS](AUTHORS).

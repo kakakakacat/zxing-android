@@ -8,6 +8,9 @@ plugins {
   `maven-publish`
 }
 
+group = "io.github.kakakakacat.zxing"
+version = (project.findProperty("scannerVersion") as String?) ?: "0.1.0"
+
 android {
   namespace = "com.google.zxing.client.android.scanner"
   compileSdk = 36
@@ -49,11 +52,21 @@ dependencies {
 }
 
 publishing {
+  repositories {
+    // GitHub Packages. Works with the token CI already has; consumers authenticate
+    // with any GitHub token that has read:packages. See docs/maint/PUBLISHING.md.
+    maven {
+      name = "GitHubPackages"
+      url = uri("https://maven.pkg.github.com/kakakakacat/zxing-android")
+      credentials {
+        username = (project.findProperty("gpr.user") as String?) ?: System.getenv("GITHUB_ACTOR")
+        password = (project.findProperty("gpr.key") as String?) ?: System.getenv("GITHUB_TOKEN")
+      }
+    }
+  }
   publications {
     register<MavenPublication>("release") {
-      groupId = "io.github.kakakakacat.zxing"
       artifactId = "zxing-android-scanner"
-      version = project.findProperty("scannerVersion")?.toString() ?: "0.1.0"
       afterEvaluate { from(components["release"]) }
       pom {
         name.set("ZXing Android Scanner")
@@ -61,11 +74,16 @@ publishing {
           "Barcode scanning pipeline for Android, maintained as a community fork of the " +
             "ZXing Android client. Not an official ZXing release."
         )
+        url.set("https://github.com/kakakakacat/zxing-android")
         licenses {
           license {
             name.set("The Apache License, Version 2.0")
             url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
           }
+        }
+        scm {
+          url.set("https://github.com/kakakakacat/zxing-android")
+          connection.set("scm:git:https://github.com/kakakakacat/zxing-android.git")
         }
       }
     }
