@@ -6,3 +6,10 @@ target
 .settings
 .classpath
 .project
+
+# Gradle / Android build outputs (maintenance fork)
+.gradle/
+build/
+*/build/
+local.properties
+.idea/
