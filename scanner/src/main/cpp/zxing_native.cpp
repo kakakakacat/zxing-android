@@ -137,6 +137,16 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeCreate
   decoder->options.setTryRotate(false);
   decoder->options.setTryInvert(false);
   decoder->options.setTryDownscale(false);
+  // How bytes become a String. zxing-cpp defaults to TextMode::HRI, which replaces every
+  // non-graphical character with a symbolic stand-in -- ASCII 29 comes back as "<GS>" or
+  // "\u241d". This library has always returned the character itself, and a host that
+  // parses a GS1 separator or a MaxiCode structured message gets a string it cannot
+  // parse. Measured before and after on the corpus: 11 of the 61 samples that the native
+  // backend rendered differently are this and nothing else (BENCHMARKS.md section 9.1).
+  //
+  // Plain is zxing-cpp's own pre-2.0 default and transcodes by ECI or guessed charset,
+  // which is what MultiFormatReader does.
+  decoder->options.setTextMode(ZXing::TextMode::Plain);
   decoder->options.setMaxNumberOfSymbols(1);
   return static_cast<jlong>(reinterpret_cast<uintptr_t>(decoder));
 }
@@ -215,7 +225,15 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode
     const ZXing::ImageView image(pixels, width, height, ZXing::ImageFormat::Lum);
     const ZXing::Barcode barcode = ZXing::ReadBarcode(image, decoder->options);
     if (barcode.isValid()) {
-      text = barcode.text();
+      // RSS-Expanded is the one format where this library's Java reader prints the GS1
+      // application identifiers in parentheses -- "(11)100224(17)110224" -- because
+      // RSSExpandedReader parses the AI stream itself. zxing-cpp does that only in
+      // TextMode::HRI, and HRI escapes every non-graphical character everywhere else,
+      // which is what Plain is set for. So the mode is chosen per symbol rather than per
+      // decoder. Measured both ways on the corpus: Plain alone loses 174 RSS-Expanded
+      // samples, HRI alone loses 11 MaxiCode and PDF417 ones (BENCHMARKS.md section 9.1).
+      const bool gs1Parentheses = barcode.format() == ZXing::BarcodeFormat::DataBarExpanded;
+      text = gs1Parentheses ? barcode.text(ZXing::TextMode::HRI) : barcode.text();
       format = ZXing::ToString(barcode.format());
       const auto& position = barcode.position();
       const ZXing::PointI points[4] = {position.topLeft(), position.topRight(),

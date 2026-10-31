@@ -92,6 +92,54 @@ public final class DefaultBackendTest {
   }
 
   @Test
+  public void aCodabarSymbolStillComesBackWithoutItsGuards() throws Exception {
+    // zxing-cpp keeps the start and stop characters; CodaBarReader drops them unless
+    // RETURN_CODABAR_START_END is asked for, and this library has never asked. Found on
+    // the corpus: all 11 Codabar samples read correctly and returned "A1234567890A".
+    Assume.assumeTrue(NativeFrameDecoder.isAvailable());
+    FrameDecoder decoder = new NativeFrameDecoder(null);
+    try {
+      Result result = decoder.decode(frameWith("A1234567890A", BarcodeFormat.CODABAR));
+      assertNotNull("the native decoder missed a clean Codabar frame", result);
+      assertEquals("1234567890", result.getText());
+      assertEquals(BarcodeFormat.CODABAR, result.getBarcodeFormat());
+    } finally {
+      decoder.close();
+    }
+  }
+
+  @Test
+  public void aUpcESymbolStillComesBackAsItsEightPrintedDigits() throws Exception {
+    // zxing-cpp expands UPC-E to its UPC-A equivalent and still labels it UPC_E: 37 of
+    // the corpus's 55 UPC-E samples came back as "0012345000065" instead of "01234565".
+    Assume.assumeTrue(NativeFrameDecoder.isAvailable());
+    FrameDecoder decoder = new NativeFrameDecoder(null);
+    try {
+      Result result = decoder.decode(frameWith("01234565", BarcodeFormat.UPC_E));
+      assertNotNull("the native decoder missed a clean UPC-E frame", result);
+      assertEquals("01234565", result.getText());
+      assertEquals(BarcodeFormat.UPC_E, result.getBarcodeFormat());
+    } finally {
+      decoder.close();
+    }
+  }
+
+  @Test
+  public void aGroupSeparatorArrivesAsItselfRatherThanEscaped() throws Exception {
+    // zxing-cpp's default TextMode::HRI renders ASCII 29 as "<GS>", which a host parsing
+    // a GS1 payload cannot read. The JNI asks for TextMode::Plain instead.
+    Assume.assumeTrue(NativeFrameDecoder.isAvailable());
+    FrameDecoder decoder = new NativeFrameDecoder(null);
+    try {
+      Result result = decoder.decode(frameWith("a\u001db", BarcodeFormat.QR_CODE));
+      assertNotNull(result);
+      assertEquals("a\u001db", result.getText());
+    } finally {
+      decoder.close();
+    }
+  }
+
+  @Test
   public void aFinishedSymbolStillCarriesItsCorners() throws Exception {
     // The viewfinder's animated candidate points are lost with the native backend --
     // zxing-cpp has no streaming callback. The points of a found symbol, which is what

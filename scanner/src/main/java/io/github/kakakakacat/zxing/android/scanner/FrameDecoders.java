@@ -31,15 +31,16 @@ import java.util.Map;
  * to measure; see {@code docs/maint/BENCHMARKS.md} for what a comparison must clear
  * before it counts as a result.
  *
- * <p>The Java backend is the shipping default. Nothing here changes that, and nothing
- * here should until the comparison exists.
+ * <p>The native backend is the shipping default since {@code ebe1708b4}; the Java one is
+ * the fallback where there is no native build for the ABI, and what
+ * {@code ScannerOptions.setDecoderBackend(JAVA)} selects.
  */
 public final class FrameDecoders {
 
-  /** The Java decoder: the shipping default and the baseline of any comparison. */
+  /** The Java decoder: the fallback, and the baseline of any comparison. */
   public static final String JAVA = JavaFrameDecoder.NAME;
 
-  /** The zxing-cpp decoder. Available only where its ABI is. */
+  /** The zxing-cpp decoder: the default. Available only where its ABI is. */
   public static final String NATIVE = NativeFrameDecoder.NAME;
 
   /** Short spelling of {@link #JAVA}, for a command line or an instrumentation argument. */

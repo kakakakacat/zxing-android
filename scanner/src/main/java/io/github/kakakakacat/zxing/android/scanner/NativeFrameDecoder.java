@@ -29,10 +29,11 @@ import java.util.Map;
 /**
  * The zxing-cpp decoder behind the {@link FrameDecoder} seam.
  *
- * <p><strong>Not the default, and not claimed to be faster.</strong> Phase 5 item 10
- * requires an A/B against {@link JavaFrameDecoder} on the fixed dataset, clearing the
- * gates in {@code docs/maint/BENCHMARKS.md} §10.6, before this becomes anyone's default
- * or before any speedup is stated. Swapping a decoder is not evidence.
+ * <p><strong>The shipping default since {@code ebe1708b4}</strong>, on the strength of
+ * the A/B in {@code docs/maint/BENCHMARKS.md} §10.6c: 56–82% faster on 2D symbols and on
+ * all-format misses. §9.1 is the other half of that picture and is less flattering — on
+ * the 1168-sample corpus this backend reads 100 fewer samples than the Java one, almost
+ * all of them DataBar — so which backend should be the default is an open question again.
  *
  * <p>The native library is loaded once, lazily, and a failure to load is reported through
  * {@link #isAvailable()} rather than thrown: a device without the right ABI should fall
@@ -130,21 +131,28 @@ final class NativeFrameDecoder implements FrameDecoder {
   }
 
   private long handle;
-  private final boolean upcACompatibility;
+  private final boolean compatibilityRendering;
 
   NativeFrameDecoder(Collection<BarcodeFormat> formats) {
     this(formats, true);
   }
 
   /**
-   * @param upcACompatibility whether to report a UPC-A symbol the way this library always
-   *     has — 12 digits, {@link BarcodeFormat#UPC_A} — rather than the 13-digit EAN-13
-   *     rendering zxing-cpp produces. On by default: making the native decoder the
-   *     default must not silently change what callers receive. Off is for measurement,
-   *     where the raw behaviour of each decoder is the point.
+   * @param compatibilityRendering whether to report a symbol the way this library always
+   *     has rather than the way zxing-cpp spells it: UPC-A as 12 digits and
+   *     {@link BarcodeFormat#UPC_A} rather than 13 and {@code EAN_13}, UPC-E compacted
+   *     back to its eight printed digits, and Codabar without its start and stop
+   *     characters. On by default: making the native decoder the default must not
+   *     silently change what callers receive. Off is for measurement, where the raw
+   *     behaviour of each decoder is the point.
+   *     <p>A fourth difference — zxing-cpp escaping every non-graphical character — is
+   *     handled on the native side with {@code TextMode::Plain}, because it is a property
+   *     of the whole decode rather than of one symbology, and so is not switchable here.
+   *     All four were found by running the corpus through both backends; BENCHMARKS.md
+   *     §9.1 counts them.
    */
-  NativeFrameDecoder(Collection<BarcodeFormat> formats, boolean upcACompatibility) {
-    this.upcACompatibility = upcACompatibility;
+  NativeFrameDecoder(Collection<BarcodeFormat> formats, boolean compatibilityRendering) {
+    this.compatibilityRendering = compatibilityRendering;
     if (!AVAILABLE) {
       throw new IllegalStateException("libzxingnative is not loaded", LOAD_FAILURE);
     }
@@ -202,11 +210,15 @@ final class NativeFrameDecoder implements FrameDecoder {
       return null;
     }
     String text = decoded[0];
-    if (upcACompatibility) {
+    if (compatibilityRendering) {
       BarcodeFormat compatFormat = upcAFormatFor(format, text);
       if (compatFormat != null) {
         format = compatFormat;
         text = text.substring(1);
+      } else if (format == BarcodeFormat.UPC_E) {
+        text = compactUpcE(text);
+      } else if (format == BarcodeFormat.CODABAR) {
+        text = withoutCodabarGuards(text);
       }
     }
     return new Result(text, null, cornerPoints(decoded), format);
@@ -232,6 +244,97 @@ final class NativeFrameDecoder implements FrameDecoder {
       return null;
     }
     return BarcodeFormat.UPC_A;
+  }
+
+  /**
+   * A UPC-E symbol as this library has always reported it: the eight digits that are
+   * actually printed under the symbol.
+   *
+   * <p>zxing-cpp returns the expanded UPC-A equivalent — {@code 0012345000065} for a
+   * symbol whose digits are {@code 01234565} — and still labels it {@code UPC_E}. Both
+   * carry the same information and the printed form is what a host compares against a
+   * database, so the expansion is undone here. This was 37 of the 1168 corpus samples.
+   *
+   * <p>The four patterns are checked in the GS1 order, which inverts
+   * {@code UPCEReader.convertUPCEtoUPCA} — the function the Java backend's own output
+   * comes through. The inverse is not quite unique: that expansion is not injective, and
+   * 9% of the two million syntactically possible UPC-E strings share a UPC-A with another
+   * one, so for those the other spelling comes back. It is not a different product —
+   * every such pair expands to the same UPC-A, checked exhaustively — and all 55 UPC-E
+   * samples in the corpus come back as exactly the digits printed under the symbol. The
+   * ambiguity is unavoidable here: zxing-cpp reports only the expanded form, so the
+   * parity bits that would say which spelling the symbol carried are already gone.
+   *
+   * <p>A string that matches none of the four patterns is left alone rather than mangled
+   * — it did not come from a UPC-E symbol and guessing would be worse than passing it
+   * through.
+   */
+  static String compactUpcE(String text) {
+    String upcA = text;
+    if (upcA.length() == 13 && upcA.charAt(0) == '0') {
+      // zxing-cpp pads to the 13-digit GS1 rendering; UPC-A is the last 12.
+      upcA = upcA.substring(1);
+    }
+    if (upcA.length() != 12 || !isAllDigits(upcA)) {
+      return text;
+    }
+    char numberSystem = upcA.charAt(0);
+    if (numberSystem != '0' && numberSystem != '1') {
+      // UPC-E exists only for number systems 0 and 1.
+      return text;
+    }
+    char check = upcA.charAt(11);
+    char d3 = upcA.charAt(3);
+    if ((d3 == '0' || d3 == '1' || d3 == '2') && "0000".equals(upcA.substring(4, 8))) {
+      return "" + numberSystem + upcA.charAt(1) + upcA.charAt(2)
+          + upcA.charAt(8) + upcA.charAt(9) + upcA.charAt(10) + d3 + check;
+    }
+    if ("00000".equals(upcA.substring(4, 9))) {
+      return "" + numberSystem + upcA.charAt(1) + upcA.charAt(2) + upcA.charAt(3)
+          + upcA.charAt(9) + upcA.charAt(10) + '3' + check;
+    }
+    if ("00000".equals(upcA.substring(5, 10))) {
+      return "" + numberSystem + upcA.charAt(1) + upcA.charAt(2) + upcA.charAt(3)
+          + upcA.charAt(4) + upcA.charAt(10) + '4' + check;
+    }
+    char last = upcA.charAt(10);
+    if (last >= '5' && "0000".equals(upcA.substring(6, 10))) {
+      return "" + numberSystem + upcA.charAt(1) + upcA.charAt(2) + upcA.charAt(3)
+          + upcA.charAt(4) + upcA.charAt(5) + last + check;
+    }
+    return text;
+  }
+
+  /**
+   * Codabar without its start and stop characters.
+   *
+   * <p>zxing-cpp keeps them — {@code A1234567890A} — and {@code CodaBarReader} removes
+   * them unless {@code RETURN_CODABAR_START_END} was asked for. This library has never
+   * set that hint on the scanning path, so the guards would be new characters in front of
+   * and behind every Codabar result a host already handles. All 11 Codabar samples in the
+   * corpus were affected.
+   */
+  static String withoutCodabarGuards(String text) {
+    if (text.length() < 3 || !isCodabarGuard(text.charAt(0))
+        || !isCodabarGuard(text.charAt(text.length() - 1))) {
+      return text;
+    }
+    return text.substring(1, text.length() - 1);
+  }
+
+  private static boolean isCodabarGuard(char c) {
+    char upper = Character.toUpperCase(c);
+    return upper >= 'A' && upper <= 'D';
+  }
+
+  private static boolean isAllDigits(String s) {
+    for (int i = 0; i < s.length(); i++) {
+      char c = s.charAt(i);
+      if (c < '0' || c > '9') {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
