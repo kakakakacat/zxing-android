@@ -254,7 +254,13 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode
       // which is what Plain is set for. So the mode is chosen per symbol rather than per
       // decoder. Measured both ways on the corpus: Plain alone loses 174 RSS-Expanded
       // samples, HRI alone loses 11 MaxiCode and PDF417 ones (BENCHMARKS.md section 9.1).
-      const bool gs1Parentheses = barcode.format() == ZXing::BarcodeFormat::DataBarExpanded;
+      //
+      // Both expanded variants, not just the one: a stacked symbol comes back as
+      // DataBarExpStk and testing only DataBarExpanded left 56 of them rendered without
+      // their parentheses. The non-expanded DataBar family is deliberately not here --
+      // RSS14Reader returns the bare 14 digits, and the AI prefix is removed in Java.
+      const bool gs1Parentheses = barcode.format() == ZXing::BarcodeFormat::DataBarExp
+          || barcode.format() == ZXing::BarcodeFormat::DataBarExpStk;
       text = gs1Parentheses ? barcode.text(ZXing::TextMode::HRI) : barcode.text();
       format = ZXing::ToString(barcode.format());
       const auto& position = barcode.position();

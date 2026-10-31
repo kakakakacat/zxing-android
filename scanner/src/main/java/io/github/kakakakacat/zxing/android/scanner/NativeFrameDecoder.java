@@ -16,6 +16,8 @@
 
 package io.github.kakakakacat.zxing.android.scanner;
 
+import android.util.Log;
+
 import io.github.kakakakacat.zxing.BarcodeFormat;
 import io.github.kakakakacat.zxing.DecodeHintType;
 import io.github.kakakakacat.zxing.LuminanceSource;
@@ -23,9 +25,12 @@ import io.github.kakakakacat.zxing.Result;
 import io.github.kakakakacat.zxing.ResultPoint;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The zxing-cpp decoder behind the {@link FrameDecoder} seam.
@@ -94,13 +99,56 @@ final class NativeFrameDecoder implements FrameDecoder {
     NATIVE_NAMES.put(BarcodeFormat.UPC_E, "UPC-E");
   }
 
-  /** Reverse of {@link #NATIVE_NAMES}, keyed on the normalised spelling. */
+  /**
+   * Reverse of {@link #NATIVE_NAMES}, keyed on the normalised spelling, plus the names
+   * that only ever come <em>back</em>.
+   *
+   * <p><strong>A zxing-cpp format name is not symmetric.</strong> What you ask for can be
+   * a symbology — {@code DataBar}, {@code PDF417} — and what comes back is always the
+   * specific variant the symbol turned out to be: {@code "DataBar Stacked"},
+   * {@code "DataBar Expanded Stacked"}, {@code "Compact PDF417"}. Its own header says so:
+   * "only specific variants are returned by the library when reading barcodes".
+   *
+   * <p>Reversing the request table alone therefore misses every variant, and because an
+   * unmapped name is reported as "nothing here", a symbol this decoder read perfectly was
+   * scored as a miss. That is not theoretical: it cost **every one of the 30 RSS-14
+   * samples** in the corpus, 59 of the 71 RSS-Expanded ones (all in
+   * {@code rssexpandedstacked-*}) and part of the Code 39 loss — the whole "DataBar
+   * capability gap" that §9.1 first reported as a difference between the two readers.
+   *
+   * <p>Variants with no equivalent in this fork stay out deliberately: DataBar Limited,
+   * MicroPDF417, Micro QR, rMQR, Aztec Rune, DX Film Edge, Telepen. A caller cannot
+   * switch on a format this library does not define, so for those "nothing here" is the
+   * honest answer rather than a lie about which symbology was read.
+   */
   private static final Map<String,BarcodeFormat> FORMATS_BY_NORMALISED_NAME = new HashMap<>();
 
   static {
     for (Map.Entry<BarcodeFormat,String> entry : NATIVE_NAMES.entrySet()) {
       FORMATS_BY_NORMALISED_NAME.put(normalise(entry.getValue()), entry.getKey());
     }
+    // DataBar: the symbology is what gets requested, the variant is what comes back.
+    // zxing-cpp's own blackbox suite reads rss14-1 as DataBarOmni and rss14-2 as
+    // DataBarStk, so a reader that only knows "DataBar" sees neither.
+    alias("DataBar Omni", BarcodeFormat.RSS_14);
+    alias("DataBar Stacked", BarcodeFormat.RSS_14);
+    alias("DataBar Stacked Omni", BarcodeFormat.RSS_14);
+    alias("DataBar Expanded Stacked", BarcodeFormat.RSS_EXPANDED);
+    // RSSExpandedReader reads the stacked form as RSS_EXPANDED too, so this is the same
+    // format a caller already receives from the Java backend.
+    alias("Compact PDF417", BarcodeFormat.PDF_417);
+    // PDF417Reader decodes compact PDF417 and reports it as PDF_417.
+    alias("Code 39 Standard", BarcodeFormat.CODE_39);
+    alias("Code 39 Extended", BarcodeFormat.CODE_39);
+    alias("ITF-14", BarcodeFormat.ITF);
+    alias("ISBN", BarcodeFormat.EAN_13);
+    alias("QR Code Model 1", BarcodeFormat.QR_CODE);
+    alias("QR Code Model 2", BarcodeFormat.QR_CODE);
+    alias("Aztec Code", BarcodeFormat.AZTEC);
+  }
+
+  private static void alias(String nativeName, BarcodeFormat format) {
+    FORMATS_BY_NORMALISED_NAME.put(normalise(nativeName), format);
   }
 
   /**
@@ -219,6 +267,11 @@ final class NativeFrameDecoder implements FrameDecoder {
       // A format this fork has no equivalent for. Reporting it as a miss is the honest
       // answer: the caller asked for formats it can name, and inventing one would put a
       // value into Result.getBarcodeFormat() that no caller can switch on.
+      //
+      // Logged, once per name, because the silent version of this cost 90 corpus reads
+      // and took a full L1 run to notice: a decoded symbol thrown away here is
+      // indistinguishable from a frame that held no barcode.
+      warnOnceAboutUnmappedFormat(decoded[1]);
       return null;
     }
     String text = decoded[0];
@@ -231,6 +284,8 @@ final class NativeFrameDecoder implements FrameDecoder {
         text = compactUpcE(text);
       } else if (format == BarcodeFormat.CODABAR) {
         text = withoutCodabarGuards(text);
+      } else if (format == BarcodeFormat.RSS_14) {
+        text = withoutGs1GtinPrefix(text);
       }
     }
     return new Result(text, null, cornerPoints(decoded), format);
@@ -318,6 +373,22 @@ final class NativeFrameDecoder implements FrameDecoder {
   }
 
   /**
+   * An RSS-14 symbol as the Java reader reports it: the 14-digit GTIN alone.
+   *
+   * <p>A DataBar omnidirectional symbol always carries GS1 application identifier 01, and
+   * zxing-cpp includes it in the text — {@code 0104412345678909} where
+   * {@code RSS14Reader} returns {@code 04412345678909}. Only that exact shape is
+   * touched: 16 digits beginning with the identifier. Anything else is passed through,
+   * because a string that is not this is not something to go trimming digits off.
+   */
+  static String withoutGs1GtinPrefix(String text) {
+    if (text.length() != 16 || !text.startsWith("01") || !isAllDigits(text)) {
+      return text;
+    }
+    return text.substring(2);
+  }
+
+  /**
    * Codabar without its start and stop characters.
    *
    * <p>zxing-cpp keeps them — {@code A1234567890A} — and {@code CodaBarReader} removes
@@ -370,6 +441,16 @@ final class NativeFrameDecoder implements FrameDecoder {
       return points;
     } catch (NumberFormatException e) {
       return null;
+    }
+  }
+
+  private static final Set<String> REPORTED_UNMAPPED_FORMATS =
+      Collections.synchronizedSet(new HashSet<String>());
+
+  private static void warnOnceAboutUnmappedFormat(String nativeName) {
+    if (nativeName != null && REPORTED_UNMAPPED_FORMATS.add(nativeName)) {
+      Log.w("NativeFrameDecoder", "zxing-cpp read a " + nativeName
+          + ", which this library has no BarcodeFormat for; reporting it as no result");
     }
   }
 

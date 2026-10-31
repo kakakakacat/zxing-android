@@ -17,7 +17,9 @@
 package io.github.kakakakacat.zxing.android.scanner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 
+import io.github.kakakakacat.zxing.BarcodeFormat;
 import io.github.kakakakacat.zxing.oned.UPCEReader;
 
 import org.junit.Test;
@@ -73,6 +75,63 @@ public final class NativeRenderingTest {
     assertEquals("123456789012", NativeFrameDecoder.compactUpcE("123456789012"));
     assertEquals("12345", NativeFrameDecoder.compactUpcE("12345"));
     assertEquals("01234a000065", NativeFrameDecoder.compactUpcE("01234a000065"));
+  }
+
+  @Test
+  public void theVariantNamesZxingCppActuallyReportsAreRecognised() {
+    // What you ask zxing-cpp for is a symbology; what it hands back is the variant the
+    // symbol turned out to be. Knowing only the request spelling meant a symbol it read
+    // perfectly was reported as "nothing here" -- every RSS-14 sample in the corpus and
+    // 59 of the RSS-Expanded ones.
+    assertEquals(BarcodeFormat.RSS_14, NativeFrameDecoder.formatFromNativeName("DataBar"));
+    assertEquals(BarcodeFormat.RSS_14,
+                 NativeFrameDecoder.formatFromNativeName("DataBar Omni"));
+    assertEquals(BarcodeFormat.RSS_14,
+                 NativeFrameDecoder.formatFromNativeName("DataBar Stacked"));
+    assertEquals(BarcodeFormat.RSS_14,
+                 NativeFrameDecoder.formatFromNativeName("DataBar Stacked Omni"));
+    assertEquals(BarcodeFormat.RSS_EXPANDED,
+                 NativeFrameDecoder.formatFromNativeName("DataBar Expanded"));
+    assertEquals(BarcodeFormat.RSS_EXPANDED,
+                 NativeFrameDecoder.formatFromNativeName("DataBar Expanded Stacked"));
+    assertEquals(BarcodeFormat.PDF_417,
+                 NativeFrameDecoder.formatFromNativeName("Compact PDF417"));
+    assertEquals(BarcodeFormat.CODE_39,
+                 NativeFrameDecoder.formatFromNativeName("Code 39 Extended"));
+    assertEquals(BarcodeFormat.QR_CODE,
+                 NativeFrameDecoder.formatFromNativeName("QR Code Model 2"));
+    assertEquals(BarcodeFormat.ITF, NativeFrameDecoder.formatFromNativeName("ITF-14"));
+    assertEquals(BarcodeFormat.AZTEC, NativeFrameDecoder.formatFromNativeName("Aztec Code"));
+  }
+
+  @Test
+  public void aVariantThisLibraryCannotNameIsStillNotRecognised() {
+    // Deliberate. A caller cannot switch on a format this library does not define, so
+    // claiming the nearest one would be worse than reporting nothing.
+    assertNull(NativeFrameDecoder.formatFromNativeName("DataBar Limited"));
+    assertNull(NativeFrameDecoder.formatFromNativeName("MicroPDF417"));
+    assertNull(NativeFrameDecoder.formatFromNativeName("Micro QR Code"));
+    assertNull(NativeFrameDecoder.formatFromNativeName("rMQR Code"));
+    assertNull(NativeFrameDecoder.formatFromNativeName("DX Film Edge"));
+  }
+
+  @Test
+  public void rss14LosesTheGs1ApplicationIdentifier() {
+    assertEquals("04412345678909",
+                 NativeFrameDecoder.withoutGs1GtinPrefix("0104412345678909"));
+    assertEquals("02001234567893",
+                 NativeFrameDecoder.withoutGs1GtinPrefix("0102001234567893"));
+  }
+
+  @Test
+  public void anythingThatIsNotThatShapeKeepsItsDigits() {
+    // 14 digits that happen to start with 01 are a GTIN, not a GTIN behind an AI.
+    assertEquals("04412345678909",
+                 NativeFrameDecoder.withoutGs1GtinPrefix("04412345678909"));
+    assertEquals("0104412345678909x",
+                 NativeFrameDecoder.withoutGs1GtinPrefix("0104412345678909x"));
+    assertEquals("0204412345678909",
+                 NativeFrameDecoder.withoutGs1GtinPrefix("0204412345678909"));
   }
 
   @Test
