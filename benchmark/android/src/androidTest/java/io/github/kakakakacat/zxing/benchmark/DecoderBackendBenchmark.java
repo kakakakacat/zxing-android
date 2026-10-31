@@ -111,10 +111,14 @@ public final class DecoderBackendBenchmark {
 
   @Before
   public void buildTheFrameAndDecoder() {
-    String backend = requestedBackend();
+    // An unknown name throws out of canonical() and fails the run. Only a real device
+    // limitation -- no native build for this ABI -- is allowed to skip, and the two must
+    // not be confused: a typo that skipped every case would look like a clean run that
+    // measured nothing.
+    String backend = FrameDecoders.canonical(requestedBackend());
     Assume.assumeTrue(
-        "backend " + backend + " is not available on this device, so it is not measured "
-            + "here rather than measured as something else",
+        "backend " + backend + " has no build for this device's ABI, so it is not "
+            + "measured here rather than measured as something else",
         FrameDecoders.isAvailable(backend));
 
     frame = FrameFactory.build(resolution, variant);

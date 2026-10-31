@@ -42,7 +42,36 @@ public final class FrameDecoders {
   /** The zxing-cpp decoder. Available only where its ABI is. */
   public static final String NATIVE = NativeFrameDecoder.NAME;
 
+  /** Short spelling of {@link #JAVA}, for a command line or an instrumentation argument. */
+  public static final String JAVA_ALIAS = "java";
+
+  /** Short spelling of {@link #NATIVE}. */
+  public static final String NATIVE_ALIAS = "native";
+
   private FrameDecoders() {
+  }
+
+  /**
+   * The canonical backend name for a name or its short alias.
+   *
+   * <p>{@code java} and {@code native} are what a person types; {@code zxing-java} and
+   * {@code zxing-cpp} are what gets recorded next to a measurement. Accepting both in one
+   * place keeps a caller from having to know which is which.
+   *
+   * @throws IllegalArgumentException if the name is not a known backend. An unknown name
+   *     is a mistake in how the run was invoked, and has to be loud: treating it as
+   *     "unavailable" would quietly skip the work someone asked for.
+   */
+  public static String canonical(String name) {
+    if (JAVA.equals(name) || JAVA_ALIAS.equals(name)) {
+      return JAVA;
+    }
+    if (NATIVE.equals(name) || NATIVE_ALIAS.equals(name)) {
+      return NATIVE;
+    }
+    throw new IllegalArgumentException("unknown decoder backend: " + name
+        + " (expected one of " + JAVA + "/" + JAVA_ALIAS + ", " + NATIVE + "/"
+        + NATIVE_ALIAS + ")");
   }
 
   /**
@@ -52,9 +81,10 @@ public final class FrameDecoders {
    * @throws IllegalArgumentException if the name is not a known backend
    * @throws IllegalStateException if the native backend was asked for and is not loadable
    */
-  public static FrameDecoder create(String name,
+  public static FrameDecoder create(String rawName,
                                     Map<DecodeHintType,?> hints,
                                     Collection<BarcodeFormat> formats) {
+    String name = canonical(rawName);
     if (JAVA.equals(name)) {
       Map<DecodeHintType,Object> fixed = new EnumMap<>(DecodeHintType.class);
       if (hints != null) {
@@ -72,15 +102,16 @@ public final class FrameDecoders {
     throw new IllegalArgumentException("unknown decoder backend: " + name);
   }
 
-  /** Whether {@link #NATIVE} can be created on this device. */
-  public static boolean isAvailable(String name) {
-    if (JAVA.equals(name)) {
-      return true;
-    }
-    if (NATIVE.equals(name)) {
-      return NativeFrameDecoder.isAvailable();
-    }
-    return false;
+  /**
+   * Whether this backend can be created on this device.
+   *
+   * <p>False means a real device limitation — the native library has no build for this
+   * ABI. An unknown name throws instead, because that is a mistake in the request rather
+   * than a property of the device.
+   */
+  public static boolean isAvailable(String rawName) {
+    String name = canonical(rawName);
+    return JAVA.equals(name) || NativeFrameDecoder.isAvailable();
   }
 
   /**
@@ -90,7 +121,8 @@ public final class FrameDecoders {
    * version. A timing whose decoder cannot be identified cannot be compared with
    * anything.
    */
-  public static String buildInfo(String name) {
+  public static String buildInfo(String rawName) {
+    String name = canonical(rawName);
     if (JAVA.equals(name)) {
       return "backend=zxing-java";
     }
