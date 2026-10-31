@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `1cf6e8a95` on branch `maint/android`.
+Last updated at commit `8dce7b212` on branch `maint/android`.
 
 ---
 
@@ -62,6 +62,13 @@ Last updated at commit `1cf6e8a95` on branch `maint/android`.
 | `2ecd06428` | Native results rendered the way this library always has |
 | `4d4bdf232` | TRY_HARDER mapped onto the native effort flags |
 | `49bd3beb3` | **The format-name bug that cost 90 corpus reads** |
+| `9b79318f9` | Kotlin: `:android-integration`, plus `tools/maint/api-diff.sh` |
+| `59b01b55c` | Kotlin: `:scanner` leaf types; one was dead code |
+| `d050d1d0b` | Kotlin: `Intents`, every constant still a compile-time constant |
+| `df6d38919` | Kotlin: the decoder seam, JNI symbols intact |
+| `fc0cf7323` | Kotlin: the camera stack; **the stability loop was checking nothing** |
+| `39fdc78e0` | **`:scanner` is Kotlin end to end**, with a Java compatibility test |
+| `8dce7b212` | Kotlin: `:app` wired up, first 6 of 58 files |
 
 Nothing is uncommitted. Nothing is released; no tag has been pushed.
 
@@ -249,6 +256,22 @@ latency, first-scan latency, CPU, memory, GC or power.
 
 ## Start here if you are new to this file
 
+**What is in flight: the Kotlin conversion, Phase 5 item 6.**
+`:android-integration` and `:scanner` are finished and have no Java source left;
+`:app` is 6 files in with 52 to go. Item 6 below carries the per-package breakdown, the
+eight rules the conversion settled, and the two open questions about `:app`. Nothing is
+half-converted: every commit builds, tests and runs on the device.
+
+**And a warning that generalises past Kotlin.** `tools/maint/stability-loop.sh` had been
+reporting "100 cycles, 0 crashes" while starting nothing at all. It still named
+`com.google.zxing.client.android.CaptureActivity`, which moved at `849921bfa`; every
+`am start` failed into `/dev/null`. **A verification tool that is not itself verified is
+worse than no tool** — it was fixed, hardened to fail when the activity does not come
+up, and the fix checked by running it with the old name. Looking for more of the same
+turned up **a release-blocking defect in `release.yml`** — see "Release and
+distribution" below. Treat a clean result from an unexercised script as unproven until
+you have watched it fail on purpose.
+
 **The native decoder ships by default, and both halves of that decision are now
 measured and agree.** zxing-cpp is 56–82% faster on 2D and on all-format misses (§10.6c)
 *and* reads 30 more of the 1168 corpus samples than the Java decoder, with fewer wrong
@@ -387,6 +410,83 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
 
 6. Convert the maintained Android code to Kotlin module by module, keeping the Java API
    source-compatible.
+
+   **In progress. Two of three modules are done.**
+
+   | Module | State |
+   | --- | --- |
+   | `:android-integration` | Kotlin, 0 Java (`9b79318f9`) |
+   | `:scanner` — the published AAR | Kotlin, 0 Java, 25 files (`39fdc78e0`) |
+   | `:app` | 6 of 58 files; **52 files / 7,292 lines left** |
+   | `:core` | **stays Java on purpose** — synced from upstream by `sync-core-from-upstream.sh` |
+
+   **What is left, by package** (all of it in `:app`, under
+   `android/src/io/github/kakakakacat/zxing/android/`):
+
+   | Package | Files | Lines | The large ones |
+   | --- | --- | --- | --- |
+   | root | 8 | 1701 | `CaptureActivity` 896 |
+   | `result/` | 14 | 1766 | `ResultHandler` 530 |
+   | `result/supplement/` | 5 | 507 | |
+   | `encode/` | 8 | 1136 | `QRCodeEncoder` 372 |
+   | `share/` | 6 | 680 | |
+   | `history/` | 5 | 666 | |
+   | `book/` | 5 | 542 | |
+   | `wifi/` | 1 | 294 | `WifiConfigManager` |
+
+   **Two things make `:app` different from the two finished modules, and they were
+   raised with the user rather than decided here:**
+
+   - **`:app` has no tests at all.** `:scanner` was converted against 69 unit tests, 21
+     instrumentation tests and a bytecode API diff. For `:app` the only automated check
+     is that it compiles and lints; history, share, encode and the result handlers have
+     to be driven by hand on the device.
+   - **Six of the remaining files are the open Phase 3 defects** (A-06, A-07, A-08,
+     A-09, A-10, A-12). Converting them without fixing them means editing the same code
+     twice. **Undecided: pure refactor, or fold the fixes in where they land.**
+
+   ### How to carry on — the rules this conversion settled
+
+   Read the Kotlin trap in the Environment section first. Then:
+
+   1. **Work in clusters, not files.** A package-private Java class becomes `internal`,
+      and the Java that still calls it has to keep compiling, so a class converts
+      together with whatever it cannot be separated from.
+   2. **Members that Java inside the module calls stay plain `public`, never
+      `internal`.** An `internal` *function* is name-mangled (`foo$scanner`) and javac
+      cannot call it; an `internal` *class* is not mangled and is public in bytecode
+      anyway. `internal` on a member breaks the caller and protects nothing.
+   3. **Every companion member needs an explicit `private`.** A `const val` inside a
+      `private companion object` is still emitted as a **public static field** on the
+      enclosing class. This leaked four private constants before the API diff caught it.
+   4. **`@JvmSuppressWildcards` on every generic parameter.** Kotlin's `Collection` and
+      `Map` are `out`, so `Collection<BarcodeFormat>` reaches Java as
+      `Collection<? extends BarcodeFormat>`. A Java *call* still compiles; a Java
+      *override* does not.
+   5. **Run `tools/maint/api-diff.sh :<module> HEAD` before every commit** and read it.
+      Expected noise: `INSTANCE`/`Companion` fields, `final` on static methods,
+      `access$` bridges, and package-private widening. Anything else is a finding.
+   6. **A Kotlin class literal is not the Java one.** `Boolean::class.java` is
+      `boolean.class`; the boxed class needs `javaObjectType`. `DecodeHintValueTypesTest`
+      pins the four that `DecodeHintManager` depends on.
+   7. **Static `native` methods need `@JvmStatic private external fun` in the
+      companion**, and only that combination. Anything else moves the JNI symbol to
+      `…$Companion` and nothing binds.
+   8. **Nullability on an overridden Java callback follows the Java original.** A
+      non-null Kotlin parameter compiles to a null check that throws;
+      `Camera.PreviewCallback.onPreviewFrame` has been seen receiving null.
+
+   ### What guards this now
+
+   - `tools/maint/api-diff.sh <module> <ref>` — builds the module's release AAR at a
+     revision and at the working tree and diffs `javap`, members sorted. It found the
+     `getMoreExtras()` widening, 28 mangled `ScannerOptions.Builder` accessors, the
+     leaked private constants, and a companion-mangling mistake a hand-read had missed.
+   - `JavaSourceCompatibilityTest` in **both** `:android-integration` (5 tests) and
+     `:scanner` (9 tests), written in Java deliberately, most of it compiled rather than
+     run. Both verified to fail when the thing they guard is reverted.
+   - `DecodeHintValueTypesTest` in `:scanner`, 3 tests.
+   - CI runs `:android-integration:testDebugUnitTest` next to the scanner's unit tests.
 7. `zxing-cpp` backend behind the existing decoder seam, CMake building `arm64-v8a` and
    `armeabi-v7a`, shipped in the same AAR. **16 KB page alignment is mandatory** for
    Android 15+.
@@ -522,6 +622,28 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
   and the framing-rect shape still assume landscape.
 
 ### Release and distribution
+
+- **Tagging `v0.1.0` today would publish an AAR nobody can resolve.** Found on
+  2026-10-31 while checking which tooling had gone stale at the `849921bfa` rename; not
+  fixed, because it was outside the Kotlin work in flight.
+
+  `:scanner` declares `api(project(":core"))`, so its published POM carries a compile
+  dependency on `io.github.kakakakacat.zxing:zxing-core:<version>` — confirmed by reading
+  the POM that `publishToMavenLocal` produces. `release.yml` publishes **only**
+  `:scanner:publishReleasePublicationToGitHubPackagesRepository`, so that dependency
+  would not exist in GitHub Packages and every consumer's resolution would fail.
+
+  `:core` is already set up to publish (`core/build.gradle.kts` registers a `maven`
+  publication as `zxing-core` with the same group and version), so the fix is to run its
+  publish task in the same step.
+
+  The comment above that step is also wrong and is what hid this: it says `:core` is
+  deliberately not published because "its classes are `com.google.zxing.*`, so a second
+  artifact carrying them would collide with upstream". They have not been
+  `com.google.zxing.*` since `849921bfa` — avoiding exactly that collision is *why* the
+  rename happened, and this file's own evidence table records "Published AAR + jar, zero
+  `com/google` entries". The reasoning was left behind by the rename and the step was
+  never revisited.
 
 - Nothing has been released. Tagging `v0.1.0` triggers `.github/workflows/release.yml`,
   which builds, checksums, publishes to GitHub Packages and cuts a GitHub Release whose
