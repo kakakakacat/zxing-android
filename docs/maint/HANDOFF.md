@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `ebe1708b4` on branch `maint/android`.
+Last updated at commit `4cdff45b7` on branch `maint/android`.
 
 ---
 
@@ -57,6 +57,8 @@ Last updated at commit `ebe1708b4` on branch `maint/android`.
 | `602d368c4` | Native backend configured to the Java effort level |
 | `d780d3fa7` | **The first measured A/B of the two decoders** |
 | `ebe1708b4` | **zxing-cpp is the default**, contract preserved |
+| `e1ebfc2df` | L1's scoring rules moved where two runners can share them |
+| `4cdff45b7` | **L1 on a device**, and the accuracy answer it produced |
 
 Nothing is uncommitted. Nothing is released; no tag has been pushed.
 
@@ -67,6 +69,8 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | What | Result | Where |
 | --- | --- | --- |
 | `:core:test` | 602 tests, 0 failures | local |
+| L1 corpus, both backends, DN-ENG41 | java 862/4/254/46/2, zxing-cpp 762/61/297/48/0 | `reports/l1-4cdff45b7-*` |
+| L1 device harness against the host run | same five totals through the same decoder | §9.1 |
 | `:scanner:testDebugUnitTest` | 41 tests: 9 coordinate-mapping, 6 hint-construction, 18 luma-plane, 8 decoder-seam | local + CI |
 | `:scanner:connectedDebugAndroidTest` | 13 tests: 35 fixed frames over 16 formats, a live format-switch test, and the native backend, 0 failures | Android 14 device **and** CI emulators API 21/34/35/36 |
 | 16 KB page alignment | `0x4000` on both shipped ABIs, enforced by `:scanner:verifyNativeAlignment` | local + CI |
@@ -212,15 +216,28 @@ latency, first-scan latency, CPU, memory, GC or power.
 
 ## Start here if you are new to this file
 
-**The native decoder now ships by default.** The one thing that should worry you about
-that, and the first job for anyone picking this up:
+**The native decoder ships by default, and the corpus now says that was decided on half
+the evidence.** The first job for anyone picking this up:
 
-> **Nothing is known about zxing-cpp's accuracy on this project's corpus.** The A/B that
-> justified the switch measured *speed* on nine clean, generated frames. The 1168-sample
-> blackbox corpus that measures correctness (L1) has only ever run on the host JVM,
-> against the Java decoder. A decoder that is faster on a clean frame can be worse on a
-> blurred or angled one, and the switch was made without that number. Running the corpus
-> through the native backend is the highest-value unfinished work in this repository.
+> **zxing-cpp is less accurate than the Java decoder on this project's corpus, and in
+> four places it silently changes the text a caller receives.** Measured on DN-ENG41,
+> 1168 samples, both backends through the same seam: 862 → 762 correct. It reads *more*
+> 2D symbols (Aztec 22→39, Data Matrix 39→57, QR 158→164) and emits no false positives
+> where the Java decoder emitted two — but Codabar comes back with its start/stop guards,
+> UPC-E comes back expanded to 13 digits, non-graphical characters come back escaped,
+> GS1 parentheses are dropped, and RSS-14 and RSS-Expanded lose 91 reads between them.
+> `BENCHMARKS.md` §9.1, files `reports/l1-4cdff45b7-DN-ENG41-{java,native}.json`.
+>
+> **The rendering half is a contract break and should be fixed, not documented.**
+> `TextMode::Plain` in the JNI covers the escaping; UPC-E, Codabar and GS1 need work on
+> the Java side of the seam. **The DataBar half is a capability gap** and is not
+> understood yet — both backends are pinned to the Java reader's effort level
+> (`tryHarder`/`tryRotate`/`tryInvert`/`tryDownscale` all off), and nobody has measured
+> zxing-cpp at its own defaults.
+>
+> **Until then the default is doing harm to some formats and good to others.** Whether to
+> keep it, revert it, or select per format is the open decision; the numbers for it are
+> all in §9.1.
 
 Everything else is below.
 
@@ -441,11 +458,13 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
       has no streaming equivalent. Also lost: every decode hint other than the format
       selection. A caller needing either should select the Java backend.
 
-    **NOT SETTLED, AND THE MOST IMPORTANT THING LEFT:** accuracy. The L2 frames are clean and generated; a decoder
-    that is faster on a clean frame may be worse on a blurred or angled one, and L2 has no
-    such frames. The corpus that does is L1, which is host-JVM only — running the 1168
-    blackbox samples through the native backend on a device would answer it and has not
-    been done.
+    **Accuracy is now settled, and the answer was not the flattering one.** The corpus
+    runs on the device through both backends (`benchmark/tools/l1_device.sh`,
+    `BENCHMARKS.md` §9.1): **862 → 762 correct**, 149 samples regress and 51 improve.
+    zxing-cpp is better at 2D and emits no false positives; it loses 91 DataBar reads and
+    changes the returned *text* for Codabar, UPC-E, control characters and GS1 — which is
+    a contract break, not a tuning question. See the top of this file for what to do
+    about it; the decision about the default is open.
 
 ### Phase 3 — carried-forward defects (independent; can be picked up any time)
 

@@ -59,6 +59,13 @@ API may still change between minor versions.
   it stop after a few rows. The Java decoder remains the default: the open question is no
   longer speed but that zxing-cpp renders UPC-A as 13 digits and reports it as `EAN_13`,
   which would change the text every host receives.
+- **L1 on a device** (`benchmark/tools/l1_device.sh`, `L1CorpusRun`): the 1168-sample
+  corpus through either decoder backend on a real phone, scored by the same rules as the
+  host run, with `benchmark/tools/l1_compare.py` to subtract two runs sample by sample.
+  Correctness only — it records no timing on purpose. It also showed that host and device
+  are not interchangeable: 231 samples reach the decoder as different pixels, because
+  `ImageIO` gamma-encodes greyscale PNGs and ignores transparency where Android does
+  neither (`BENCHMARKS.md` §9.1).
 - **A `zxing-cpp` decoder backend**, behind the new `FrameDecoder` seam: zxing-cpp v3.1.1
   as a pinned submodule, built by CMake for `arm64-v8a` and `armeabi-v7a` and shipped in
   the AAR. Readers only — the writers and their bundled libzint are switched off.
@@ -136,12 +143,23 @@ API may still change between minor versions.
   about 1.7 ms on the single frame of a session that succeeds. `BENCHMARKS.md` §10.6c.
   `ScannerOptions.setDecoderBackend(JAVA)` restores the old decoder.
 
-  **Two behaviour changes come with it.** The viewfinder's animated candidate points stop
-  appearing: zxing-cpp reports a symbol's corners once it has found one and has no
+  **The behaviour changes that come with it.** The viewfinder's animated candidate points
+  stop appearing: zxing-cpp reports a symbol's corners once it has found one and has no
   equivalent of `NEED_RESULT_POINT_CALLBACK`. The points of a *found* symbol are still
   reported, so result thumbnails are unaffected. And decode hints other than the format
   selection are not honoured, because no mapping to zxing-cpp's options exists. A caller
   relying on either should select the Java backend.
+
+  **Running the 1168-sample corpus through both backends on the device has since found
+  more, and they are not small.** `BENCHMARKS.md` §9.1 has the table. The native backend
+  reads *more* 2D symbols — Aztec 22→39, Data Matrix 39→57, QR 158→164 — and produces no
+  false positives where the Java decoder produced two. Against that: Codabar returns its
+  start/stop guards (`A1234567890A`), UPC-E returns the expanded 13-digit form
+  (`0012345000065` for `01234565`), non-graphical characters come back escaped
+  (`<GS>` for `\x1d`), GS1 AI parentheses are dropped, and RSS-14 and RSS-Expanded lose
+  91 reads between them. Until those are addressed, a host that scans Codabar, UPC-E,
+  MaxiCode or DataBar should select the Java backend with
+  `ScannerOptions.setDecoderBackend(JAVA)`.
 
   **UPC-A is deliberately unchanged.** zxing-cpp renders a UPC-A symbol as 13 digits and
   labels it `EAN_13`, citing ISO/IEC 15420:2009; this library converts it back to the

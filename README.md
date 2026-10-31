@@ -101,7 +101,8 @@ Gradle and AGP versions are pinned; the wrapper fetches Gradle itself.
 ./gradlew :scanner:assembleRelease     # the AAR
 ./gradlew :app:assembleDebug           # the app, debug-signed
 ./gradlew :scanner:connectedDebugAndroidTest   # fixed-frame decode test, needs a device
-./gradlew :benchmark-jvm:run --args="--config default"   # L1 correctness/timing
+./gradlew :benchmark-jvm:run --args="--config default"   # L1 correctness/timing, host
+benchmark/tools/l1_device.sh --backend native            # L1 correctness on a device
 ```
 
 `assembleRelease` for the app produces an **unsigned** APK: no production signing config
@@ -174,6 +175,8 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       ([BENCHMARKS.md](docs/maint/BENCHMARKS.md)) — before the numbers, on purpose
 - [x] Versioned dataset manifest (1168 licensed source images, SHA-256 per sample)
 - [x] L1 correctness/timing runner on the host JVM
+- [x] L1 on a device, through either decoder backend (`benchmark/tools/l1_device.sh`) —
+      correctness only, no timing
 - [x] L2 Android frame-pipeline benchmark (`:benchmark-android`, AndroidX
       Microbenchmark): five stages, nine generated replay frames, three hint sets,
       with the frame hashes committed as the comparability key
@@ -200,8 +203,11 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       `pixelStride`, crop to the scan region, no full-frame copy
 - [ ] API to enable/disable formats per scan, so the native reader does less work
 - [ ] 16 KB page-size alignment for the native libraries (required by Android 15+)
-- [ ] A/B the native backend against the Java one on the fixed dataset, then decide the
-      default. No speedup is claimed before that comparison exists
+- [x] A/B the native backend against the Java one on the fixed dataset — speed
+      (BENCHMARKS.md §10.6c) and correctness (§9.1). zxing-cpp is 56–82% faster on 2D and
+      on all-format misses, and reads 100 fewer of the 1168 corpus samples
+- [ ] Decide the default again, now that both halves are measured: zxing-cpp changes the
+      text returned for Codabar, UPC-E, MaxiCode and GS1, and loses 91 DataBar reads
 
 ### Phase 6 — camera backend
 

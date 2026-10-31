@@ -258,6 +258,109 @@ fool a reader, on purpose.
 
 ---
 
+## 9.1 L1 on a device — the accuracy question the native default was missing
+
+**Built**, and run. `benchmark/tools/l1_device.sh --backend java|native` pushes the corpus
+to the device, runs `L1CorpusRun` through the `FrameDecoder` seam and pulls the result
+file. Scoring is `zxingbench.corpus.L1Classifier`, the same code that scores the host run.
+
+**It records no timing, deliberately.** It has no clock or thermal protocol, so under §2 it
+could not produce an admissible one; the way to keep a number from being quoted is not to
+produce it. Speed is L2's question (§10.6c).
+
+**The harness is checked before it is believed.** Every sample's bytes are hashed against
+the manifest on the device before it is decoded — a corpus that arrived truncated would
+otherwise score as a decoder that misses a lot, which is the one failure mode that looks
+exactly like the finding being looked for.
+
+### The host and the device are not interchangeable, and that is the image decoder
+
+Run through the *same* Java decoder, the device and the host return the same five totals —
+862 / 4 / 254 / 46 / 2 — but disagree about **six individual samples** (`ean13-2/09`,
+`ean13-4/{09,10,14,15}`, `pdf417-3/08`). The file hashes are identical, so it is not the
+corpus.
+
+`--luma-hash` on both runners records a hash of the plane handed to the decoder, and
+settles it: **231 of 1168 samples arrive at the decoder as different pixels**, all six
+disagreements among them. Two causes, both verified by reconstructing the plane from the
+PNG by hand and matching the recorded hashes:
+
+- **8-bit greyscale PNGs (38 samples).** `ImageIO` decodes them into a `TYPE_BYTE_GRAY`
+  image whose colour space is *linear* grey, and `getRGB()` encodes that to sRGB on the
+  way out — the host sees gamma-brightened pixels. Android's `BitmapFactory` returns the
+  stored bytes. For `codabar-1/01` the raw plane hashes to `4c4ae0f0…`, the sRGB-encoded
+  one to `53fba960…`; the device recorded the first, the host the second.
+- **PNGs with transparency (193 samples).** `ImageIO` ignores alpha; Android premultiplies
+  into the bitmap and un-premultiplies on read-back, which is not exact below α=255. On
+  `aztec-2/01` the host's plane matches "palette RGB, alpha ignored" byte for byte, and the
+  device's does not.
+
+The device is seeing what an Android app would see. **Any native-versus-Java comparison has
+to be device against device**, which is what the numbers below are; and upstream's own
+blackbox suite, which also reads through `ImageIO`, is scoring those 38 greyscale images on
+pixels no phone would produce.
+
+### zxing-cpp against zxing-java, 1168 samples, DN-ENG41
+
+`docs/maint/reports/l1-4cdff45b7-DN-ENG41-{java,native}.json`, all formats enabled, one run
+each. Correctness is deterministic, so one run is a result rather than a sample.
+
+| Status | zxing-java | zxing-cpp | Δ |
+| --- | --- | --- | --- |
+| CORRECT | 862 | 762 | **−100** |
+| INCORRECT | 4 | 61 | **+57** |
+| NOT_FOUND | 254 | 297 | +43 |
+| CORRECT_NO_RESULT | 46 | 48 | +2 |
+| FALSE_POSITIVE | 2 | 0 | **−2** |
+
+149 samples regress, 51 improve. The split by symbology is the finding, not the total —
+`reports/l1-ab-4cdff45b7-DN-ENG41-samples.csv` has every one:
+
+| Format | n | zxing-java right | zxing-cpp right | What moved |
+| --- | --- | --- | --- | --- |
+| AZTEC | 39 | 22 | **39** | every previously missed one now reads |
+| DATA_MATRIX | 59 | 39 | **57** | +18 |
+| QR_CODE | 179 | 158 | **164** | +6, and 2 render differently |
+| EAN_13 | 157 | 100 | 98 | −2, and the one misread is gone |
+| CODE_128 / CODE_93 / EAN_8 / ITF / UPC_A | 255 | 161 | 160 | unchanged within one sample |
+| CODE_39 | 23 | 21 | 20 | the 2 extended-mode samples become misses, and one read is lost |
+| PDF_417 | 56 | 56 | 49 | −6 read, 1 renders differently |
+| RSS_EXPANDED | 247 | 235 | 174 | **−61** |
+| RSS_14 | 30 | 10 | **0** | every one lost |
+| CODABAR | 11 | 11 | **0** | all 11 render differently |
+| UPC_E | 55 | 40 | **0** | 37 render differently, 3 more missed |
+| MAXICODE | 9 | 9 | 1 | 8 render differently |
+| negatives | 48 | 46 | **48** | both false positives gone |
+
+**The 61 `INCORRECT` are not misreads.** In all 61 the native backend reports the *right
+format* and the right symbol; it renders the text by zxing-cpp's conventions rather than
+this library's:
+
+| Class | n | Expected | zxing-cpp |
+| --- | --- | --- | --- |
+| UPC-E expanded to its UPC-A equivalent | 37 | `01234565` | `0012345000065` |
+| Codabar start/stop guards kept | 11 | `1234567890` | `A1234567890A` |
+| Non-graphical characters escaped (`TextMode::HRI`) | 11 | `…\x1d…` | `…<GS>…` / `…␝…` |
+| GS1 AI parentheses dropped | 2 | `(01)9001…` | `019001…` |
+
+That is a **silent contract change for callers**, and it is the one thing `ebe1708b4` set
+out not to do. UPC-A was converted back and result points were carried over; UPC-E,
+Codabar, control characters and GS1 formatting were not, because nothing had looked at
+them. `TextMode::Plain` is one line in the JNI and covers the third row; the other three
+need work on this side of the seam.
+
+**The lost DataBar reads are a real capability gap**, not a rendering one: RSS-14 goes from
+10 to 0 and RSS-Expanded from 235 to 174, and those are 277 of the 1168 samples. The
+effort level is configured to match the Java reader (§10.6b — `tryHarder`, `tryRotate`,
+`tryInvert` and `tryDownscale` all off), which is right for a speed comparison and may be
+what costs these reads; nobody has yet measured zxing-cpp's accuracy at its own defaults.
+
+**What this does not say.** It is one corpus, all-formats, with both decoders at the Java
+reader's effort level, on one device. It says nothing about speed, and the speed result
+(§10.6c) still stands: zxing-cpp is 56–82% faster on 2D and on all-format misses.
+
+---
+
 ## 10. L2 — the Android frame-pipeline benchmark
 
 Not built yet. This section is its specification, and it is the next piece of work.
