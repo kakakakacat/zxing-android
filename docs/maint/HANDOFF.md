@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `a4963668a` on branch `maint/android`.
+Last updated at commit `ebe1708b4` on branch `maint/android`.
 
 ---
 
@@ -43,6 +43,20 @@ Last updated at commit `a4963668a` on branch `maint/android`.
 | `15522cb28` | This handoff brought up to date with the L2 work |
 | `3e52a33d3` | Correct the claim that the device is permanently throttled |
 | `a4963668a` | Measure the thermal state instead of guessing at it twice |
+| `38137301f` | §10.6 reads through a standing device warning |
+| `7ac3da651` | Thermal throttling never moves a pinned clock |
+| `e0e486cf1` | L1 scored nine good decodes as misreads; fixed |
+| `3bbcb94f7` | Narrow a claim about extended Code 39 |
+| `bebabb402` | `setFormats` reaches the running decoder |
+| `e5bd68aa9` | `YPlaneLuminanceSource`: a CameraX luma plane, no frame copy |
+| `cdbdaab10` | The `FrameDecoder` seam |
+| `60e69f57d` | zxing-cpp backend, both ABIs, 16 KB alignment verified |
+| `1f3ac5752` | NEON checked rather than assumed |
+| `b43ec34bf` | Backend selection for the benchmark |
+| `94d3e4732` | Backend names resolve instead of silently skipping |
+| `602d368c4` | Native backend configured to the Java effort level |
+| `d780d3fa7` | **The first measured A/B of the two decoders** |
+| `ebe1708b4` | **zxing-cpp is the default**, contract preserved |
 
 Nothing is uncommitted. Nothing is released; no tag has been pushed.
 
@@ -195,6 +209,20 @@ latency, first-scan latency, CPU, memory, GC or power.
   presented as a performance improvement on its own.
 
 ---
+
+## Start here if you are new to this file
+
+**The native decoder now ships by default.** The one thing that should worry you about
+that, and the first job for anyone picking this up:
+
+> **Nothing is known about zxing-cpp's accuracy on this project's corpus.** The A/B that
+> justified the switch measured *speed* on nine clean, generated frames. The 1168-sample
+> blackbox corpus that measures correctness (L1) has only ever run on the host JVM,
+> against the Java decoder. A decoder that is faster on a clean frame can be worse on a
+> blurred or angled one, and the switch was made without that number. Running the corpus
+> through the native backend is the highest-value unfinished work in this repository.
+
+Everything else is below.
 
 ## What is left
 
@@ -397,12 +425,23 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
       few rows. zxing-cpp binarizes the whole frame first. Absolute gap: **1.7 ms, once**,
       against tens of milliseconds saved on every miss frame before it.
 
-    **The decision is still open, and speed is no longer the thing blocking it.**
-    zxing-cpp renders UPC-A as 13 digits and reports `EAN_13` unless EAN-13 is excluded
-    (§10.6b). Switching the default would change the text every host receives for a UPC-A
-    scan. That is a compatibility decision, not a performance one, and it is the user's.
+    **Decided: zxing-cpp is now the default** (`ebe1708b4`), with Java as the fallback
+    where there is no native build for the ABI. `ScannerOptions.setDecoderBackend(JAVA)`
+    restores the old decoder.
 
-    **Not settled by this:** accuracy. The L2 frames are clean and generated; a decoder
+    The compatibility questions were handled rather than shipped as surprises:
+
+    - **UPC-A is converted back** to the 12-digit `UPC_A` this library has always
+      returned, so no host's string changes. GS1 prefix 0 is reserved for UPC-A so the
+      conversion is exact. The raw rendering stays reachable for measurement.
+    - **Result points of a found symbol are carried back** as the symbol's four corners,
+      so thumbnails are unaffected.
+    - **Lost, and documented:** the viewfinder's *animated candidate* points, which the
+      Java reader emits while searching through `NEED_RESULT_POINT_CALLBACK`. zxing-cpp
+      has no streaming equivalent. Also lost: every decode hint other than the format
+      selection. A caller needing either should select the Java backend.
+
+    **NOT SETTLED, AND THE MOST IMPORTANT THING LEFT:** accuracy. The L2 frames are clean and generated; a decoder
     that is faster on a clean frame may be worse on a blurred or angled one, and L2 has no
     such frames. The corpus that does is L1, which is host-JVM only — running the 1168
     blackbox samples through the native backend on a device would answer it and has not
