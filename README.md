@@ -205,11 +205,12 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 - [ ] 16 KB page-size alignment for the native libraries (required by Android 15+)
 - [x] A/B the native backend against the Java one on the fixed dataset — speed
       (BENCHMARKS.md §10.6c) and correctness (§9.1). zxing-cpp is 56–82% faster on 2D and
-      on all-format misses, and reads 40 fewer of the 1168 corpus samples
-- [x] Native results rendered the way this library always has: UPC-E, Codabar, control
-      characters and GS1 parentheses (61 corpus samples)
-- [ ] Decide the default again, now that both halves are measured: zxing-cpp wins 2D
-      (Aztec 22→39, Data Matrix 39→57) and loses DataBar (RSS-14 0 of 30)
+      on all-format misses, **and** reads 890 of the 1168 corpus samples against the Java
+      decoder's 862, with no false positives
+- [x] Native results rendered the way this library always has: UPC-E, Codabar, RSS-14,
+      control characters and GS1 parentheses
+- [x] zxing-cpp's result format names mapped variant by variant — five of them matched
+      nothing, which silently cost 90 corpus reads
 
 ### Phase 6 — camera backend
 

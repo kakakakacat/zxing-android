@@ -153,22 +153,26 @@ API may still change between minor versions.
   selection are not honoured, because no mapping to zxing-cpp's options exists. A caller
   relying on either should select the Java backend.
 
-  **Running the 1168-sample corpus through both backends on the device found more, and
-  they were not small.** `BENCHMARKS.md` §9.1 has the tables. The rendering half — Codabar
-  guards, UPC-E expanded to 13 digits, escaped control characters, missing GS1 parentheses,
-  61 samples in all — **is fixed**, and the native backend now returns what this library
-  has always returned. What is left is detection: it reads *more* 2D symbols (Aztec 22→39,
-  Data Matrix 39→57, QR 158→165) and emits no false positives where the Java decoder emits
-  two, but it reads 40 fewer samples overall, almost all DataBar: **RSS-14 0 of 30** and
-  RSS-Expanded 174 of 247 against the Java decoder's 235. That is a reader difference, not
-  an effort setting — it survives TRY_HARDER on both sides and zxing-cpp's own full
-  defaults. **A host that scans DataBar should select the Java backend** with
-  `ScannerOptions.setDecoderBackend(JAVA)`, and whether zxing-cpp should remain the
-  default is an open question.
+  **Running the 1168-sample corpus through both backends on the device found two defects
+  in this fork, both now fixed, and the second one had been hiding the first's real
+  size.** `BENCHMARKS.md` §9.1 has the tables.
 
-  **UPC-A is deliberately unchanged.** zxing-cpp renders a UPC-A symbol as 13 digits and
-  labels it `EAN_13`, citing ISO/IEC 15420:2009; this library converts it back to the
-  12-digit `UPC_A` it has always returned, so the string a host receives does not change.
+  The native backend used to return text spelled zxing-cpp's way — Codabar with its
+  start/stop guards, UPC-E expanded to 13 digits, control characters escaped as `<GS>`,
+  GS1 parentheses missing, RSS-14 behind its application identifier. It now returns what
+  this library has always returned.
+
+  And a result's format name is a *variant* in zxing-cpp (`"DataBar Stacked"`,
+  `"Compact PDF417"`) where a request is a symbology, so five variant names matched
+  nothing and every symbol carrying one was reported as no result. That cost 90 reads,
+  all of them DataBar. An unmapped name is now logged once instead of disappearing.
+
+  With both fixed the native backend reads **890** of the 1168 samples against the Java
+  decoder's 862, is wrong about 3 against 4, and produces no false positives against 2.
+  It wins 2D by a distance (Aztec 22→39, Data Matrix 39→57, QR 158→165) and loses PDF417
+  50 against 56, which is the one place `ScannerOptions.setDecoderBackend(JAVA)` still
+  buys something.
+
 - **Everything moved out of the `com.google.zxing` namespace** into
   `io.github.kakakakacat.zxing`, the decoder included, and `applicationId` is now
   `io.github.kakakakacat.zxing.android`. Publishing classes named `com.google.zxing.*`

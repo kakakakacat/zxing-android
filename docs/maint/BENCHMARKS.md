@@ -305,81 +305,92 @@ pixels no phone would produce.
 All formats enabled, one run per backend per configuration. Correctness is deterministic,
 so one run is a result rather than a sample.
 
-**The first run, with the native backend exactly as `ebe1708b4` shipped it**
-(`reports/l1-4cdff45b7-DN-ENG41-{java,native}.json`), returned 762 correct against 862,
-with **61 INCORRECT**. None of the 61 was a misread: in every one the native backend
-reported the right format and the right symbol, and rendered the text by zxing-cpp's
-conventions — UPC-E expanded to its UPC-A equivalent (37), Codabar with its start and stop
-characters (11), non-graphical characters escaped by `TextMode::HRI` (11), GS1 application
-identifiers without their parentheses (2). That is a silent contract change for every
-caller, and it is fixed in `2ecd06428`; the files are kept because they are what the
-default shipped as.
+**Two bugs had to come out first, and both were on this side of the seam.** The run is
+what found them; they are kept here because each one looked exactly like a property of
+zxing-cpp until it was traced.
 
-**After that fix** (`reports/l1-4d4bdf232-DN-ENG41-*`):
+1. **The text a caller receives.** As `ebe1708b4` shipped it
+   (`reports/l1-4cdff45b7-DN-ENG41-native.json`) the native backend returned 762 correct
+   with **61 INCORRECT** — and not one of the 61 was a misread. The right symbol came
+   back rendered by zxing-cpp's conventions: UPC-E expanded to its UPC-A equivalent (37),
+   Codabar with its start and stop characters (11), non-graphical characters escaped by
+   `TextMode::HRI` (11), GS1 application identifiers without their parentheses (2). Fixed
+   in `2ecd06428`.
+2. **A format name is not symmetric.** What you ask zxing-cpp for is a symbology; what it
+   returns is the variant the symbol turned out to be — its header says "only specific
+   variants are returned by the library when reading barcodes". The reverse table was
+   built by inverting the request table, so `"DataBar Omni"`, `"DataBar Stacked"`,
+   `"DataBar Expanded Stacked"`, `"Compact PDF417"` and `"Code 39 Extended"` matched
+   nothing, and an unmapped name is reported as *nothing found*. **That cost 90 reads**:
+   all 30 RSS-14 samples and 59 of the 71 RSS-Expanded misses, every one of the latter in
+   `rssexpandedstacked-*`. An earlier revision of this section reported it as a DataBar
+   capability gap in zxing-cpp. It was ours. Fixed in `49bd3beb3`, which also made an
+   unmapped name log once instead of vanishing.
+
+**Where it stands after both** (`reports/l1-49bd3beb3-DN-ENG41-*`):
 
 | Status | zxing-java | zxing-cpp | zxing-java +TRY_HARDER | zxing-cpp +TRY_HARDER |
 | --- | --- | --- | --- | --- |
-| CORRECT | 862 | 820 | 921 | 875 |
-| INCORRECT | 4 | 3 | 15 | 6 |
-| NOT_FOUND | 254 | 297 | 184 | 239 |
+| CORRECT | 862 | **890** | 921 | **960** |
+| INCORRECT | 4 | **3** | 15 | **9** |
+| NOT_FOUND | 254 | **227** | 184 | **151** |
 | CORRECT_NO_RESULT | 46 | 48 | 45 | 48 |
 | FALSE_POSITIVE | 2 | **0** | 3 | **0** |
 
-The rendering difference is gone — 3 INCORRECT against the Java decoder's 4 — and the
-native backend is the only one of the two that never reads a negative sample. What is left
-is detection, and it splits hard by symbology. Right answers per format, where "right" is
-CORRECT plus CORRECT\_NO\_RESULT:
+28 samples regress and 58 improve. Right answers per format, where "right" is CORRECT
+plus CORRECT\_NO\_RESULT:
 
 | Format | n | java | cpp | java +TH | cpp +TH |
 | --- | --- | --- | --- | --- | --- |
 | AZTEC | 39 | 22 | **39** | 22 | **39** |
 | DATA_MATRIX | 59 | 39 | **57** | 39 | **57** |
 | QR_CODE | 179 | 158 | **165** | 158 | **165** |
+| RSS_14 | 30 | 10 | **14** | 14 | **16** |
+| CODE_39 | 23 | 21 | **22** | 21 | **23** |
 | EAN_13 | 157 | 100 | 98 | 116 | 117 |
 | UPC_A | 167 | 77 | 77 | 97 | 98 |
-| UPC_E | 55 | 40 | 37 | 46 | 45 |
-| CODE_128 | 49 | 45 | 44 | 48 | 48 |
-| CODE_39 | 23 | 21 | 20 | 21 | 21 |
+| UPC_E | 55 | **40** | 37 | 46 | 45 |
+| CODE_128 | 49 | **45** | 44 | 48 | 48 |
 | CODABAR / CODE_93 / EAN_8 / ITF / MAXICODE | 59 | 59 | 59 | 59 | 59 |
+| RSS_EXPANDED | 247 | **235** | 228 | **245** | 243 |
 | PDF_417 | 56 | **56** | 50 | **56** | 50 |
-| RSS_EXPANDED | 247 | **235** | 174 | **245** | 176 |
-| RSS_14 | 30 | **10** | 0 | **14** | 0 |
 | negatives | 48 | 46 | **48** | 45 | **48** |
-| **total** | **1168** | **908** | 868 | **966** | 923 |
+| **total** | **1168** | 908 | **938** | 966 | **1008** |
 
-zxing-cpp wins 2D by a wide margin — +17 Aztec, +18 Data Matrix, +7 QR — and loses the
-DataBar family by a wider one. **RSS-14 is 0 of 30 under every configuration tried.**
+zxing-cpp is ahead by 30 samples at the matched effort level and by 42 with TRY_HARDER,
+it is wrong about fewer of the ones it does read, and it is the only one of the two that
+never reads a negative sample. Its wins are 2D — +17 Aztec, +18 Data Matrix, +7 QR. Its
+losses are small and spread: **PDF417 50 of 56** is the largest single one, and those six
+are ordinary misses spread over all three directories rather than an unmapped variant —
+the warning log is silent for the whole run.
 
-### The remaining gap is not an effort setting
+### The effort level, checked both ways
 
-The natural suspicion is §10.6b: both backends are pinned to the Java reader's effort
-level, and zxing-cpp defaults its four effort flags to true. Two checks say that is not
-where the DataBar reads went.
+Both backends are pinned to the Java reader's effort level (§10.6b), and zxing-cpp
+defaults its four effort flags to true, so it is worth knowing what that pinning costs.
 
-- **TRY_HARDER, on both backends alike.** Now that the hint is mapped (`4d4bdf232`), the
-  corpus runs at the higher effort level on either side. It moves both — java 862 → 921,
-  cpp 820 → 875 — and leaves the gap where it was. RSS-14 stays at 0.
-- **zxing-cpp at its own full defaults**, all four flags on, with the Java side left where
-  it is: **822 correct**, two more than the matched run, and one false positive it does
-  not otherwise produce (`reports/l1-4d4bdf232-DN-ENG41-native-stock-options.json`,
-  taken with the four lines flipped locally). RSS-14 is still 0 of 30, RSS-Expanded still
-  174.
-
-So the DataBar and PDF417 gap is a difference between the two readers rather than a knob
-in the wrong position. Reporting it upstream, or keeping the Java backend for those
-formats, are the two honest ways forward; neither has been done.
+- **TRY_HARDER on both backends alike**, now that the hint is mapped (`4d4bdf232`):
+  java 908 → 966 right, cpp 938 → 1008. It moves both and changes no conclusion.
+- **zxing-cpp at its own full defaults**, all four flags on, Java side unchanged:
+  **892 correct**, two more than the matched run, and a false positive it does not
+  otherwise produce (`reports/l1-49bd3beb3-DN-ENG41-native-stock-options.json`, taken
+  with the four lines flipped locally). Matching the effort level costs it almost nothing
+  in detection here, which is what §10.6b assumed and had not checked on a corpus.
 
 ### What this says about the default
 
-Both halves of item 10 are now measured and they point in opposite directions. zxing-cpp
-is 56–82% faster on 2D and on all-format misses (§10.6c) and reads **40 fewer** of the
-1168 corpus samples, almost all of them DataBar. A scanner aimed at transport or industrial
-codes is better off with it; one aimed at retail shelf labels is not. **The decision is
-open**, and the options on the table are keeping it, reverting it, or selecting the backend
-from the format set the caller asked for.
+**Keep it.** zxing-cpp is 56–82% faster on 2D and on all-format misses (§10.6c) *and*
+reads 30 more of the 1168 samples with fewer wrong answers and no false positives. The
+case for reverting rested on two defects that are now fixed, and nothing in the corpus
+argues for it.
+
+Two things a caller should still know, both in the changelog: the viewfinder's animated
+candidate points are gone, and PDF417-heavy work reads six fewer of these 56 samples —
+`ScannerOptions.setDecoderBackend(JAVA)` is there for either.
 
 **What this does not say.** One corpus, one device, all formats enabled. It says nothing
-about speed.
+about speed, and a format with no sample here — DataBar Limited, Micro QR, rMQR — is not
+a format this fork can report at all, whichever backend reads it.
 
 ---
 

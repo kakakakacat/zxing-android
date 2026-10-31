@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `4d4bdf232` on branch `maint/android`.
+Last updated at commit `49bd3beb3` on branch `maint/android`.
 
 ---
 
@@ -61,6 +61,7 @@ Last updated at commit `4d4bdf232` on branch `maint/android`.
 | `4cdff45b7` | **L1 on a device**, and the accuracy answer it produced |
 | `2ecd06428` | Native results rendered the way this library always has |
 | `4d4bdf232` | TRY_HARDER mapped onto the native effort flags |
+| `49bd3beb3` | **The format-name bug that cost 90 corpus reads** |
 
 Nothing is uncommitted. Nothing is released; no tag has been pushed.
 
@@ -71,8 +72,8 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | What | Result | Where |
 | --- | --- | --- |
 | `:core:test` | 602 tests, 0 failures | local |
-| L1 corpus, both backends, DN-ENG41 | java 862/4/254/46/2, zxing-cpp 820/3/297/48/0 | `reports/l1-4d4bdf232-*` |
-| L1 at TRY_HARDER, both backends | java 921 correct, zxing-cpp 875 | `reports/l1-4d4bdf232-*-tryharder.json` |
+| L1 corpus, both backends, DN-ENG41 | java 862/4/254/46/2, zxing-cpp 890/3/227/48/0 | `reports/l1-49bd3beb3-*` |
+| L1 at TRY_HARDER, both backends | java 921 correct, zxing-cpp 960 | `reports/l1-49bd3beb3-*-tryharder.json` |
 | L1 device harness against the host run | same five totals through the same decoder | §9.1 |
 | `:scanner:testDebugUnitTest` | 41 tests: 9 coordinate-mapping, 6 hint-construction, 18 luma-plane, 8 decoder-seam | local + CI |
 | `:scanner:connectedDebugAndroidTest` | 13 tests: 35 fixed frames over 16 formats, a live format-switch test, and the native backend, 0 failures | Android 14 device **and** CI emulators API 21/34/35/36 |
@@ -219,25 +220,31 @@ latency, first-scan latency, CPU, memory, GC or power.
 
 ## Start here if you are new to this file
 
-**Both halves of the native-decoder decision are now measured, and they disagree.** The
-first job for anyone picking this up is to make that call:
+**The native decoder ships by default, and both halves of that decision are now
+measured and agree.** zxing-cpp is 56–82% faster on 2D and on all-format misses (§10.6c)
+*and* reads 30 more of the 1168 corpus samples than the Java decoder, with fewer wrong
+answers and no false positives (§9.1). Nothing open here; it is recorded so the next
+person does not re-litigate it.
 
-> **zxing-cpp is 56–82% faster (§10.6c) and reads 40 fewer of the 1168 corpus samples
-> (§9.1).** The losses are concentrated: RSS-14 0 of 30, RSS-Expanded 174 of 247 against
-> the Java decoder's 235, PDF417 50 of 56. The wins are just as concentrated: Aztec 22 →
-> 39, Data Matrix 39 → 57, QR 158 → 165, and no false positives where the Java decoder
-> has two. Checked, not assumed: it is **not** an effort setting — the gap survives
-> TRY_HARDER on both sides and survives zxing-cpp at its own full defaults, and RSS-14 is
-> 0 under every one of them.
->
-> So: keep the native default, revert it, or pick the backend from the format set the
-> caller asked for. A scanner for transport or industrial codes wants zxing-cpp; one for
-> retail shelf labels does not. The numbers for the decision are all in §9.1.
+**What that took, and the lesson in it.** The first corpus run said the opposite — 862 →
+762 correct — and both halves of that deficit turned out to be bugs on *this* side of the
+seam, not properties of zxing-cpp:
 
-**Already handled, so do not re-discover it:** the first corpus run found 61 samples where
-zxing-cpp read the symbol correctly and returned a string no caller would recognise —
-UPC-E expanded, Codabar with its guards, control characters escaped, GS1 parentheses
-dropped. That is fixed (`2ecd06428`); 3 INCORRECT remain against the Java decoder's 4.
+> 1. **Rendering** (`2ecd06428`). 61 samples where the right symbol came back spelled
+>    zxing-cpp's way: UPC-E expanded, Codabar with its guards, control characters
+>    escaped, GS1 parentheses dropped.
+> 2. **Format names** (`49bd3beb3`). zxing-cpp returns the *variant* it read, never the
+>    symbology you asked for, and an unmapped name was silently reported as "nothing
+>    found". That alone cost 90 reads — every RSS-14 sample and all the stacked
+>    RSS-Expanded ones — and this file described it as a DataBar capability gap in
+>    zxing-cpp for a day. An unmapped name is now logged.
+
+**So: a decoded symbol thrown away by a name table looks exactly like a decoder that
+cannot read that symbology.** If a backend ever looks weak at one format, check the
+mapping before believing it.
+
+**What is left against zxing-cpp**, small and real: PDF417 reads 50 of 56 against the
+Java decoder's 56, and UPC-E 37 of 55 against 40. Both are ordinary misses, not names.
 
 **And one thing that bites anyone measuring here:** host L1 and device L1 are not
 interchangeable. 231 of the 1168 samples reach the decoder as different pixels, because
@@ -463,11 +470,11 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
       has no streaming equivalent. Also lost: every decode hint other than the format
       selection. A caller needing either should select the Java backend.
 
-    **Accuracy is now measured** (`benchmark/tools/l1_device.sh`, `BENCHMARKS.md` §9.1).
-    As shipped it was 862 → 762 correct, 61 of the losses being text this library would
-    never have returned; that is fixed and it is now **862 → 820**, or 921 → 875 at
-    TRY_HARDER. What remains is DataBar and PDF417, it is a reader difference rather than
-    an effort setting, and it is the open question at the top of this file.
+    **Accuracy is now measured too, and item 10 is closed** (§9.1). The native backend
+    reads **890** of the corpus against the Java decoder's 862, with 3 wrong answers
+    against 4 and no false positives against 2; at TRY_HARDER it is 960 against 921. The
+    two defects the first run exposed are fixed — see the top of this file, because the
+    second one is the more useful lesson in this repository.
 
 ### Phase 3 — carried-forward defects (independent; can be picked up any time)
 
