@@ -39,6 +39,11 @@ jobs:
       - name: Scanner unit tests (coordinate mapping)
         run: ./gradlew :scanner:testDebugUnitTest
 
+      - name: L1 classification rules
+        # How a decode is scored against its expectation decides every number in an L1
+        # result file. One of these rules was wrong once; see BENCHMARKS.md §9.
+        run: ./gradlew :benchmark-jvm:test
+
       - name: Benchmark frame generator and goldens (L2, host side)
         # The generated replay frames are the comparability key for every L2 result
         # (BENCHMARKS.md §10.4). If a change moves a single pixel, this fails here,

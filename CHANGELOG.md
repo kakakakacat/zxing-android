@@ -56,6 +56,12 @@ API may still change between minor versions.
   emulators, and a tagged release workflow that publishes to GitHub Packages.
 
 ### Fixed
+- **L1 scored nine QR samples as misreads that decode perfectly.** The corpus runner
+  stripped a trailing newline from the expected text but compared it against the raw
+  decoded text, so any payload genuinely ending in a newline could never match. The
+  corpus reads 862 correct / 4 incorrect, not 853 / 13. No decoder behaviour changed —
+  this was only ever a flaw in how the result was scored, and nine new tests cover the
+  scoring rules.
 - **Camera permission is requested at runtime.** The app had been unusable on a first run
   since Android 6: it opened the camera without asking, got a `RuntimeException` from the
   camera service, and told the user to restart their device.

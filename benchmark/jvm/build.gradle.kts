@@ -21,6 +21,8 @@ dependencies {
   // The same decoder the published AAR ships, so an L1 number and an app number refer
   // to the same core.
   implementation(project(":core"))
+
+  testImplementation(libs.junit)
 }
 
 tasks.named<JavaExec>("run") {

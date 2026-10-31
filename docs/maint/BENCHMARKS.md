@@ -203,16 +203,55 @@ to the same decoder.
 
 Latest full run, all 1168 samples, `default`:
 
-| Status | Count |
-| --- | --- |
-| CORRECT | 853 |
-| INCORRECT | 13 |
-| NOT_FOUND | 254 |
-| CORRECT_NO_RESULT | 46 |
-| FALSE_POSITIVE | 2 |
+| Status | Count | Was |
+| --- | --- | --- |
+| CORRECT | 862 | 853 |
+| INCORRECT | 4 | 13 |
+| NOT_FOUND | 254 | 254 |
+| CORRECT_NO_RESULT | 46 | 46 |
+| FALSE_POSITIVE | 2 | 2 |
 
 `NOT_FOUND` is dominated by upstream's deliberately hard images, which upstream's own
 blackbox tests also allow to fail; the number is a tripwire against *change*, not a target.
+
+**The "Was" column is a harness fix, not a decoder change.** `classify()` stripped a
+trailing newline from the *expectation* and compared it against the *raw* decoded text.
+Nine QR samples — `qrcode-3/{18,19,20,24,25}` and `qrcode-5/{16,17,18,19}` — carry a
+payload that genuinely ends in a newline, so one-sided normalisation guaranteed a
+mismatch. Upstream's `AbstractBlackBoxTestCase` compares raw; so does this now, and the
+nine decode byte-for-byte identically to their sidecars. No decoder behaviour changed.
+
+**All four remaining `INCORRECT` are understood, and none is a dataset fidelity gap.**
+Every sidecar involved is plain ASCII, so the charset difference this document once
+suspected is not what is happening:
+
+| Sample | Expected | Decoded | What it is |
+| --- | --- | --- | --- |
+| `code39-2/1` | `Extended !?*#` | `E+X+T+E+N+D+E+D /A%J/J/C` | Code 39 **extended mode** |
+| `code39-2/2` | `12ab` | `12+A+B` | the same |
+| `ean13-4/01` | EAN-13 `9780441014989` | UPC-E `17804419` | misread as another symbology |
+| `rss14-2/11` | RSS-14 `02001234567893` | UPC-E `02244358` | the same |
+
+The first two are **a real property of any `MultiFormatReader` consumer, this app
+included**. Upstream decodes that directory with `new Code39Reader(false, true)`, which
+turns on extended mode; `MultiFormatReader` has no way to ask for it, so it returns the
+raw Code 39 symbols. Feeding the image through this fork's own scanner gives the same
+`E+X+T+E+N+D+E+D /A%J/J/C`. That is worth knowing about the product, and it is not a bug
+in the harness.
+
+The last two are **genuine misreads that only an all-formats reader can make**. Upstream
+restricts `POSSIBLE_FORMATS` to the family under test, so its blackbox run never offers
+the decoder the chance to answer UPC-E. L1 deliberately does not restrict formats, because
+that is what the app does by default — which is exactly why these two show up here and
+nowhere else. They are the strongest argument in the corpus for Phase 5 item 9, a per-scan
+format restriction.
+
+**The two `FALSE_POSITIVE` samples are within upstream's own tolerance.**
+`falsepositives-2/10` reads as EAN-8 and `/13` as UPC-E. Upstream's
+`FalsePositives2BlackBoxTestCase` calls `addTest(4, …)` at each of four rotations, so it
+allows **four** false positives per rotation on that directory and we have two. Not a
+regression in this fork; that corpus contains images that look enough like barcodes to
+fool a reader, on purpose.
 
 **L1 timings are host-JVM diagnostics. They are not Android results.**
 

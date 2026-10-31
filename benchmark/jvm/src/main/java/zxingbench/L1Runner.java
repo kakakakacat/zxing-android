@@ -94,7 +94,7 @@ public final class L1Runner {
   }
 
   /** One sample's outcome. Status values are disjoint and counted separately. */
-  private enum Status {
+  enum Status {
     /** Decoded, and both format and text matched the manifest. */
     CORRECT,
     /** Decoded something, but it did not match the manifest. */
@@ -209,7 +209,8 @@ public final class L1Runner {
     return reader.decode(new BinaryBitmap(new HybridBinarizer(source)));
   }
 
-  private static Status classify(Manifest.Sample sample, Result result, Throwable error) {
+  // Package-private so the classification rules can be tested without a corpus run.
+  static Status classify(Manifest.Sample sample, Result result, Throwable error) {
     if (error != null && !(error instanceof io.github.kakakakacat.zxing.NotFoundException)) {
       return Status.ERROR;
     }
@@ -222,19 +223,15 @@ public final class L1Runner {
     if (!result.getBarcodeFormat().toString().equals(sample.expectedFormat)) {
       return Status.INCORRECT;
     }
-    if (sample.expectedText != null
-        && !stripTrailingNewline(sample.expectedText).equals(result.getText())) {
+    // Compared raw, exactly as upstream's AbstractBlackBoxTestCase does. An earlier
+    // revision stripped a trailing newline from the expectation but not from the decoded
+    // text, which marked nine samples INCORRECT whose payload genuinely ends in one: the
+    // sidecar carries the barcode's content byte for byte, newline included, so there is
+    // nothing to normalise away. Normalising only one side can only invent mismatches.
+    if (sample.expectedText != null && !sample.expectedText.equals(result.getText())) {
       return Status.INCORRECT;
     }
     return Status.CORRECT;
-  }
-
-  private static String stripTrailingNewline(String s) {
-    int end = s.length();
-    while (end > 0 && (s.charAt(end - 1) == '\n' || s.charAt(end - 1) == '\r')) {
-      end--;
-    }
-    return s.substring(0, end);
   }
 
   private static void writeResults(Path out,

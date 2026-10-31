@@ -58,7 +58,8 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | App install / launch / preview | works | Android 14 device, API 35 + 36 emulators |
 | CAMERA grant / deny / permanently-denied | works, no request loop | Android 14 device |
 | 100× open-close stability loop | 0 crashes, 0 camera errors | `reports/stability-100-b0-DN-ENG41.log` |
-| L1 over all 1168 samples | 853 correct / 13 incorrect / 254 not-found / 46 correct-no-result / 2 false-positive | local |
+| L1 over all 1168 samples | 862 correct / 4 incorrect / 254 not-found / 46 correct-no-result / 2 false-positive | local |
+| `:benchmark-jvm:test` | 9 tests on the L1 classification rules | local + CI |
 | Published AAR + jar | zero `com/google` entries | local `publishToMavenLocal` |
 | Implicit `com.google.zxing.client.android.SCAN` | still resolves to the app | Android 14 device |
 | `:benchmark-android:testReleaseUnitTest` | 10 host tests: frame determinism, goldens, decodability | local + CI |
@@ -262,6 +263,12 @@ cool one's. The physically-unplugged-and-cooled run is still untried and still n
 hands; it is now a refinement rather than a blocker. Raising the vendor thermal thresholds
 remains ruled out — see the decisions above.
 
+**A second finding for Phase 5, from L1 rather than L2.** Two corpus samples
+(`ean13-4/01`, `rss14-2/11`) are misread as UPC-E by an all-formats reader and read
+correctly by upstream's format-restricted blackbox run. So restricting formats is not only
+the 67× speedup below — on this corpus it is also a *correctness* improvement. Both
+arguments point at item 9; the ordering is still the user's call.
+
 **One finding worth carrying into Phase 5.** The full matrix shows the cost of a frame is
 dominated by how many formats the reader is asked to try, far more than by resolution.
 `endToEnd` on a miss frame — which is what live preview mostly does:
@@ -329,9 +336,9 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
   from that one device**, at one pinned operating point, in one thermal state.
 - The L2 effect floor comes from a single pair of runs. More pairs would sharpen the
   tail estimate; the current floors take the conservative reading instead.
-- 13 samples report `INCORRECT` in L1 with the decoded format matching the expected one,
-  which means the text differs. Upstream's blackbox tests pass a per-case charset that
-  the dataset manifest does not yet record, so these are most likely a dataset-fidelity
-  gap rather than decoder bugs — **unconfirmed**, and worth settling before anyone reads
-  the correctness numbers as a decoder verdict.
-- 2 samples in `falsepositives-2/` decode as EAN_8 / UPC_E. Also unexamined.
+- ~~13 samples report `INCORRECT` in L1…~~ **Settled.** It was not a charset gap — every
+  sidecar involved is ASCII, and that guess was wrong. Nine of the thirteen were a bug in
+  the L1 harness itself (`classify()` stripped a trailing newline from the expectation but
+  not from the decoded text) and are now `CORRECT`; the corpus reads 862/4/254/46/2. The
+  four that remain are understood and real, and the two false positives sit inside
+  upstream's own tolerance of four. `BENCHMARKS.md` §9 has the case-by-case table.
