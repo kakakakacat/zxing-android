@@ -348,8 +348,12 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
    vectorised — the count is library-wide. No armeabi-v7a device exists here, so that
    ABI is built and inspected but has never been run.
 
-   **Still to do in this item:** a way for the benchmark module to select the backend,
-   which item 10 needs.
+   **Item 7 is complete.** The backend selection item 10 needed is in
+   (`FrameDecoders`, `DecoderBackendBenchmark`, `-Pl2.backend`), and the comparison has
+   been run — see item 10.
+
+   **Left deliberately undone:** the native backend is not wired in as anyone's default,
+   and must not be until the UPC-A rendering question under item 10 is decided.
 8. Feed CameraX `ImageProxy` `YUV_420_888` straight in: honour `rowStride`/`pixelStride`,
    crop to the scan region, no full-frame copy, and do not release a buffer while an
    async decode still holds it.
