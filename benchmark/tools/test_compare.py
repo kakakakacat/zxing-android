@@ -202,6 +202,67 @@ class WarningTest(unittest.TestCase):
         self.assertEqual(compare.INCONCLUSIVE, result["verdict"])
 
 
+class ReadThroughTest(unittest.TestCase):
+    """Section 10.6: a standing warning both sides carry, on a device whose floor was
+    measured under it, is a shared condition rather than a difference."""
+
+    def test_the_same_thermal_warning_on_both_sides_is_read_through(self):
+        result = compare.compare(
+            report([case(p50=1000, low=999, high=1001)], warnings=["THERMAL_THROTTLE: …"]),
+            report([case(p50=500, low=499, high=501)], warnings=["THERMAL_THROTTLE: …"]))
+        self.assertEqual(compare.PASS, result["verdict"])
+        self.assertEqual(["THERMAL_THROTTLE"], result["read_through_warnings"])
+        self.assertEqual([], result["blocking_warnings"])
+        self.assertEqual([], result["waived_warnings"])
+
+    def test_a_disabled_cooling_wait_is_read_through_on_both_sides_too(self):
+        result = compare.compare(
+            report([case(p50=1000, low=999, high=1001)],
+                   warnings=["THERMAL_THROTTLE: …", "THROTTLE_WAIT_DISABLED: …"]),
+            report([case(p50=500, low=499, high=501)],
+                   warnings=["THROTTLE_WAIT_DISABLED: …", "THERMAL_THROTTLE: …"]))
+        self.assertEqual(compare.PASS, result["verdict"])
+        self.assertEqual(["THERMAL_THROTTLE", "THROTTLE_WAIT_DISABLED"],
+                         result["read_through_warnings"])
+
+    def test_one_side_hot_and_the_other_cold_still_blocks(self):
+        result = compare.compare(
+            report([case(p50=1000, low=999, high=1001)], warnings=["THERMAL_THROTTLE: …"]),
+            report([case(p50=500, low=499, high=501)],
+                   warnings=["THROTTLE_WAIT_DISABLED: …"]))
+        self.assertEqual(compare.INCONCLUSIVE, result["verdict"])
+        self.assertEqual(["THERMAL_THROTTLE", "THROTTLE_WAIT_DISABLED"],
+                         result["blocking_warnings"])
+        self.assertEqual([], result["read_through_warnings"])
+
+    def test_an_unmeasured_device_does_not_get_the_read_through(self):
+        hot = ["THERMAL_THROTTLE: …"]
+        result = compare.compare(
+            report([case(p50=1000, low=999, high=1001)], warnings=hot,
+                   device_label="some-other-phone"),
+            report([case(p50=500, low=499, high=501)], warnings=hot,
+                   device_label="some-other-phone"))
+        self.assertEqual(compare.INCONCLUSIVE, result["verdict"])
+        self.assertEqual(["THERMAL_THROTTLE"], result["blocking_warnings"])
+
+    def test_a_missing_sustained_performance_mode_is_read_through_as_well(self):
+        both = ["NO_SUSTAINED_PERFORMANCE_MODE: …"]
+        result = compare.compare(
+            report([case(p50=1000, low=999, high=1001)], warnings=both),
+            report([case(p50=500, low=499, high=501)], warnings=both))
+        self.assertEqual(compare.PASS, result["verdict"])
+        self.assertEqual(["NO_SUSTAINED_PERFORMANCE_MODE"],
+                         result["read_through_warnings"])
+
+    def test_the_read_through_does_not_extend_to_unlocked_clocks(self):
+        both = ["UNLOCKED_CLOCKS: …"]
+        result = compare.compare(
+            report([case(p50=1000, low=999, high=1001)], warnings=both),
+            report([case(p50=500, low=499, high=501)], warnings=both))
+        self.assertEqual(compare.INCONCLUSIVE, result["verdict"])
+        self.assertEqual(["UNLOCKED_CLOCKS"], result["blocking_warnings"])
+
+
 class RollUpTest(unittest.TestCase):
 
     def test_one_regression_fails_the_run_however_many_cases_improved(self):

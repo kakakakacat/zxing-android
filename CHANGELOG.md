@@ -40,7 +40,11 @@ API may still change between minor versions.
 - `benchmark/tools/compare.py`, which reads two result sets and returns pass / fail /
   **inconclusive** against the gates of BENCHMARKS.md §10.6, with a CSV, a JSON verdict
   and a Markdown report. It exits 0 / 1 / 2, and 3 when the two sets describe different
-  measurements and cannot be compared at all.
+  measurements and cannot be compared at all. A warning describing a standing condition
+  of the reference device — it is hot at rest, and has no sustained performance mode — is
+  read through rather than blocking, but only when both sides carry the same set of them
+  and the device's effect floor was measured under those conditions, and every such
+  read-through is named in the verdict file and the report header.
 - `benchmark/tools/l2_report.py`, which turns Microbenchmark's output into the common
   result envelope with bootstrap confidence intervals, and records every condition that
   makes a comparison inconclusive instead of suppressing it.

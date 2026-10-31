@@ -61,6 +61,18 @@ INVALIDATING = ("DEBUGGABLE", "EMULATOR")
 # A warning that widens the noise. Strict by default; see --accept-noise-warnings.
 NOISE_WARNINGS = ("UNLOCKED_CLOCKS", "NO_SUSTAINED_PERFORMANCE_MODE", "THERMAL_THROTTLE",
                   "THROTTLE_WAIT_DISABLED")
+# The subset of those that describe a standing condition of the device rather than
+# something the operator left switched off: it was hot, the cool-down wait could not
+# succeed, or the device has no sustained performance mode to turn on. UNLOCKED_CLOCKS is
+# deliberately not here -- that one is avoidable and moves the operating point.
+STANDING_WARNINGS = ("THERMAL_THROTTLE", "THROTTLE_WAIT_DISABLED",
+                     "NO_SUSTAINED_PERFORMANCE_MODE")
+# Devices whose effect floor (section 10.6) was itself measured under those conditions. On
+# one of these, a standing warning carried identically by both sides is read through
+# rather than blocking: both runs paid the same price, and the floor in force already
+# accounts for it. Adding a device here means measuring its floor in that state first --
+# it is not a place to silence a warning.
+READ_THROUGH_DEVICES = ("DN-ENG41",)
 
 # Fields that must agree before any case is compared at all.
 GUARDED = ("layer", "config", "dataset_hash", "frames", "frames_golden_version")
@@ -85,6 +97,23 @@ def guard(baseline, candidate):
             reasons.append("device.%s differs: baseline %r, candidate %r"
                            % (field, base_device.get(field), cand_device.get(field)))
     return reasons
+
+
+def read_through(baseline, candidate):
+    """The warnings section 10.6 reads through for this pair, possibly none.
+
+    Only on a device whose floor was measured under the same conditions, and only when
+    both sides carry exactly the same standing warnings. One side hot and the other cold
+    is a difference between the runs, not a shared condition, and still blocks.
+    """
+    label = (baseline.get("device") or {}).get("label")
+    if label not in READ_THROUGH_DEVICES:
+        return set()
+    sides = [warning_kinds(report) & set(STANDING_WARNINGS)
+             for report in (baseline, candidate)]
+    if not sides[0] or sides[0] != sides[1]:
+        return set()
+    return sides[0]
 
 
 def case_index(report):
@@ -196,10 +225,13 @@ def compare(baseline, candidate, accept_noise_warnings=False):
 
     blocking = set()
     waived = set()
+    read_through_warnings = read_through(baseline, candidate)
     for report in (baseline, candidate):
         for kind in warning_kinds(report):
             if kind in INVALIDATING:
                 blocking.add(kind)
+            elif kind in read_through_warnings:
+                pass
             elif kind in NOISE_WARNINGS:
                 if accept_noise_warnings:
                     waived.add(kind)
@@ -227,6 +259,7 @@ def compare(baseline, candidate, accept_noise_warnings=False):
                          "below_split": EFFECT_FLOOR_SMALL},
         "blocking_warnings": sorted(blocking),
         "waived_warnings": sorted(waived),
+        "read_through_warnings": sorted(read_through_warnings),
         "cases": rows,
         "unmatched": unmatched,
     }
@@ -290,6 +323,13 @@ def write_markdown(result, path):
         if result["blocking_warnings"]:
             lines.append("Every case is inconclusive: %s."
                          % ", ".join(result["blocking_warnings"]))
+            lines.append("")
+        if result.get("read_through_warnings"):
+            lines.append("Read through under section 10.6: %s. Both runs carry the same "
+                         "standing warning on a device whose effect floor was measured "
+                         "under it, so it is a shared condition rather than a difference "
+                         "between them."
+                         % ", ".join(result["read_through_warnings"]))
             lines.append("")
         if result["waived_warnings"]:
             lines.append("Waived by the operator with `--accept-noise-warnings`: %s. "

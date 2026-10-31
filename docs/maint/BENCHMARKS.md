@@ -386,13 +386,55 @@ Per case, on the median, using the 95% intervals from §7:
   measured noise floor on the reference device, so a difference is not resolvable;
 - either side has fewer than 50 measured iterations;
 - either side carries a Microbenchmark warning that invalidates timing (debuggable build,
-  unlocked clocks, thermal throttling detected);
+  unlocked clocks, thermal throttling detected), except where the read-through below
+  applies;
 - either side is an emulator run and the other is not;
 - `alloc_count_p50` grew by more than that same floor while time improved — a time win
   bought with allocations is not a win until L4 says the GC cost is absorbed.
 
 A run as a whole is `fail` if any case fails, `pass` only if at least one case passes and
 none fails, otherwise `inconclusive`.
+
+#### Reading through a standing warning
+
+A warning may describe a **standing condition of the device** rather than something the
+operator left switched off. On DN-ENG41 three do: `THERMAL_THROTTLE`,
+`THROTTLE_WAIT_DISABLED` and `NO_SUSTAINED_PERFORMANCE_MODE`. The phone sits above its
+40.0 °C skin threshold at rest, so the cool-down wait cannot succeed and switching it off
+changes nothing but the clock; and the hardware has no sustained performance mode to
+enable. None of this is avoidable from here — §13.2 has the 45-minute cooling measurement
+that closed the last cheap route, and raising the vendor threshold is ruled out by §6.
+
+**Such a warning is read through, and the comparison proceeds, when all of:**
+
+1. the warning is one of the three named above;
+2. **both sides carry exactly the same set of them.** One run hot and the other cold is a
+   difference *between the runs*, not a shared condition, and still blocks;
+3. the device is one whose effect floor was measured under those same conditions.
+   DN-ENG41 is, and it is the only one. Adding another device to that list means
+   measuring its floor in that state first.
+
+`UNLOCKED_CLOCKS` is deliberately **not** on the list. It is avoidable — `adb root` plus
+`lockClocks` — and it moves the operating point rather than describing it.
+
+**Why this is admissible.** The effect floor below was not chosen against a quiet device;
+it was measured by running the full matrix twice on this phone *in this state*. Whatever
+the throttling costs in run-to-run spread is already inside the 3% and 10% numbers the
+gate uses. The throttling was therefore never costing resolution — it was costing the
+right to call a result a result. Both sides also pay it equally, which is the condition
+that matters for a comparison.
+
+**What it does not license.** It is not a claim that these timings are what a cool device
+would produce; they are slower, and §6's rule that absolute numbers belong to their
+operating point is unchanged. It does not travel to another device, another protocol, or
+a re-measured floor. And it is recorded, not silent: `compare.py` lists the read-through
+warnings in `verdict.json` and names them at the top of every Markdown report, so a number
+read under this clause says so wherever it is quoted.
+
+**Checked against the two full-matrix runs.** Under this clause run 1 and run 2 of
+`edef9d0a0` — identical code, identical protocol — clear the warning gate and then come
+back `inconclusive` on all 135 cases, which is the correct answer for two runs of the same
+binary. The clause removes a block; it does not manufacture a verdict.
 
 #### The effect floor, measured
 
@@ -567,8 +609,10 @@ root` works, so the benchmark plugin's `lockClocks` task pins the cores — big 
 reproducibility rather than speed. Both sides of a comparison pay the same price.
 `unlockClocks` restores the device by rebooting it.
 
-**`THERMAL_THROTTLE` and `THROTTLE_WAIT_DISABLED` still do apply**, and they are the open
-question. DN-ENG41's skin throttling threshold is 40.0 °C, and throughout the benchmarking
+**`THERMAL_THROTTLE` and `THROTTLE_WAIT_DISABLED` do apply, and §10.6 now reads through
+them** under the clause written there — both sides must carry the same ones, on a device
+whose floor was measured in that state. The measurement that settled it follows.
+DN-ENG41's skin throttling threshold is 40.0 °C, and throughout the benchmarking
 session the skin sensors read around 46 °C and never came down. So either the harness
 waits — 270 s before every benchmark, 67 of the first baseline's 72 minutes, and it never
 cools — or the wait is switched off and the result says so. Either way a warning is
@@ -589,32 +633,37 @@ sat on 40.0, the threshold itself, and stopped. Incidentally that explains the e
 value rather than reporting a configured constant.
 
 **So passive cooling over adb does not clear the threshold.** The device unplugged and
-physically cooled is the one route left that might, and it needs hands. The alternative
-is to accept that results from this device carry a thermal warning and decide, in §10.6,
-whether that warning may be read through — noting that the effect floor of 3% was itself
-measured under this thermal state, so the throttling is costing the right to call a
-result a result rather than obviously costing resolution.
+physically cooled is the one route left that might, and it needs hands.
 
-The tool separates the two kinds of warning rather than quietly softening the rule:
+**That is what §10.6's read-through clause responds to**, and it is an amendment to the
+rule written down, not a switch flipped. The thermal state is a standing condition of
+this device; the effect floor was measured inside it; both sides of a comparison pay it
+equally. `NO_SUSTAINED_PERFORMANCE_MODE` joins it for the same reason — the hardware has
+no such mode to enable, and locking the clocks is the stronger thing done in its place.
+
+The tool now separates three kinds of warning rather than quietly softening the rule:
 
 - **Invalidating** — `DEBUGGABLE`, `EMULATOR`. These cannot be waived at all.
-- **Noise** — `UNLOCKED_CLOCKS`, `NO_SUSTAINED_PERFORMANCE_MODE`, `THERMAL_THROTTLE`.
-  Blocking by default. `--accept-unlocked-clocks` switches that off deliberately, and the
+- **Standing** — `THERMAL_THROTTLE`, `THROTTLE_WAIT_DISABLED`,
+  `NO_SUSTAINED_PERFORMANCE_MODE`. Read through under §10.6 when both sides carry the
+  same set and the device is on `READ_THROUGH_DEVICES`, which today is DN-ENG41 alone.
+  Listed in `verdict.json` as `read_through_warnings` and named at the top of the report.
+- **Noise** — `UNLOCKED_CLOCKS`, and any standing warning outside the clause above.
+  Blocking by default. `--accept-noise-warnings` switches that off deliberately, and the
   waiver is recorded in `verdict.json` and printed at the top of the Markdown report, so a
   number read under a suspended rule says so wherever it is quoted.
 
-**This is a stopgap, and the decision is not the tool's to make.** Of the three ways out
-listed when this section was written, two are now done: the clocks are locked, and the
-effect floor is measured rather than guessed (§10.6). What is left is the thermal state,
-and the honest options are to cool the device physically, to accept that results from it
-always carry a thermal warning, or to amend §10.6 to say that on this device that
-particular warning may be read through. **Raising the vendor thermal thresholds is not on
-that list** — §6 rules it out, because it would produce numbers the shipped product never
-delivers and nothing in the result file would show it.
+Of the three ways out listed when this section was written, all three are now resolved:
+the clocks are locked, the effect floor is measured rather than guessed (§10.6), and the
+thermal state is handled by the read-through clause rather than by a waiver. **Raising the
+vendor thermal thresholds was never on that list** — §6 rules it out, because it would
+produce numbers the shipped product never delivers and nothing in the result file would
+show it.
 
-With the floor now measured at 3% for the cases that matter, L2 on this hardware resolves
-rather more than "large changes only". But until the thermal question is settled, prefer
-leaving the waiver off and reading `inconclusive` as the honest answer.
+With the floor measured at 3% for the cases that matter, L2 on this hardware resolves
+rather more than "large changes only". What remains unavailable is a baseline from a cool
+device; the numbers here belong to a warm one, and §6's rule that absolute numbers belong
+to their operating point is why that is written down rather than averaged away.
 
 - Reads two result files of the same layer.
 - Refuses mismatched `dataset_hash`, frame hashes, device, API level or configuration, with

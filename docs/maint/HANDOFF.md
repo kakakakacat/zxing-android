@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `df9a7904c` on branch `maint/android`.
+Last updated at commit `a4963668a` on branch `maint/android`.
 
 ---
 
@@ -40,6 +40,9 @@ Last updated at commit `df9a7904c` on branch `maint/android`.
 | `7da14bb76` | `noise_floor.py` |
 | `2e91e8a41` | Full L2 matrix, run 1 of 2 |
 | `df9a7904c` | Full matrix run 2, and the measured effect floor |
+| `15522cb28` | This handoff brought up to date with the L2 work |
+| `3e52a33d3` | Correct the claim that the device is permanently throttled |
+| `a4963668a` | Measure the thermal state instead of guessing at it twice |
 
 Nothing is uncommitted. Nothing is released; no tag has been pushed.
 
@@ -157,6 +160,12 @@ latency, first-scan latency, CPU, memory, GC or power.
   bound, `decode` is branch-heavy. `compare.py` treats `EMULATOR` as invalidating and
   will not let it be waived. Emulators run the correctness gate here, nothing else.
   Rationale in `BENCHMARKS.md` §10.7 step 4.
+- **A standing device warning is read through, not waived** (§10.6). On a device whose
+  effect floor was measured under it, and when both sides of a comparison carry exactly
+  the same set, `THERMAL_THROTTLE`, `THROTTLE_WAIT_DISABLED` and
+  `NO_SUSTAINED_PERFORMANCE_MODE` no longer block — the floor already contains whatever
+  they cost, and both sides pay it equally. `UNLOCKED_CLOCKS` is excluded because it is
+  avoidable. Every read-through is named in `verdict.json` and in the report header.
 - **The effect floor is measured, not chosen**: 3% for cases at or above 100 µs, 10%
   below. From two full-matrix runs of identical code. Re-measure after any change to the
   device or the protocol; it is two 40-minute runs and one command.
@@ -204,30 +213,31 @@ guess.
   against, but no workflow runs it. CI cannot produce a trustworthy timing on a shared
   runner, so this needs a decision about where candidate runs come from.
 
-**One open question, and it is the user's.** Every result from DN-ENG41 so far carries
-either `THERMAL_THROTTLE` or `THROTTLE_WAIT_DISABLED`, because the device was hot for the
-whole session. `compare.py` blocks on both, so **every comparison against these baselines
-is `inconclusive` by default**.
+**The thermal question is settled, by amending the rule.** Every result from DN-ENG41
+carries `THERMAL_THROTTLE` or `THROTTLE_WAIT_DISABLED`, because the phone sits above its
+40 °C skin threshold at rest — letting it cool on AC for 45 minutes does not clear it
+(trap 3, with the log). Of the three ways out, the chosen one is **§10.6's read-through
+clause**: such a warning does not block when both sides carry exactly the same set of them
+and the device's effect floor was measured under those conditions. DN-ENG41 qualifies and
+is the only device that does.
 
-**The cheap way out was tried and it failed.** Letting the device cool on AC for 45
-minutes does not clear the 40 °C skin threshold; it asymptotes on the threshold and stays
-at `Thermal Status: 3` (trap 3, with the log). So the remaining options are:
+`NO_SUSTAINED_PERFORMANCE_MODE` is read through on the same grounds — the hardware has no
+such mode to enable, and locking the clocks is the stronger thing done in its place. This
+was found while checking the clause against the real files: a thermal-only amendment would
+have left the baselines blocked anyway.
 
-1. **Unplug it and cool it physically**, then run the hd/default slice from cold. This is
-   the only untried route that could produce a baseline with no thermal warning at all,
-   and it needs hands — nothing reachable over adb is left.
-2. **Accept the warning** and read these results with `--accept-noise-warnings`, which
-   records the waiver in every output file it writes.
-3. **Amend §10.6** to say that on this device the thermal warning may be read through,
-   with the reasoning written down.
+`UNLOCKED_CLOCKS` is deliberately excluded: it is avoidable and it moves the operating
+point rather than describing it.
 
-Raising the vendor thermal thresholds is not one of them — see the decisions above.
+**Checked, not assumed.** Run 1 against run 2 of `edef9d0a0` — identical code — now clears
+the warning gate and returns `inconclusive` on all 135 cases, which is the right answer
+for two runs of the same binary. The clause removes a block; it does not manufacture a
+verdict.
 
-Worth weighing against option 1: the measured effect floor is 3% for the cases that
-matter, and it was measured *under* this thermal state across two full matrices. So the
-throttling is not obviously costing resolution — it is costing the right to call a result
-a result. That is an argument for option 3 over spending much effort on option 1, but it
-is an argument, not a decision.
+**What this does not buy.** These timings belong to a warm device and are slower than a
+cool one's. The physically-unplugged-and-cooled run is still untried and still needs
+hands; it is now a refinement rather than a blocker. Raising the vendor thermal thresholds
+remains ruled out — see the decisions above.
 
 **One finding worth carrying into Phase 5.** The full matrix shows the cost of a frame is
 dominated by how many formats the reader is asked to try, far more than by resolution.
