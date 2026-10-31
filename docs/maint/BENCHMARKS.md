@@ -539,6 +539,44 @@ nothing to a frame, and a 10% floor on a 160 ns stage is harmless because nobody
 optimise it. And it is specific to this device and this protocol: re-measure after any
 change to either, which is two 40-minute runs and one command.
 
+### 10.6b Comparing two decoder backends
+
+Phase 5 item 10 asks whether the native decoder beats the Java one. That is a comparison
+like any other and clears the same gates, with one difference worth stating: **the
+backend is the independent variable, so it is the one field that may differ.**
+
+- `DecoderBackendBenchmark` measures a single stage, `endToEnd`, over the same nine
+  frames and three hint sets. It has to be the whole decoder: a native backend brings its
+  own thresholding, so there is no shared `binarize` to hold constant, and measuring
+  anything narrower would compare two halves of one decoder rather than two decoders.
+  Crop and luminance source are identical on both sides and together cost under a
+  microsecond.
+- **The case names carry no backend**, so two runs differing only by backend compare case
+  for case. The backend is recorded in the result envelope as `backend` and named at the
+  top of every comparison report. It is deliberately **not** in `GUARDED`: refusing to
+  compare across it would refuse the comparison this exists for.
+- **One run per backend, in its own process.** Running both in one process lets the first
+  backend's allocations and cache state colour the second's numbers.
+
+```sh
+./gradlew :benchmark-android:connectedReleaseAndroidTest -Pl2.matrix=full \
+    -Pl2.backend=java \
+    -Pandroid.testInstrumentationRunnerArguments.class=io.github.kakakakacat.zxing.benchmark.DecoderBackendBenchmark
+# then the same with -Pl2.backend=native, then compare.py
+```
+
+**The two backends are checked for agreement before either is timed.** Every case
+verifies that the backend under test returns the same text and format as the Java reader
+on that exact frame, and fails the run if it does not. Two decoders that disagree about
+what a frame says are not two speeds of the same thing, and a speed comparison between
+them would be meaningless.
+
+**Hints other than the format selection are not forwarded to the native backend.** It has
+its own options and no mapping from this fork's `DecodeHintType` exists. For `default`,
+`qr_only` and `oned_only_upca` this changes nothing, because none of them sets a hint
+beyond `POSSIBLE_FORMATS` — but a configuration that did would not be configured alike on
+both sides, and the comparison would have to say so.
+
 ### 10.7 The B0 baseline
 
 **A correction to this document's own plan.** Earlier revisions said the L2 baseline is

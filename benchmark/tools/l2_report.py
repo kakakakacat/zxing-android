@@ -148,6 +148,7 @@ def device_from_context(context, label):
 
 
 THROTTLE_SLEEP_ARG = "androidx.benchmark.thermalThrottle.sleepDurationSeconds"
+BACKEND_ARG = "l2.backend"
 
 
 def load_runner_args(path):
@@ -231,6 +232,11 @@ def build_report(microbenchmark, goldens_path, run_id, commit, device_label, con
             {c["config"] for c in cases}) == 1 else "mixed"),
         # L2 replays generated frames, not the L1 corpus; the frame hashes are the
         # comparability key instead (section 10.4).
+        # Which decoder produced these numbers. The independent variable of a backend
+        # A/B, so it is NOT part of what makes two result sets comparable -- it is the
+        # thing that differs. It is recorded, and named in every comparison, because a
+        # timing whose decoder cannot be identified cannot be compared with anything.
+        "backend": runner_args.get(BACKEND_ARG, "java"),
         "dataset_hash": None,
         "frames_golden_version": golden_version,
         "frames": frames,

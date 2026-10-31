@@ -254,6 +254,11 @@ def compare(baseline, candidate, accept_noise_warnings=False):
         "candidate": {"run_id": candidate.get("run_id"), "commit": candidate.get("commit")},
         "device": (baseline.get("device") or {}).get("label"),
         "config": baseline.get("config"),
+        # Named, never guarded. In a backend A/B this is exactly what differs, so
+        # refusing to compare across it would refuse the comparison the tool exists for.
+        # Printing it is what stops a reader mistaking an A/B for a regression check.
+        "baseline_backend": baseline.get("backend"),
+        "candidate_backend": candidate.get("backend"),
         "effect_floor": {"split_ns": FLOOR_SPLIT_NS,
                          "at_or_above_split": EFFECT_FLOOR_LARGE,
                          "below_split": EFFECT_FLOOR_SMALL},
@@ -315,6 +320,11 @@ def write_markdown(result, path):
                      % (result["candidate"]["run_id"], result["candidate"]["commit"]))
         lines.append("| Device | %s |" % result["device"])
         lines.append("| Configuration | %s |" % result["config"])
+        if result.get("baseline_backend") != result.get("candidate_backend"):
+            lines.append("| Decoder backend | **%s → %s** |"
+                         % (result.get("baseline_backend"), result.get("candidate_backend")))
+        else:
+            lines.append("| Decoder backend | %s |" % result.get("baseline_backend"))
         lines.append("| Effect floor | %.0f%% at or above %d µs, %.0f%% below |"
                      % (result["effect_floor"]["at_or_above_split"] * 100,
                         result["effect_floor"]["split_ns"] // 1000,

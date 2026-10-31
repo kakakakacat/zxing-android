@@ -18,6 +18,8 @@ package io.github.kakakakacat.zxing.benchmark;
 
 import io.github.kakakakacat.zxing.BinaryBitmap;
 import io.github.kakakakacat.zxing.MultiFormatReader;
+import io.github.kakakakacat.zxing.android.scanner.FrameDecoder;
+import io.github.kakakakacat.zxing.android.scanner.FrameDecoders;
 import io.github.kakakakacat.zxing.NotFoundException;
 import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource;
 import io.github.kakakakacat.zxing.ReaderException;
@@ -87,6 +89,31 @@ public final class FramePipeline {
     int[] crop = crop(frame.width, frame.height);
     PlanarYUVLuminanceSource source = luminanceSource(frame, crop);
     return decode(reader, new BinaryBitmap(new HybridBinarizer(source)));
+  }
+
+  /**
+   * Stages 1-4 through a decoder backend rather than through the reader directly.
+   *
+   * <p>The comparable unit for a backend A/B. It has to be the whole decoder: a native
+   * backend brings its own thresholding, so there is no shared {@code binarize} stage to
+   * hold constant, and comparing anything narrower would compare two halves of one
+   * decoder. Crop and luminance source are identical on both sides -- together they are
+   * under a microsecond, so what is being measured is the decoder.
+   *
+   * <p>With {@link FrameDecoders#JAVA} this is the same work as
+   * {@link #endToEnd(MultiFormatReader, FrameFactory.Frame)}: the Java backend does
+   * {@code HybridBinarizer} then {@code decodeWithState} then {@code reset}, which is
+   * what that method does inline.
+   */
+  public static Result endToEnd(FrameDecoder decoder, FrameFactory.Frame frame) {
+    int[] crop = crop(frame.width, frame.height);
+    PlanarYUVLuminanceSource source = luminanceSource(frame, crop);
+    return decoder.decode(source);
+  }
+
+  /** A backend configured the way the decode thread configures its decoder. */
+  public static FrameDecoder decoder(String backend, L2Config config) {
+    return FrameDecoders.create(backend, config.hints(), config.formats());
   }
 
   /** A reader configured the way the decode thread configures it. */

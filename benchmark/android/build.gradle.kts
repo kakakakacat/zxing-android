@@ -20,7 +20,12 @@ android {
 
     // BENCHMARKS.md §10.5: CI runs the hd/default slice; the full matrix is a manual
     // device run. -Pl2.matrix=full flips it.
-    testInstrumentationRunnerArguments["l2.matrix"] =
+    // Which decoder backend DecoderBackendBenchmark measures: "java" or "native".
+  // One run per backend, two result files, then compare.py. See BENCHMARKS.md.
+  testInstrumentationRunnerArguments["l2.backend"] =
+    (project.findProperty("l2.backend") as String?) ?: "java"
+
+  testInstrumentationRunnerArguments["l2.matrix"] =
       (project.findProperty("l2.matrix") as String?) ?: "ci"
 
     // -Pl2.throttleWait=0 stops Microbenchmark waiting for a cool-down between

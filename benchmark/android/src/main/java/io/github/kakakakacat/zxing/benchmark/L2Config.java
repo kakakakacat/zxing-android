@@ -20,6 +20,7 @@ import io.github.kakakakacat.zxing.BarcodeFormat;
 import io.github.kakakakacat.zxing.DecodeHintType;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Map;
@@ -48,6 +49,11 @@ public enum L2Config {
   L2Config(String id, BarcodeFormat[] formats) {
     this.id = id;
     this.formats = formats;
+  }
+
+  /** The format selection, or null for "everything the reader supports". */
+  public Collection<BarcodeFormat> formats() {
+    return formats == null ? null : Collections.unmodifiableList(Arrays.asList(formats));
   }
 
   /** A fresh hint map; {@code MultiFormatReader} keeps a reference to what it is given. */
