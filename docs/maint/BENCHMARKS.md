@@ -417,17 +417,40 @@ that closed the last cheap route, and raising the vendor threshold is ruled out 
 `UNLOCKED_CLOCKS` is deliberately **not** on the list. It is avoidable — `adb root` plus
 `lockClocks` — and it moves the operating point rather than describing it.
 
-**Why this is admissible.** The effect floor below was not chosen against a quiet device;
-it was measured by running the full matrix twice on this phone *in this state*. Whatever
-the throttling costs in run-to-run spread is already inside the 3% and 10% numbers the
-gate uses. The throttling was therefore never costing resolution — it was costing the
-right to call a result a result. Both sides also pay it equally, which is the condition
-that matters for a comparison.
+**Why this is admissible — measured, not argued.** With the clocks pinned, the thermal
+governor does not move them. Evidence:
+`reports/thermal-vs-locked-clocks-DN-ENG41-20261031.log` — a 5 min 09 s run at thermal
+status SEVERE with `vendor.thermal-engine` running, and the kernel's own `time_in_state`
+counters reset immediately beforehand:
 
-**What it does not license.** It is not a claim that these timings are what a cool device
-would produce; they are slower, and §6's rule that absolute numbers belong to their
-operating point is unchanged. It does not travel to another device, another protocol, or
-a re-measured floor. And it is recorded, not silent: `compare.py` lists the read-through
+| | locked at | ticks there | ticks at every other frequency |
+| --- | --- | --- | --- |
+| big cores | 1344000 kHz | 33425 (334.25 s) | **0** |
+| little cores | 1190400 kHz | 33438 (334.38 s) | **0** |
+
+Zero ticks at any other frequency, *including every frequency below the locked one*,
+which is where a mitigation would have put it. 175 samples at 1 Hz agree, and
+`scaling_max_freq` was never clamped either, so no cooling device lowered the policy
+ceiling. `lockClocks` pins the big cores at 56% of their maximum, so the operating point
+already sits below anything the governor would reduce it to: there is nothing left for it
+to take away.
+
+Note that `lockClocks` *attempts* to stop `vendor.thermal-engine` and **this device
+refuses** — so these numbers are taken with thermal management fully running. Nothing
+here suppresses it, and §6 forbids doing so.
+
+The second, weaker argument still holds and is independent: the effect floor below was
+not chosen against a quiet device, it was measured by running the full matrix twice on
+this phone *in this state*, so whatever the throttling costs in run-to-run spread is
+already inside the 3% and 10% numbers the gate uses. And both sides pay it equally, which
+is the condition that matters for a comparison.
+
+**What it does not license.** The frequency measurement covers **CPU frequency only**:
+the memory bus could not be locked on this device, and one 5-minute run is not a soak —
+a sustained effect is exactly what L4 (§12) exists to find. It is not a claim that these
+timings are what a cool device would produce; they are slower, and §6's rule that
+absolute numbers belong to their operating point is unchanged. It does not travel to
+another device, another protocol, or a re-measured floor. And it is recorded, not silent: `compare.py` lists the read-through
 warnings in `verdict.json` and names them at the top of every Markdown report, so a number
 read under this clause says so wherever it is quoted.
 

@@ -124,6 +124,13 @@ latency, first-scan latency, CPU, memory, GC or power.
      40.988, 40.813, 40.348, 40.232, 40.116, 40.0 — and then sits on the threshold
      value itself and stops.
 
+   **But with the clocks locked it does not matter.** The thermal governor never moves a
+   pinned clock on this device — 100% residency at the locked frequency across a 5-minute
+   run at SEVERE, zero ticks anywhere else:
+   `reports/thermal-vs-locked-clocks-DN-ENG41-20261031.log`. §10.6 reads the warning
+   through on that basis. Note that `lockClocks` tries to stop `vendor.thermal-engine`
+   and this device refuses, so that measurement was taken with throttling fully active.
+
    What is still untested is the device physically unplugged and actively cooled, which
    needs hands. Everything reachable over adb has been tried.
 4. **A Microbenchmark run stalls when the screen goes off.** `IsolationActivity` stops
@@ -163,8 +170,9 @@ latency, first-scan latency, CPU, memory, GC or power.
 - **A standing device warning is read through, not waived** (§10.6). On a device whose
   effect floor was measured under it, and when both sides of a comparison carry exactly
   the same set, `THERMAL_THROTTLE`, `THROTTLE_WAIT_DISABLED` and
-  `NO_SUSTAINED_PERFORMANCE_MODE` no longer block — the floor already contains whatever
-  they cost, and both sides pay it equally. `UNLOCKED_CLOCKS` is excluded because it is
+  `NO_SUSTAINED_PERFORMANCE_MODE` no longer block — measured: with the clocks pinned the
+  thermal governor never moves them, the floor already contains whatever they cost, and
+  both sides pay it equally. `UNLOCKED_CLOCKS` is excluded because it is
   avoidable. Every read-through is named in `verdict.json` and in the report header.
 - **The effect floor is measured, not chosen**: 3% for cases at or above 100 µs, 10%
   below. From two full-matrix runs of identical code. Re-measure after any change to the
@@ -229,10 +237,25 @@ have left the baselines blocked anyway.
 `UNLOCKED_CLOCKS` is deliberately excluded: it is avoidable and it moves the operating
 point rather than describing it.
 
-**Checked, not assumed.** Run 1 against run 2 of `edef9d0a0` — identical code — now clears
-the warning gate and returns `inconclusive` on all 135 cases, which is the right answer
-for two runs of the same binary. The clause removes a block; it does not manufacture a
-verdict.
+**Checked, not assumed, twice over.**
+
+1. Run 1 against run 2 of `edef9d0a0` — identical code — now clears the warning gate and
+   returns `inconclusive` on all 135 cases, which is the right answer for two runs of the
+   same binary. The clause removes a block; it does not manufacture a verdict.
+2. **With the clocks pinned, thermal throttling does not move them at all.** A 5 min 09 s
+   run at status SEVERE with `vendor.thermal-engine` running put 100% of both clusters'
+   time at the locked frequency and **zero ticks at any other frequency**, below it
+   included, by the kernel's own `time_in_state` counters. `lockClocks` pins the big
+   cores at 56% of maximum, so the operating point is already below anything the governor
+   would reduce it to. Evidence:
+   `reports/thermal-vs-locked-clocks-DN-ENG41-20261031.log`.
+
+   Worth knowing: `lockClocks` *tries* to stop `vendor.thermal-engine` and this device
+   refuses, so these numbers are taken with thermal management fully running. That is the
+   right outcome — §6 forbids suppressing it.
+
+   Covers CPU frequency only: the memory bus could not be locked, and one 5-minute run is
+   not a soak. A sustained effect is what L4 is for.
 
 **What this does not buy.** These timings belong to a warm device and are slower than a
 cool one's. The physically-unplugged-and-cooled run is still untried and still needs
