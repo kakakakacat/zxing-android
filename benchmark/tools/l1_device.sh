@@ -9,12 +9,14 @@
 #
 # Options:
 #   --backend java|native   which decoder runs                    (default: java)
+#   --config default|try_harder  the effort level, on both backends alike
 #   --serial <id>           adb device, if more than one           (default: ANDROID_SERIAL)
 #   --out <file>            where to put the pulled result file
 #   --skip-push             the corpus is already on the device and unchanged
 set -euo pipefail
 
 BACKEND=java
+CONFIG=default
 SERIAL="${ANDROID_SERIAL:-}"
 OUT=""
 SKIP_PUSH=0
@@ -22,6 +24,7 @@ SKIP_PUSH=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --backend) BACKEND="$2"; shift 2 ;;
+    --config) CONFIG="$2"; shift 2 ;;
     --serial) SERIAL="$2"; shift 2 ;;
     --out) OUT="$2"; shift 2 ;;
     --skip-push) SKIP_PUSH=1; shift ;;
@@ -31,7 +34,7 @@ done
 
 cd "$(dirname "$0")/../.."
 REPO="$(pwd)"
-[ -n "$OUT" ] || OUT="$REPO/build/benchmark/l1-device-$BACKEND.json"
+[ -n "$OUT" ] || OUT="$REPO/build/benchmark/l1-device-$BACKEND-$CONFIG.json"
 
 if [ -z "$SERIAL" ]; then
   COUNT=$(adb devices | awk 'NR>1 && $2=="device"' | wc -l | tr -d ' ')
@@ -53,19 +56,20 @@ TEST_PKG=io.github.kakakakacat.zxing.benchmark.test
 DEVICE_DIR="/sdcard/Android/media/$TEST_PKG/l1"
 # Named by the script rather than left to the runner's default, which spells the backend
 # the way a result file records it ("zxing-java") rather than the way it is asked for.
-DEVICE_OUT="/sdcard/Android/media/$TEST_PKG/l1-out/l1-$BACKEND.json"
+DEVICE_OUT="/sdcard/Android/media/$TEST_PKG/l1-out/l1-$BACKEND-$CONFIG.json"
 
 COMMIT=$(git rev-parse --short HEAD)
 DIRTY=$(git status --porcelain | wc -l | tr -d ' ')
 if [ "$DIRTY" != "0" ]; then
   COMMIT="$COMMIT-dirty"
 fi
-RUN_ID="l1-device-$BACKEND-$(date -u +%Y%m%dT%H%M%SZ)"
+RUN_ID="l1-device-$BACKEND-$CONFIG-$(date -u +%Y%m%dT%H%M%SZ)"
 LOG=$(mktemp -t l1-instrument)
 trap 'rm -f "$LOG"' EXIT
 
 echo "device:  $SERIAL ($($ADB shell getprop ro.product.model | tr -d '\r'))"
 echo "backend: $BACKEND"
+echo "config:  $CONFIG"
 echo "commit:  $COMMIT"
 
 # Install before pushing. A first install creates the app's external files directory
@@ -99,6 +103,7 @@ echo "--- running"
 $ADB shell am instrument -w \
   -e class io.github.kakakakacat.zxing.benchmark.L1CorpusRun \
   -e l1.backend "$BACKEND" \
+  -e l1.config "$CONFIG" \
   -e l1.commit "$COMMIT" \
   -e l1.runId "$RUN_ID" \
   -e l1.out "$DEVICE_OUT" \
@@ -118,7 +123,8 @@ echo "--- pulled $OUT"
 python3 - "$OUT" <<'PY'
 import json, sys
 report = json.load(open(sys.argv[1], encoding="utf-8"))
-print("%s on %s, %s" % (report["backend"], report["device"], report["backend_build"]))
+print("%s %s on %s, %s" % (report["backend"], report["config"], report["device"],
+                           report["backend_build"]))
 for status, count in report["status_counts"].items():
     if count:
         print("  %-18s %d" % (status, count))

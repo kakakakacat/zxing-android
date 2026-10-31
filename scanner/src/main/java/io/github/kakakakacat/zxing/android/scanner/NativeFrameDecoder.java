@@ -17,6 +17,7 @@
 package io.github.kakakakacat.zxing.android.scanner;
 
 import io.github.kakakakacat.zxing.BarcodeFormat;
+import io.github.kakakakacat.zxing.DecodeHintType;
 import io.github.kakakakacat.zxing.LuminanceSource;
 import io.github.kakakakacat.zxing.Result;
 import io.github.kakakakacat.zxing.ResultPoint;
@@ -134,7 +135,11 @@ final class NativeFrameDecoder implements FrameDecoder {
   private final boolean compatibilityRendering;
 
   NativeFrameDecoder(Collection<BarcodeFormat> formats) {
-    this(formats, true);
+    this(null, formats, true);
+  }
+
+  NativeFrameDecoder(Collection<BarcodeFormat> formats, boolean compatibilityRendering) {
+    this(null, formats, compatibilityRendering);
   }
 
   /**
@@ -151,7 +156,9 @@ final class NativeFrameDecoder implements FrameDecoder {
    *     All four were found by running the corpus through both backends; BENCHMARKS.md
    *     §9.1 counts them.
    */
-  NativeFrameDecoder(Collection<BarcodeFormat> formats, boolean compatibilityRendering) {
+  NativeFrameDecoder(Map<DecodeHintType,?> hints,
+                     Collection<BarcodeFormat> formats,
+                     boolean compatibilityRendering) {
     this.compatibilityRendering = compatibilityRendering;
     if (!AVAILABLE) {
       throw new IllegalStateException("libzxingnative is not loaded", LOAD_FAILURE);
@@ -160,6 +167,11 @@ final class NativeFrameDecoder implements FrameDecoder {
     if (handle == 0L) {
       throw new IllegalStateException("could not create the native decoder");
     }
+    // Presence is what means true in this decoder -- MultiFormatReader reads it as
+    // containsKey -- so a hint whose value is Boolean.FALSE still turns it on, here as
+    // there. Matching the Java backend's reading of the hint matters more than being
+    // right about a map nobody builds that way.
+    nativeSetTryHarder(handle, hints != null && hints.containsKey(DecodeHintType.TRY_HARDER));
     setFormats(formats);
   }
 
@@ -424,6 +436,8 @@ final class NativeFrameDecoder implements FrameDecoder {
   private static native void nativeDestroy(long handle);
 
   private static native void nativeSetFormats(long handle, String formats);
+
+  private static native void nativeSetTryHarder(long handle, boolean tryHarder);
 
   private static native String[] nativeDecode(long handle, byte[] luminance,
                                               int width, int height);

@@ -92,17 +92,17 @@ final class DecoderThread extends Thread {
    * <p>Two things change with the native backend, both deliberate and neither silent:
    * the viewfinder's animated candidate points stop, because zxing-cpp reports a symbol's
    * corners only once it has found one and has no equivalent of
-   * {@code NEED_RESULT_POINT_CALLBACK}; and hints other than the format selection are
-   * not honoured, because no mapping from this fork's {@code DecodeHintType} to
-   * zxing-cpp's options exists. A caller that set either should ask for
-   * {@link ScannerOptions.DecoderBackend#JAVA}.
+   * {@code NEED_RESULT_POINT_CALLBACK}; and hints other than the format selection and
+   * {@code TRY_HARDER} are not honoured, because no mapping from this fork's
+   * {@code DecodeHintType} to zxing-cpp's options exists. A caller that set one of those
+   * should ask for {@link ScannerOptions.DecoderBackend#JAVA}.
    */
   private FrameDecoder createDecoder() {
     if (backendPreference == ScannerOptions.DecoderBackend.JAVA) {
       return new JavaFrameDecoder(fixedHints, initialFormats);
     }
     if (backendPreference == ScannerOptions.DecoderBackend.NATIVE) {
-      return new NativeFrameDecoder(initialFormats);
+      return new NativeFrameDecoder(fixedHints, initialFormats, true);
     }
     if (!NativeFrameDecoder.isAvailable()) {
       Log.i(TAG, "No native decoder for this ABI; using the Java decoder",
@@ -110,7 +110,7 @@ final class DecoderThread extends Thread {
       return new JavaFrameDecoder(fixedHints, initialFormats);
     }
     try {
-      return new NativeFrameDecoder(initialFormats);
+      return new NativeFrameDecoder(fixedHints, initialFormats, true);
     } catch (RuntimeException | UnsatisfiedLinkError e) {
       // The library loaded but would not produce a decoder. Scanning with the Java one
       // beats not scanning, and the reason is logged rather than swallowed.

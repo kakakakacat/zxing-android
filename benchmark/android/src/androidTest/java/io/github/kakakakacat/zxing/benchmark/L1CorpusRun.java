@@ -24,6 +24,7 @@ import android.os.Bundle;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
 
+import io.github.kakakakacat.zxing.DecodeHintType;
 import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource;
 import io.github.kakakakacat.zxing.Result;
 import io.github.kakakakacat.zxing.android.scanner.FrameDecoder;
@@ -50,6 +51,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.Locale;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -93,6 +95,17 @@ public final class L1CorpusRun {
   public void runTheCorpusThroughTheSelectedBackend() throws Exception {
     Bundle arguments = InstrumentationRegistry.getArguments();
     String backend = FrameDecoders.canonical(arguments.getString("l1.backend", "java"));
+    // The same two configurations the host runner names, and for the same reason: a file
+    // scored under one of them cannot be compared with a file scored under the other, so
+    // the configuration travels in the envelope rather than in whoever typed the command.
+    String config = arguments.getString("l1.config", "DEFAULT").toUpperCase(Locale.ROOT);
+    Map<DecodeHintType,Object> hints = new EnumMap<>(DecodeHintType.class);
+    if ("TRY_HARDER".equals(config)) {
+      hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);
+    } else if (!"DEFAULT".equals(config)) {
+      throw new IllegalArgumentException("unknown l1.config: " + config
+          + " (expected DEFAULT or TRY_HARDER)");
+    }
 
     // An unknown backend name already threw above. Only a real device limitation is
     // allowed to skip: a typo that skipped the run would look like a clean pass that
@@ -120,7 +133,7 @@ public final class L1CorpusRun {
     List<Map<String,Object>> rows = new ArrayList<>(manifest.samples.size());
     List<String> corrupt = new ArrayList<>();
 
-    FrameDecoder decoder = FrameDecoders.create(backend, null, null);
+    FrameDecoder decoder = FrameDecoders.create(backend, hints, null);
     try {
       int done = 0;
       for (Manifest.Sample sample : manifest.samples) {
@@ -179,7 +192,7 @@ public final class L1CorpusRun {
     File out = arguments.containsKey("l1.out")
         ? new File(arguments.getString("l1.out"))
         : new File(externalDir("l1-out"), "l1-" + backend + ".json");
-    write(out, manifest, backend, arguments, totals, rows);
+    write(out, manifest, backend, config, arguments, totals, rows);
 
     // The corpus gate comes after the file is written: a partial result that says why it
     // is partial is more useful than no file at all.
@@ -216,6 +229,7 @@ public final class L1CorpusRun {
   private static void write(File out,
                             Manifest manifest,
                             String backend,
+                            String config,
                             Bundle arguments,
                             Map<L1Status,Integer> totals,
                             List<Map<String,Object>> rows) throws IOException {
@@ -229,7 +243,7 @@ public final class L1CorpusRun {
     envelope.put("runner", "device");
     envelope.put("backend", backend);
     envelope.put("backend_build", FrameDecoders.buildInfo(backend));
-    envelope.put("config", "DEFAULT");
+    envelope.put("config", config);
     envelope.put("dataset_hash", manifest.datasetHash);
     envelope.put("sample_count", manifest.samples.size());
     envelope.put("device", Build.MODEL);

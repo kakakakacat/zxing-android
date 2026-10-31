@@ -95,10 +95,11 @@ public final class FrameDecoders {
       return new JavaFrameDecoder(fixed, formats);
     }
     if (NATIVE.equals(name)) {
-      // Hints other than the format selection are deliberately not forwarded: zxing-cpp
-      // has its own options and no mapping from this fork's DecodeHintType exists. A
-      // comparison must say so rather than pretend the two were configured alike.
-      return new NativeFrameDecoder(formats);
+      // TRY_HARDER maps onto zxing-cpp's tryHarder and tryRotate; see the JNI for why
+      // those two and not its other two effort flags. Every other hint is still dropped,
+      // because zxing-cpp has its own options and no mapping exists -- a comparison must
+      // say so rather than pretend the two were configured alike.
+      return new NativeFrameDecoder(hints, formats, true);
     }
     throw new IllegalArgumentException("unknown decoder backend: " + name);
   }

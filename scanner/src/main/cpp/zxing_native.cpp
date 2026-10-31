@@ -151,6 +151,28 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeCreate
   return static_cast<jlong>(reinterpret_cast<uintptr_t>(decoder));
 }
 
+/**
+ * The effort level, as this fork's single TRY_HARDER hint maps onto zxing-cpp's four
+ * flags.
+ *
+ * <p>tryHarder and tryRotate, and deliberately not tryInvert or tryDownscale. TRY_HARDER
+ * in this decoder means two things: the 1D readers scan many more rows
+ * (OneDReader.doDecode), and a failed 1D pass retries the image rotated 90 degrees
+ * (OneDReader.decode). It has never meant "look for an inverted code" or "look in a
+ * downscaled copy", and mapping it onto those would hand the native backend work the
+ * Java one does not do and then compare the two.
+ */
+JNIEXPORT void JNICALL
+Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeSetTryHarder(
+    JNIEnv*, jclass, jlong handle, jboolean tryHarder) {
+  NativeDecoder* decoder = fromHandle(handle);
+  if (decoder == nullptr) {
+    return;
+  }
+  decoder->options.setTryHarder(tryHarder == JNI_TRUE);
+  decoder->options.setTryRotate(tryHarder == JNI_TRUE);
+}
+
 JNIEXPORT void JNICALL
 Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDestroy(
     JNIEnv*, jclass, jlong handle) {
