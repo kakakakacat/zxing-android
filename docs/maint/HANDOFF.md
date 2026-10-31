@@ -111,7 +111,7 @@ latency, first-scan latency, CPU, memory, GC or power.
 - No Android 15/16 **physical** device is available. Anything needing a real camera on
   those versions stays unverified, and the README says so.
 
-### Five traps and a runbook
+### Traps, and the runbook for each
 
 1. **DroidLens global Gradle init script.** `~/.gradle/init.d/droidlens.gradle` injects a
    third-party SDK into debug builds of any project listed in
@@ -170,7 +170,19 @@ latency, first-scan latency, CPU, memory, GC or power.
 6. **The native build needs the pinned NDK**, `29.0.14206865`, set in
    `gradle/libs.versions.toml` and installed by CI. It is pinned because "whichever NDK
    was lying around" is not something a decoder comparison can hold constant.
-7. **Emulator `wm size` changes persist.** The Android 16 large-screen reproduction ran
+7. **Kotlin has no plugin and no version of its own.** AGP 9 compiles Kotlin itself:
+   drop a `.kt` file into `src/main/kotlin` and `compileDebugKotlin` appears, with no
+   `plugins {}` entry anywhere. Adding `org.jetbrains.kotlin.android` on top of that does
+   not merely duplicate work, it **fails the build** — "Cannot add extension with name
+   'kotlin', as there is an extension already registered with that name" — and asking for
+   it by version fails earlier still, because the plugin is already on the classpath at an
+   unknown version. So there is no `kotlin` entry in `gradle/libs.versions.toml` and there
+   must not be one. The compiler is whatever AGP ships: **AGP 9.4.1 → Kotlin 2.2.10**,
+   readable as the `kotlin-stdlib` on any module's compile classpath. Pinning AGP pins
+   Kotlin. A module that compiles Kotlin needs one thing added by hand, a `kotlin { }`
+   block setting `jvmTarget` to match `compileOptions`; AGP fails the compile task on a
+   mismatch rather than warning, so this is checked rather than assumed.
+8. **Emulator `wm size` changes persist.** The Android 16 large-screen reproduction ran
    `wm size 1600x2560 && wm density 240`. Both were reset afterwards, but if an emulator
    behaves oddly, `adb shell wm size reset && adb shell wm density reset`.
 

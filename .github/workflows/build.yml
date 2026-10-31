@@ -43,6 +43,12 @@ jobs:
       - name: Scanner unit tests (coordinate mapping)
         run: ./gradlew :scanner:testDebugUnitTest
 
+      - name: Integration API stays source-compatible with Java
+        # The module is Kotlin; its consumers are Java. The test is written in Java and
+        # most of it only has to compile. See the class comment in
+        # JavaSourceCompatibilityTest.
+        run: ./gradlew :android-integration:testDebugUnitTest
+
       - name: Install the pinned NDK
         # Pinned in gradle/libs.versions.toml. The runner ships some NDK, but not
         # necessarily this one, and "whichever NDK the runner had" is not a thing a

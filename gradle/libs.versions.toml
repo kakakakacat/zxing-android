@@ -1,5 +1,8 @@
-# Pinned toolchain for the Android maintenance fork. See docs/maint/BUILD.md.
+# Pinned toolchain for the Android maintenance fork. See docs/maint/HANDOFF.md.
 [versions]
+# Kotlin is not listed here on purpose: AGP 9 compiles Kotlin itself, and the version
+# comes with AGP (9.4.1 -> Kotlin 2.2.10). Declaring the Kotlin Gradle plugin on top of
+# that fails outright -- "extension 'kotlin' already registered". See docs/maint/HANDOFF.md.
 agp = "9.4.1"
 ndk = "29.0.14206865"
 junit = "4.13.2"
