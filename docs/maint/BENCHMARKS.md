@@ -235,9 +235,10 @@ suspected is not what is happening:
 The first two are **a real property of any `MultiFormatReader` consumer, this app
 included**. Upstream decodes that directory with `new Code39Reader(false, true)`, which
 turns on extended mode; `MultiFormatReader` has no way to ask for it, so it returns the
-raw Code 39 symbols. Feeding the image through this fork's own scanner gives the same
-`E+X+T+E+N+D+E+D /A%J/J/C`. That is worth knowing about the product, and it is not a bug
-in the harness.
+raw Code 39 symbols — measured here as `E+X+T+E+N+D+E+D /A%J/J/C`. `DecoderThread`
+constructs the same `MultiFormatReader`, so the app has no extended mode either; that
+follows from the reader it uses rather than from a run of the app on this image. Worth
+knowing about the product, and not a bug in the harness.
 
 The last two are **genuine misreads that only an all-formats reader can make**. Upstream
 restricts `POSSIBLE_FORMATS` to the family under test, so its blackbox run never offers
