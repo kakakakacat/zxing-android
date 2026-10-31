@@ -53,8 +53,8 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | What | Result | Where |
 | --- | --- | --- |
 | `:core:test` | 602 tests, 0 failures | local |
-| `:scanner:testDebugUnitTest` | 9 coordinate-mapping tests | local + CI |
-| `:scanner:connectedDebugAndroidTest` | 35 fixed frames, 16 formats, 0 failures | Android 14 device **and** CI emulators API 21/34/35/36 |
+| `:scanner:testDebugUnitTest` | 9 coordinate-mapping + 6 hint-construction tests | local + CI |
+| `:scanner:connectedDebugAndroidTest` | 35 fixed frames, 16 formats, plus a live format-switch test, 0 failures | Android 14 device **and** CI emulators API 21/34/35/36 |
 | App install / launch / preview | works | Android 14 device, API 35 + 36 emulators |
 | CAMERA grant / deny / permanently-denied | works, no request loop | Android 14 device |
 | 100× open-close stability loop | 0 crashes, 0 camera errors | `reports/stability-100-b0-DN-ENG41.log` |
@@ -298,7 +298,12 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
 8. Feed CameraX `ImageProxy` `YUV_420_888` straight in: honour `rowStride`/`pixelStride`,
    crop to the scan region, no full-frame copy, and do not release a buffer while an
    async decode still holds it.
-9. API to enable/disable formats per scan so the native reader does less work.
+9. ~~API to enable/disable formats per scan so the native reader does less work.~~
+   **Done** (`ScannerView.setFormats` now reaches the live decoder; it had silently done
+   nothing on a running scanner). Deliberately taken before item 7: it is hours rather
+   than days, it is backed by two measurements already in hand, and item 10's A/B is only
+   fair if both decoders can be asked for the same format set. The native work is
+   unaffected — this is the seam it will be compared across.
 10. **A/B the native backend against the Java one on the fixed dataset, then decide the
     default.** No speedup may be claimed before that comparison exists. "Swapped the
     decoder" is not evidence.

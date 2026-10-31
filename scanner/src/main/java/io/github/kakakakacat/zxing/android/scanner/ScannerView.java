@@ -129,9 +129,28 @@ public final class ScannerView extends FrameLayout implements SurfaceHolder.Call
    * Formats to decode, or {@code null} for every format the reader supports. Kept
    * separate from {@link ScannerOptions} because hosts commonly derive it per scan
    * request (for example from an Intent) while the rest of the options are fixed.
+   *
+   * <p><strong>Takes effect while scanning</strong>, without reopening the camera. The
+   * change is applied on the decode thread, so a frame already being decoded finishes
+   * under the previous selection and the next frame uses the new one. Until this method
+   * did that, calling it on a running scanner silently did nothing until the next
+   * {@link #resume()}.
+   *
+   * <p>How much this is worth is measured, not assumed: on the reference device a frame
+   * that decodes nothing costs 81 ms at 1920x1080 with every format enabled and 1.2 ms
+   * with a single 1D format — see {@code docs/maint/BENCHMARKS.md} §10. Restricting
+   * formats also removes misreads: two corpus samples are read as the wrong symbology by
+   * an all-formats reader (§9). Narrow this to what the host actually accepts.
    */
   public void setFormats(Collection<BarcodeFormat> formats) {
     this.formats = formats;
+    DecoderThread thread = decoderThread;
+    if (thread != null) {
+      Handler decodeHandler = thread.getHandler();
+      if (decodeHandler != null) {
+        decodeHandler.obtainMessage(DecoderThread.MSG_SET_FORMATS, formats).sendToTarget();
+      }
+    }
   }
 
   public void setListener(Listener listener) {

@@ -52,6 +52,7 @@ scannerView.setOptions(new ScannerOptions.Builder()
     .setFrontLightMode(FrontLightMode.AUTO)
     .build());
 scannerView.setFormats(EnumSet.of(BarcodeFormat.QR_CODE));   // or null for everything
+// Safe to call again while scanning: it reaches the live decoder, no camera restart.
 scannerView.setListener(new ScannerView.Listener() {
   @Override public void onScanned(ScanOutcome outcome) {
     String text = outcome.getResult().getText();
@@ -70,6 +71,15 @@ scannerView.setListener(new ScannerView.Listener() {
 permission is missing it reports `ScannerError.PERMISSION_DENIED` and leaves the
 conversation with the user to the host app. `CaptureActivity` in `android/` is a worked
 example of doing it, including the "don't ask again" case.
+
+**Narrow the formats.** `setFormats` is the cheapest performance control the library
+has, and it can be changed at any time — including while scanning, which reaches the
+running decoder without reopening the camera. On the reference device a preview frame
+that decodes nothing costs **81 ms** at 1920x1080 with every format enabled and **1.2 ms**
+with a single 1D format; that is the path live preview spends almost all of its time on.
+It also removes misreads: two images in the test corpus are read as the wrong symbology
+by an all-formats reader. Measurements and method in
+[`docs/maint/BENCHMARKS.md`](docs/maint/BENCHMARKS.md) §9 and §10.
 
 Results arrive on the main thread, and each carries the id of the scanning session that
 produced it, so a decode that finishes after `pause()` is dropped rather than delivered

@@ -45,10 +45,14 @@ final class DecoderThread extends Thread {
 
   static final int MSG_DECODE = 1;
   static final int MSG_QUIT = 2;
+  /** {@code obj} is the new format collection, or null for every supported format. */
+  static final int MSG_SET_FORMATS = 3;
 
   private final FrameSource frameSource;
   private final Handler replyTo;
-  private final Map<DecodeHintType,Object> hints;
+  /** Everything except {@code POSSIBLE_FORMATS}, which the host may change per scan. */
+  private final Map<DecodeHintType,Object> fixedHints;
+  private final Collection<BarcodeFormat> initialFormats;
   private final boolean thumbnails;
   private final int sessionId;
   private final CountDownLatch handlerInitLatch = new CountDownLatch(1);
@@ -72,17 +76,46 @@ final class DecoderThread extends Thread {
     this.thumbnails = thumbnails;
     this.sessionId = sessionId;
 
-    hints = new EnumMap<>(DecodeHintType.class);
+    this.initialFormats = formats;
+    this.fixedHints = fixedHints(options, resultPointCallback);
+  }
+
+  /**
+   * The hints that do not change for the life of the decode thread.
+   *
+   * <p>Separated from {@code POSSIBLE_FORMATS} so that changing the formats mid-session
+   * cannot silently drop the character set or the result point callback along with them.
+   */
+  private static Map<DecodeHintType,Object> fixedHints(ScannerOptions options,
+                                                       ResultPointCallback resultPointCallback) {
+    Map<DecodeHintType,Object> hints = new EnumMap<>(DecodeHintType.class);
     hints.putAll(options.getBaseHints());
-    if (formats != null && !formats.isEmpty()) {
-      hints.put(DecodeHintType.POSSIBLE_FORMATS, formats);
-    }
+    hints.remove(DecodeHintType.POSSIBLE_FORMATS);
     if (options.getCharacterSet() != null) {
       hints.put(DecodeHintType.CHARACTER_SET, options.getCharacterSet());
     }
     if (resultPointCallback != null) {
       hints.put(DecodeHintType.NEED_RESULT_POINT_CALLBACK, resultPointCallback);
     }
+    return hints;
+  }
+
+  /**
+   * The effective hint map for a format selection.
+   *
+   * <p>An empty or null selection means "every format the reader supports", which is what
+   * leaving {@code POSSIBLE_FORMATS} out of the map tells {@link MultiFormatReader}.
+   * Package-private and free of Android types so the rule can be tested directly: it
+   * decides how much work every frame costs.
+   */
+  static Map<DecodeHintType,Object> hintsFor(Map<DecodeHintType,Object> fixedHints,
+                                             Collection<BarcodeFormat> formats) {
+    Map<DecodeHintType,Object> hints = new EnumMap<>(DecodeHintType.class);
+    hints.putAll(fixedHints);
+    if (formats != null && !formats.isEmpty()) {
+      hints.put(DecodeHintType.POSSIBLE_FORMATS, formats);
+    }
+    return hints;
   }
 
   /** Blocks until the decode looper is up. Returns null if the thread was interrupted. */
@@ -112,7 +145,7 @@ final class DecoderThread extends Thread {
     DecodeHandler() {
       super(Looper.myLooper());
       reader = new MultiFormatReader();
-      reader.setHints(hints);
+      reader.setHints(hintsFor(fixedHints, initialFormats));
     }
 
     @Override
@@ -122,6 +155,13 @@ final class DecoderThread extends Thread {
       }
       if (message.what == MSG_DECODE) {
         decode((byte[]) message.obj, message.arg1, message.arg2);
+      } else if (message.what == MSG_SET_FORMATS) {
+        @SuppressWarnings("unchecked")
+        Collection<BarcodeFormat> formats = (Collection<BarcodeFormat>) message.obj;
+        // setHints rebuilds the reader list, which also discards the state
+        // decodeWithState carries between frames. That is correct here: the state belongs
+        // to readers the caller has just asked to stop using.
+        reader.setHints(hintsFor(fixedHints, formats));
       } else if (message.what == MSG_QUIT) {
         running = false;
         Looper looper = Looper.myLooper();

@@ -56,6 +56,14 @@ API may still change between minor versions.
   emulators, and a tagged release workflow that publishes to GitHub Packages.
 
 ### Fixed
+- **`ScannerView.setFormats` silently did nothing on a running scanner.** The format
+  selection was only read when a decode thread was constructed, so a host narrowing the
+  formats mid-session kept paying for every format until the next `resume()`. It now
+  reaches the live decoder without reopening the camera; a frame already being decoded
+  finishes under the previous selection and the next frame uses the new one. This is the
+  library's cheapest performance control — a miss frame is 81 ms at 1920x1080 with every
+  format enabled and 1.2 ms with one 1D format on the reference device — and it also
+  removes two corpus misreads that only an all-formats reader can make.
 - **L1 scored nine QR samples as misreads that decode perfectly.** The corpus runner
   stripped a trailing newline from the expected text but compared it against the raw
   decoded text, so any payload genuinely ending in a newline could never match. The
