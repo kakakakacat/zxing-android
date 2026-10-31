@@ -4,15 +4,36 @@
 set -u
 CYCLES="${1:-100}"
 SERIAL="${2:-}"
-PKG="${PKG:-com.google.zxing.client.android.community}"
-ACT="$PKG/com.google.zxing.client.android.CaptureActivity"
+# Both of these moved out of com.google.zxing at 849921bfa; this script was last touched
+# before that and still named the old ones, so every `am start` did nothing and the loop
+# reported a clean hundred cycles of nothing happening. The run now fails if the activity
+# does not actually come up.
+PKG="${PKG:-io.github.kakakakacat.zxing.android}"
+ACT="${ACT:-$PKG/io.github.kakakakacat.zxing.android.CaptureActivity}"
 ADB=(adb)
 [ -n "$SERIAL" ] && ADB=(adb -s "$SERIAL")
 
 "${ADB[@]}" logcat -c
 "${ADB[@]}" shell am force-stop "$PKG"
+if ! "${ADB[@]}" shell cmd package resolve-activity --brief "$PKG" >/dev/null 2>&1 \
+     || ! "${ADB[@]}" shell pm list packages | grep -q "^package:$PKG$"; then
+  echo "FAIL: $PKG is not installed on this device" >&2
+  exit 2
+fi
 echo "device: $("${ADB[@]}" shell getprop ro.product.model | tr -d '\r') android $("${ADB[@]}" shell getprop ro.build.version.release | tr -d '\r') (sdk $("${ADB[@]}" shell getprop ro.build.version.sdk | tr -d '\r'))"
 echo "package: $PKG, cycles: $CYCLES"
+
+# One unmuted start first. The loop below throws `am start` output away, which is how a
+# wrong activity name turns into a clean run of a hundred no-ops.
+FIRST_START="$("${ADB[@]}" shell am start -n "$ACT" 2>&1)"
+case "$FIRST_START" in
+  *Error*|*does\ not\ exist*)
+    echo "FAIL: could not start $ACT" >&2
+    echo "$FIRST_START" >&2
+    exit 2
+    ;;
+esac
+"${ADB[@]}" shell input keyevent KEYCODE_BACK >/dev/null 2>&1
 
 for i in $(seq 1 "$CYCLES"); do
   "${ADB[@]}" shell am start -n "$ACT" >/dev/null 2>&1
