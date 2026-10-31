@@ -197,12 +197,18 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 
 - [ ] Convert the maintained Android code to Kotlin, module by module, keeping the Java
       API source-compatible
-- [ ] **zxing-cpp + ARM NEON** backend behind the existing decoder interface: CMake
-      building `arm64-v8a` / `armeabi-v7a`, shipped in the same AAR
+- [x] **zxing-cpp backend** behind the `FrameDecoder` seam: zxing-cpp v3.1.1 as a
+      submodule, CMake building `arm64-v8a` / `armeabi-v7a`, shipped in the same AAR, and
+      the default since `ebe1708b4`. NEON is the auto-vectorizer's, not intrinsics —
+      zxing-cpp has none; the audit is in `docs/maint/reports/neon-audit-*.log`
 - [ ] Feed `ImageProxy` `YUV_420_888` straight to the decoder: honour `rowStride` /
-      `pixelStride`, crop to the scan region, no full-frame copy
-- [ ] API to enable/disable formats per scan, so the native reader does less work
-- [ ] 16 KB page-size alignment for the native libraries (required by Android 15+)
+      `pixelStride`, crop to the scan region, no full-frame copy. **Half done** —
+      `YPlaneLuminanceSource` exists and is tested, but `ScannerView` still runs Camera1
+      and nothing in the app uses it yet; the rest is Phase 6's decision
+- [x] API to enable/disable formats per scan, so the native reader does less work
+      (`ScannerView.setFormats`, which had silently done nothing on a running scanner)
+- [x] 16 KB page-size alignment for the native libraries (required by Android 15+),
+      checked at build time
 - [x] A/B the native backend against the Java one on the fixed dataset — speed
       (BENCHMARKS.md §10.6c) and correctness (§9.1). zxing-cpp is 56–82% faster on 2D and
       on all-format misses, **and** reads 890 of the 1168 corpus samples against the Java
