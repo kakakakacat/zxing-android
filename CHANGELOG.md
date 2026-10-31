@@ -59,8 +59,11 @@ API may still change between minor versions.
   it stop after a few rows. The Java decoder remains the default: the open question is no
   longer speed but that zxing-cpp renders UPC-A as 13 digits and reports it as `EAN_13`,
   which would change the text every host receives.
+- **`TRY_HARDER` is honoured by the native backend**, mapped onto zxing-cpp's `tryHarder`
+  and `tryRotate` — the two things this decoder's hint has always meant. Other hints are
+  still dropped there.
 - **L1 on a device** (`benchmark/tools/l1_device.sh`, `L1CorpusRun`): the 1168-sample
-  corpus through either decoder backend on a real phone, scored by the same rules as the
+  corpus through either decoder backend and at either effort level on a real phone, scored by the same rules as the
   host run, with `benchmark/tools/l1_compare.py` to subtract two runs sample by sample.
   Correctness only — it records no timing on purpose. It also showed that host and device
   are not interchangeable: 231 samples reach the decoder as different pixels, because
@@ -150,16 +153,18 @@ API may still change between minor versions.
   selection are not honoured, because no mapping to zxing-cpp's options exists. A caller
   relying on either should select the Java backend.
 
-  **Running the 1168-sample corpus through both backends on the device has since found
-  more, and they are not small.** `BENCHMARKS.md` §9.1 has the table. The native backend
-  reads *more* 2D symbols — Aztec 22→39, Data Matrix 39→57, QR 158→164 — and produces no
-  false positives where the Java decoder produced two. Against that: Codabar returns its
-  start/stop guards (`A1234567890A`), UPC-E returns the expanded 13-digit form
-  (`0012345000065` for `01234565`), non-graphical characters come back escaped
-  (`<GS>` for `\x1d`), GS1 AI parentheses are dropped, and RSS-14 and RSS-Expanded lose
-  91 reads between them. Until those are addressed, a host that scans Codabar, UPC-E,
-  MaxiCode or DataBar should select the Java backend with
-  `ScannerOptions.setDecoderBackend(JAVA)`.
+  **Running the 1168-sample corpus through both backends on the device found more, and
+  they were not small.** `BENCHMARKS.md` §9.1 has the tables. The rendering half — Codabar
+  guards, UPC-E expanded to 13 digits, escaped control characters, missing GS1 parentheses,
+  61 samples in all — **is fixed**, and the native backend now returns what this library
+  has always returned. What is left is detection: it reads *more* 2D symbols (Aztec 22→39,
+  Data Matrix 39→57, QR 158→165) and emits no false positives where the Java decoder emits
+  two, but it reads 40 fewer samples overall, almost all DataBar: **RSS-14 0 of 30** and
+  RSS-Expanded 174 of 247 against the Java decoder's 235. That is a reader difference, not
+  an effort setting — it survives TRY_HARDER on both sides and zxing-cpp's own full
+  defaults. **A host that scans DataBar should select the Java backend** with
+  `ScannerOptions.setDecoderBackend(JAVA)`, and whether zxing-cpp should remain the
+  default is an open question.
 
   **UPC-A is deliberately unchanged.** zxing-cpp renders a UPC-A symbol as 13 digits and
   labels it `EAN_13`, citing ISO/IEC 15420:2009; this library converts it back to the

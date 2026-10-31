@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `4cdff45b7` on branch `maint/android`.
+Last updated at commit `4d4bdf232` on branch `maint/android`.
 
 ---
 
@@ -59,6 +59,8 @@ Last updated at commit `4cdff45b7` on branch `maint/android`.
 | `ebe1708b4` | **zxing-cpp is the default**, contract preserved |
 | `e1ebfc2df` | L1's scoring rules moved where two runners can share them |
 | `4cdff45b7` | **L1 on a device**, and the accuracy answer it produced |
+| `2ecd06428` | Native results rendered the way this library always has |
+| `4d4bdf232` | TRY_HARDER mapped onto the native effort flags |
 
 Nothing is uncommitted. Nothing is released; no tag has been pushed.
 
@@ -69,7 +71,8 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | What | Result | Where |
 | --- | --- | --- |
 | `:core:test` | 602 tests, 0 failures | local |
-| L1 corpus, both backends, DN-ENG41 | java 862/4/254/46/2, zxing-cpp 762/61/297/48/0 | `reports/l1-4cdff45b7-*` |
+| L1 corpus, both backends, DN-ENG41 | java 862/4/254/46/2, zxing-cpp 820/3/297/48/0 | `reports/l1-4d4bdf232-*` |
+| L1 at TRY_HARDER, both backends | java 921 correct, zxing-cpp 875 | `reports/l1-4d4bdf232-*-tryharder.json` |
 | L1 device harness against the host run | same five totals through the same decoder | §9.1 |
 | `:scanner:testDebugUnitTest` | 41 tests: 9 coordinate-mapping, 6 hint-construction, 18 luma-plane, 8 decoder-seam | local + CI |
 | `:scanner:connectedDebugAndroidTest` | 13 tests: 35 fixed frames over 16 formats, a live format-switch test, and the native backend, 0 failures | Android 14 device **and** CI emulators API 21/34/35/36 |
@@ -216,28 +219,30 @@ latency, first-scan latency, CPU, memory, GC or power.
 
 ## Start here if you are new to this file
 
-**The native decoder ships by default, and the corpus now says that was decided on half
-the evidence.** The first job for anyone picking this up:
+**Both halves of the native-decoder decision are now measured, and they disagree.** The
+first job for anyone picking this up is to make that call:
 
-> **zxing-cpp is less accurate than the Java decoder on this project's corpus, and in
-> four places it silently changes the text a caller receives.** Measured on DN-ENG41,
-> 1168 samples, both backends through the same seam: 862 → 762 correct. It reads *more*
-> 2D symbols (Aztec 22→39, Data Matrix 39→57, QR 158→164) and emits no false positives
-> where the Java decoder emitted two — but Codabar comes back with its start/stop guards,
-> UPC-E comes back expanded to 13 digits, non-graphical characters come back escaped,
-> GS1 parentheses are dropped, and RSS-14 and RSS-Expanded lose 91 reads between them.
-> `BENCHMARKS.md` §9.1, files `reports/l1-4cdff45b7-DN-ENG41-{java,native}.json`.
+> **zxing-cpp is 56–82% faster (§10.6c) and reads 40 fewer of the 1168 corpus samples
+> (§9.1).** The losses are concentrated: RSS-14 0 of 30, RSS-Expanded 174 of 247 against
+> the Java decoder's 235, PDF417 50 of 56. The wins are just as concentrated: Aztec 22 →
+> 39, Data Matrix 39 → 57, QR 158 → 165, and no false positives where the Java decoder
+> has two. Checked, not assumed: it is **not** an effort setting — the gap survives
+> TRY_HARDER on both sides and survives zxing-cpp at its own full defaults, and RSS-14 is
+> 0 under every one of them.
 >
-> **The rendering half is a contract break and should be fixed, not documented.**
-> `TextMode::Plain` in the JNI covers the escaping; UPC-E, Codabar and GS1 need work on
-> the Java side of the seam. **The DataBar half is a capability gap** and is not
-> understood yet — both backends are pinned to the Java reader's effort level
-> (`tryHarder`/`tryRotate`/`tryInvert`/`tryDownscale` all off), and nobody has measured
-> zxing-cpp at its own defaults.
->
-> **Until then the default is doing harm to some formats and good to others.** Whether to
-> keep it, revert it, or select per format is the open decision; the numbers for it are
-> all in §9.1.
+> So: keep the native default, revert it, or pick the backend from the format set the
+> caller asked for. A scanner for transport or industrial codes wants zxing-cpp; one for
+> retail shelf labels does not. The numbers for the decision are all in §9.1.
+
+**Already handled, so do not re-discover it:** the first corpus run found 61 samples where
+zxing-cpp read the symbol correctly and returned a string no caller would recognise —
+UPC-E expanded, Codabar with its guards, control characters escaped, GS1 parentheses
+dropped. That is fixed (`2ecd06428`); 3 INCORRECT remain against the Java decoder's 4.
+
+**And one thing that bites anyone measuring here:** host L1 and device L1 are not
+interchangeable. 231 of the 1168 samples reach the decoder as different pixels, because
+`ImageIO` gamma-encodes greyscale PNGs and ignores transparency where Android does
+neither. Device against device, always.
 
 Everything else is below.
 
@@ -458,13 +463,11 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
       has no streaming equivalent. Also lost: every decode hint other than the format
       selection. A caller needing either should select the Java backend.
 
-    **Accuracy is now settled, and the answer was not the flattering one.** The corpus
-    runs on the device through both backends (`benchmark/tools/l1_device.sh`,
-    `BENCHMARKS.md` §9.1): **862 → 762 correct**, 149 samples regress and 51 improve.
-    zxing-cpp is better at 2D and emits no false positives; it loses 91 DataBar reads and
-    changes the returned *text* for Codabar, UPC-E, control characters and GS1 — which is
-    a contract break, not a tuning question. See the top of this file for what to do
-    about it; the decision about the default is open.
+    **Accuracy is now measured** (`benchmark/tools/l1_device.sh`, `BENCHMARKS.md` §9.1).
+    As shipped it was 862 → 762 correct, 61 of the losses being text this library would
+    never have returned; that is fixed and it is now **862 → 820**, or 921 → 875 at
+    TRY_HARDER. What remains is DataBar and PDF417, it is a reader difference rather than
+    an effort setting, and it is the open question at the top of this file.
 
 ### Phase 3 — carried-forward defects (independent; can be picked up any time)
 
