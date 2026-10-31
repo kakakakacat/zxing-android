@@ -225,6 +225,22 @@ latency, first-scan latency, CPU, memory, GC or power.
   and produce numbers the shipped product never delivers, with nothing in the result file
   to show it. `BENCHMARKS.md` §6. Locking clocks is the opposite kind of change: it pins
   a sustainable operating point and makes the numbers *slower*.
+- **Kotlin has no package-private, and the conversion accepts the widening.** A
+  package-private Java class becomes `internal`, which the Kotlin compiler enforces for
+  Kotlin callers and the JVM does not enforce at all: in bytecode it is public. So
+  `JavaFrameDecoder`, `NativeFrameDecoder` and the rest of the module's internals are
+  reachable from a consumer's Java code where they were not before. The alternatives were
+  worse — leaving them in Java forever, or promoting them to real public API — and the
+  classes are absent from the README, from `MIGRATION.md` and from every published
+  example. Three details that follow from it:
+  - Members those classes expose to Java **inside** this module (the unit tests, the
+    benchmark module) must be plain `public`, not `internal`: an `internal` *function* is
+    name-mangled (`foo$scanner`) and Java cannot call it, while an `internal` *class* is
+    not. So the mangling protects nothing here and only breaks the callers.
+  - Kotlin emits `access$...` bridges, public and static, wherever a class touches its
+    companion's private members. They are unavoidable and they are not API.
+  - `tools/maint/api-diff.sh` prints all of this, so the widening is a thing that was
+    read and accepted per commit rather than discovered later.
 - **Camera1 stays for now.** A Camera2/CameraX decision record is Phase 6, and must not be
   presented as a performance improvement on its own.
 
