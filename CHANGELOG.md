@@ -52,6 +52,13 @@ API may still change between minor versions.
   rules, statistics, result schema, and the pass / fail / **inconclusive** gates a
   comparison has to clear. Written before the harness, so the method cannot be fitted to
   the numbers.
+- **The first measured comparison of the two decoders** (BENCHMARKS.md §10.6c): 27 cases
+  per backend on a physical device with clocks locked. zxing-cpp is 56–82% faster on
+  everything 2D and on all-format misses — the path live preview spends almost every
+  frame on — and 5–20× slower on 1D hits, where ZXing Java's lazy row binarization lets
+  it stop after a few rows. The Java decoder remains the default: the open question is no
+  longer speed but that zxing-cpp renders UPC-A as 13 digits and reports it as `EAN_13`,
+  which would change the text every host receives.
 - **A `zxing-cpp` decoder backend**, behind the new `FrameDecoder` seam: zxing-cpp v3.1.1
   as a pinned submodule, built by CMake for `arm64-v8a` and `armeabi-v7a` and shipped in
   the AAR. Readers only — the writers and their bundled libzint are switched off.

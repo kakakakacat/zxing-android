@@ -577,6 +577,75 @@ its own options and no mapping from this fork's `DecodeHintType` exists. For `de
 beyond `POSSIBLE_FORMATS` — but a configuration that did would not be configured alike on
 both sides, and the comparison would have to say so.
 
+### 10.6c The first backend A/B, measured
+
+Phase 5 item 10, on DN-ENG41 at commit `602d368c4`, clocks locked, full 27-case matrix
+per backend, one run each in its own process. Files:
+`reports/l2-ab-602d368c4-DN-ENG41-{java,native}.json`, verdict and per-case table in
+`reports/l2-ab-602d368c4-DN-ENG41-verdict.md`.
+
+**Overall verdict: `fail`** — 19 cases pass, 8 fail. A run fails if any case fails
+(§10.6), and that is the right headline, because the failures are not noise: they are a
+single explainable class.
+
+**zxing-cpp wins everything 2D, and wins the path live preview actually spends its time
+on:**
+
+| Case | Java | zxing-cpp | |
+| --- | --- | --- | --- |
+| `FHD_MISS_DEFAULT` | 81.330 ms | **18.677 ms** | −77.0% |
+| `HD_MISS_DEFAULT` | 48.427 ms | **10.458 ms** | −78.4% |
+| `VGA_MISS_DEFAULT` | 21.731 ms | **4.139 ms** | −81.0% |
+| `HD_HIT_QR_DEFAULT` | 18.043 ms | **4.153 ms** | −77.0% |
+
+A frame that decodes nothing under all formats is what a scanner does for almost every
+frame of a session. 17 of the 19 passes are between −54% and −82%.
+
+**The Java decoder wins 1D hits, by a lot, and it is architecture rather than
+measurement error:**
+
+| Case | Java | zxing-cpp | |
+| --- | --- | --- | --- |
+| `FHD_HIT_1D_DEFAULT` | **0.091 ms** | 1.811 ms | +1889% |
+| `HD_HIT_1D_DEFAULT` | **0.077 ms** | 0.836 ms | +988% |
+
+`HybridBinarizer` is lazy and the 1D readers call `getBlackRow()`, scanning outward from
+the middle row, so a centred 1D hit binarizes a handful of rows and stops. zxing-cpp
+binarizes the whole image before scanning, so it pays a full-frame cost whatever it finds.
+In absolute terms the gap is **1.7 ms, once**, on the single frame of a session that
+succeeds; the miss path it loses is tens of milliseconds on every frame before that.
+
+#### Holding the effort level constant, which the first attempt did not
+
+zxing-cpp defaults `tryHarder`, `tryRotate`, `tryInvert` and `tryDownscale` to **true**:
+rotations at 90/180/270, inverted codes, downscaled copies. This fork's Java reader does
+none of it. The first run left those defaults alone and so compared one decoder against
+another doing several times the work. Matching them is not tuning; it is what confines the
+comparison to the decoders.
+
+What that mistake was worth, same frames, stock options versus matched
+(`reports/l2-ab-94d3e4732-DN-ENG41-native-stock-options.json`):
+
+| Case | stock | matched | |
+| --- | --- | --- | --- |
+| `FHD_HIT_1D_DEFAULT` | 40.689 ms | 1.813 ms | 22.4× |
+| `FHD_MISS_DEFAULT` | 251.864 ms | 18.683 ms | 13.5× |
+| median over 27 cases | | | 1.85× |
+
+Turning them off cost no detection on these frames: all 27 cases still agree with the Java
+decoder. Both result sets are kept, because "each decoder out of the box" is a real
+question too — it is just not the question item 10 asks.
+
+#### What this does not settle
+
+- **One device, one thermal state, one operating point.** Every §6 caveat applies.
+- **Nothing about accuracy.** These frames are clean and generated. A decoder that is
+  faster on a clean frame may be worse on a blurred or angled one, and L2 has no such
+  frames. The corpus that does is L1, which is host-JVM only.
+- **zxing-cpp is not a drop-in**, for a reason that has nothing to do with speed: it
+  renders UPC-A as 13 digits and reports it as `EAN_13` unless EAN-13 is excluded
+  (§10.6b). Any host switching backends would see its UPC-A text change.
+
 ### 10.7 The B0 baseline
 
 **A correction to this document's own plan.** Earlier revisions said the L2 baseline is

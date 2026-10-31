@@ -67,6 +67,7 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | `benchmark/tools/` tests | 64 tests across `l2_report`, `compare`, `noise_floor` | local + CI |
 | L2 hd/default slice | 15 cases, 50 repeats, clocks locked | DN-ENG41, 72 min |
 | L2 full matrix ×2 | 135 cases each, identical protocol | DN-ENG41, 40 min each |
+| L2 backend A/B | 27 cases per backend, java vs zxing-cpp, 19 pass / 8 fail | DN-ENG41, `reports/l2-ab-602d368c4-*` |
 | `FrameIntegrityTest` | 2 tests, 0 failures, golden hashes identical | API 34 device **and** API 35 + 36 emulators |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
@@ -379,8 +380,29 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
    fair if both decoders can be asked for the same format set. The native work is
    unaffected — this is the seam it will be compared across.
 10. **A/B the native backend against the Java one on the fixed dataset, then decide the
-    default.** No speedup may be claimed before that comparison exists. "Swapped the
-    decoder" is not evidence.
+    default.** **The comparison now exists** (`BENCHMARKS.md` §10.6c, files
+    `reports/l2-ab-602d368c4-DN-ENG41-*`): DN-ENG41, clocks locked, 27 cases per backend,
+    one run each. Verdict `fail` — **19 pass, 8 fail** — and the 8 are one explainable
+    class, not noise.
+
+    - zxing-cpp is **56–82% faster on everything 2D and on all-format misses**, which is
+      the path a scanner spends almost every frame on: `FHD_MISS_DEFAULT` 81.3 ms →
+      18.7 ms.
+    - The Java decoder wins **1D hits** by 5–20×, because `HybridBinarizer` is lazy and
+      the 1D readers scan rows outward from the middle, so a centred 1D hit binarizes a
+      few rows. zxing-cpp binarizes the whole frame first. Absolute gap: **1.7 ms, once**,
+      against tens of milliseconds saved on every miss frame before it.
+
+    **The decision is still open, and speed is no longer the thing blocking it.**
+    zxing-cpp renders UPC-A as 13 digits and reports `EAN_13` unless EAN-13 is excluded
+    (§10.6b). Switching the default would change the text every host receives for a UPC-A
+    scan. That is a compatibility decision, not a performance one, and it is the user's.
+
+    **Not settled by this:** accuracy. The L2 frames are clean and generated; a decoder
+    that is faster on a clean frame may be worse on a blurred or angled one, and L2 has no
+    such frames. The corpus that does is L1, which is host-JVM only — running the 1168
+    blackbox samples through the native backend on a device would answer it and has not
+    been done.
 
 ### Phase 3 — carried-forward defects (independent; can be picked up any time)
 
