@@ -19,6 +19,7 @@ package io.github.kakakakacat.zxing.android.scanner;
 import io.github.kakakakacat.zxing.BarcodeFormat;
 import io.github.kakakakacat.zxing.LuminanceSource;
 import io.github.kakakakacat.zxing.Result;
+import io.github.kakakakacat.zxing.ResultPoint;
 
 import java.util.Collection;
 import java.util.EnumMap;
@@ -129,8 +130,21 @@ final class NativeFrameDecoder implements FrameDecoder {
   }
 
   private long handle;
+  private final boolean upcACompatibility;
 
   NativeFrameDecoder(Collection<BarcodeFormat> formats) {
+    this(formats, true);
+  }
+
+  /**
+   * @param upcACompatibility whether to report a UPC-A symbol the way this library always
+   *     has — 12 digits, {@link BarcodeFormat#UPC_A} — rather than the 13-digit EAN-13
+   *     rendering zxing-cpp produces. On by default: making the native decoder the
+   *     default must not silently change what callers receive. Off is for measurement,
+   *     where the raw behaviour of each decoder is the point.
+   */
+  NativeFrameDecoder(Collection<BarcodeFormat> formats, boolean upcACompatibility) {
+    this.upcACompatibility = upcACompatibility;
     if (!AVAILABLE) {
       throw new IllegalStateException("libzxingnative is not loaded", LOAD_FAILURE);
     }
@@ -187,7 +201,61 @@ final class NativeFrameDecoder implements FrameDecoder {
       // value into Result.getBarcodeFormat() that no caller can switch on.
       return null;
     }
-    return new Result(decoded[0], null, null, format);
+    String text = decoded[0];
+    if (upcACompatibility) {
+      BarcodeFormat compatFormat = upcAFormatFor(format, text);
+      if (compatFormat != null) {
+        format = compatFormat;
+        text = text.substring(1);
+      }
+    }
+    return new Result(text, null, cornerPoints(decoded), format);
+  }
+
+  /**
+   * The format a UPC-A symbol should be reported as, or null if this is not one.
+   *
+   * <p>zxing-cpp returns a UPC-A symbol as 13 digits with a leading zero, and labels it
+   * {@code EAN_13} unless EAN-13 was excluded from the search. It cites ISO/IEC
+   * 15420:2009 and GS1 General Specifications 5.1.3, under which the content behind
+   * symbology identifier {@code ]E0} is 13 digits. That is defensible and it is not what
+   * this library has ever returned.
+   *
+   * <p>GS1 prefix 0 is reserved for UPC-A, so a 13-digit EAN-13 beginning with zero is a
+   * UPC-A and the conversion is exact, not a guess.
+   */
+  private static BarcodeFormat upcAFormatFor(BarcodeFormat format, String text) {
+    if (format != BarcodeFormat.EAN_13 && format != BarcodeFormat.UPC_A) {
+      return null;
+    }
+    if (text.length() != 13 || text.charAt(0) != '0') {
+      return null;
+    }
+    return BarcodeFormat.UPC_A;
+  }
+
+  /**
+   * The symbol's four corners, or null if the native side sent none.
+   *
+   * <p>Only the points of a finished symbol. The Java reader also reports candidate
+   * points <em>while</em> it searches, through {@code NEED_RESULT_POINT_CALLBACK}, which
+   * is what animates the viewfinder; zxing-cpp has no streaming callback and those are
+   * lost.
+   */
+  private static ResultPoint[] cornerPoints(String[] decoded) {
+    if (decoded.length < 10) {
+      return null;
+    }
+    try {
+      ResultPoint[] points = new ResultPoint[4];
+      for (int i = 0; i < 4; i++) {
+        points[i] = new ResultPoint(Float.parseFloat(decoded[2 + i * 2]),
+                                    Float.parseFloat(decoded[3 + i * 2]));
+      }
+      return points;
+    } catch (NumberFormatException e) {
+      return null;
+    }
   }
 
   @Override

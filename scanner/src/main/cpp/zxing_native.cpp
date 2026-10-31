@@ -180,8 +180,14 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeSetFor
 /**
  * Decodes one greyscale frame.
  *
- * @return {text, formatName} or null when nothing was found. A miss is the ordinary case
- *         on live preview, so it must not cost an exception.
+ * @return {text, formatName, x0,y0, x1,y1, x2,y2, x3,y3} as strings, or null when nothing
+ *         was found. A miss is the ordinary case on live preview, so it must not cost an
+ *         exception.
+ *
+ * The four corner points are carried back so a result still has somewhere to draw. The
+ * Java reader reports candidate points *while* it searches, through a hint callback;
+ * zxing-cpp has no such streaming callback, so only the points of a finished symbol
+ * survive the switch.
  */
 JNIEXPORT jobjectArray JNICALL
 Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode(
@@ -204,12 +210,20 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode
   }
   std::string text;
   std::string format;
+  int corners[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   try {
     const ZXing::ImageView image(pixels, width, height, ZXing::ImageFormat::Lum);
     const ZXing::Barcode barcode = ZXing::ReadBarcode(image, decoder->options);
     if (barcode.isValid()) {
       text = barcode.text();
       format = ZXing::ToString(barcode.format());
+      const auto& position = barcode.position();
+      const ZXing::PointI points[4] = {position.topLeft(), position.topRight(),
+                                       position.bottomRight(), position.bottomLeft()};
+      for (int i = 0; i < 4; i++) {
+        corners[i * 2] = points[i].x;
+        corners[i * 2 + 1] = points[i].y;
+      }
     }
   } catch (...) {
     // A throwing decoder must not take the process with it, and must not leave the array
@@ -226,14 +240,16 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode
   if (stringClass == nullptr) {
     return nullptr;
   }
-  jobjectArray result = env->NewObjectArray(2, stringClass, nullptr);
+  jobjectArray result = env->NewObjectArray(10, stringClass, nullptr);
   if (result == nullptr) {
     return nullptr;
   }
-  jstring jText = env->NewStringUTF(text.c_str());
-  jstring jFormat = env->NewStringUTF(format.c_str());
-  env->SetObjectArrayElement(result, 0, jText);
-  env->SetObjectArrayElement(result, 1, jFormat);
+  env->SetObjectArrayElement(result, 0, env->NewStringUTF(text.c_str()));
+  env->SetObjectArrayElement(result, 1, env->NewStringUTF(format.c_str()));
+  for (int i = 0; i < 8; i++) {
+    env->SetObjectArrayElement(result, 2 + i,
+                               env->NewStringUTF(std::to_string(corners[i]).c_str()));
+  }
   return result;
 }
 

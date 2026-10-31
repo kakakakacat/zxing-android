@@ -21,6 +21,7 @@ import android.graphics.Bitmap;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
+import android.util.Log;
 import io.github.kakakakacat.zxing.BarcodeFormat;
 import io.github.kakakakacat.zxing.DecodeHintType;
 import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource;
@@ -44,8 +45,11 @@ final class DecoderThread extends Thread {
   /** {@code obj} is the new format collection, or null for every supported format. */
   static final int MSG_SET_FORMATS = 3;
 
+  private static final String TAG = "DecoderThread";
+
   private final FrameSource frameSource;
   private final Handler replyTo;
+  private final ScannerOptions.DecoderBackend backendPreference;
   /** Everything except {@code POSSIBLE_FORMATS}, which the host may change per scan. */
   private final Map<DecodeHintType,Object> fixedHints;
   private final Collection<BarcodeFormat> initialFormats;
@@ -74,6 +78,45 @@ final class DecoderThread extends Thread {
 
     this.initialFormats = formats;
     this.fixedHints = fixedHints(options, resultPointCallback);
+    this.backendPreference = options.getDecoderBackend();
+  }
+
+  /**
+   * The decoder this thread will use.
+   *
+   * <p>{@code AUTO} prefers the native backend and falls back to Java when there is no
+   * native build for this device's ABI — a device that cannot run it should scan, not
+   * fail. {@code NATIVE} does not fall back, because a caller that asked for it
+   * specifically would rather know.
+   *
+   * <p>Two things change with the native backend, both deliberate and neither silent:
+   * the viewfinder's animated candidate points stop, because zxing-cpp reports a symbol's
+   * corners only once it has found one and has no equivalent of
+   * {@code NEED_RESULT_POINT_CALLBACK}; and hints other than the format selection are
+   * not honoured, because no mapping from this fork's {@code DecodeHintType} to
+   * zxing-cpp's options exists. A caller that set either should ask for
+   * {@link ScannerOptions.DecoderBackend#JAVA}.
+   */
+  private FrameDecoder createDecoder() {
+    if (backendPreference == ScannerOptions.DecoderBackend.JAVA) {
+      return new JavaFrameDecoder(fixedHints, initialFormats);
+    }
+    if (backendPreference == ScannerOptions.DecoderBackend.NATIVE) {
+      return new NativeFrameDecoder(initialFormats);
+    }
+    if (!NativeFrameDecoder.isAvailable()) {
+      Log.i(TAG, "No native decoder for this ABI; using the Java decoder",
+            NativeFrameDecoder.loadFailure());
+      return new JavaFrameDecoder(fixedHints, initialFormats);
+    }
+    try {
+      return new NativeFrameDecoder(initialFormats);
+    } catch (RuntimeException | UnsatisfiedLinkError e) {
+      // The library loaded but would not produce a decoder. Scanning with the Java one
+      // beats not scanning, and the reason is logged rather than swallowed.
+      Log.w(TAG, "The native decoder could not be created; using the Java decoder", e);
+      return new JavaFrameDecoder(fixedHints, initialFormats);
+    }
   }
 
   /**
@@ -140,7 +183,7 @@ final class DecoderThread extends Thread {
 
     DecodeHandler() {
       super(Looper.myLooper());
-      decoder = new JavaFrameDecoder(fixedHints, initialFormats);
+      decoder = createDecoder();
     }
 
     @Override

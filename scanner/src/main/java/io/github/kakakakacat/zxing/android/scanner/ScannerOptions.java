@@ -38,6 +38,34 @@ import java.util.Map;
  */
 public final class ScannerOptions {
 
+  /** Which decoder does the work. */
+  public enum DecoderBackend {
+    /**
+     * The native zxing-cpp decoder where it can run, the Java decoder otherwise.
+     *
+     * <p>The default. On the reference device the native decoder is 56–82% faster on
+     * every 2D case and on frames that decode nothing under all formats — which is what
+     * live preview does almost every frame — and slower only on 1D hits, by about 1.7 ms
+     * on the single frame of a session that succeeds. Measurements and method in
+     * {@code docs/maint/BENCHMARKS.md} §10.6c.
+     *
+     * <p>Falls back to Java with no error when there is no native build for the device's
+     * ABI.
+     */
+    AUTO,
+
+    /** This fork's Java decoder, whatever the device supports. */
+    JAVA,
+
+    /**
+     * The native decoder, or an error if it cannot load.
+     *
+     * <p>Use only when a caller would rather fail than silently get the Java decoder.
+     */
+    NATIVE
+  }
+
+  private final DecoderBackend decoderBackend;
   private final Collection<BarcodeFormat> formats;
   private final Map<DecodeHintType,Object> baseHints;
   private final String characterSet;
@@ -53,6 +81,7 @@ public final class ScannerOptions {
   private final int framingRectHeight;
 
   private ScannerOptions(Builder b) {
+    this.decoderBackend = b.decoderBackend;
     this.formats = b.formats == null ? null : Collections.unmodifiableCollection(b.formats);
     this.baseHints = Collections.unmodifiableMap(b.baseHints);
     this.characterSet = b.characterSet;
@@ -71,6 +100,11 @@ public final class ScannerOptions {
   /** Defaults match the upstream app's out-of-the-box behaviour. */
   public static ScannerOptions defaults() {
     return new Builder().build();
+  }
+
+  /** Which decoder does the work. {@link DecoderBackend#AUTO} by default. */
+  public DecoderBackend getDecoderBackend() {
+    return decoderBackend;
   }
 
   /** Formats to look for, or {@code null} to let the reader try everything it supports. */
@@ -133,6 +167,7 @@ public final class ScannerOptions {
 
   public static final class Builder {
 
+    private DecoderBackend decoderBackend = DecoderBackend.AUTO;
     private Collection<BarcodeFormat> formats;
     private Map<DecodeHintType,Object> baseHints = new EnumMap<>(DecodeHintType.class);
     private String characterSet;
@@ -151,6 +186,7 @@ public final class ScannerOptions {
     }
 
     private Builder(ScannerOptions o) {
+      this.decoderBackend = o.decoderBackend;
       this.formats = o.formats;
       this.baseHints = new EnumMap<>(o.baseHints);
       this.characterSet = o.characterSet;
@@ -164,6 +200,12 @@ public final class ScannerOptions {
       this.frontLightMode = o.frontLightMode;
       this.framingRectWidth = o.framingRectWidth;
       this.framingRectHeight = o.framingRectHeight;
+    }
+
+    /** @param backend null is treated as {@link DecoderBackend#AUTO} */
+    public Builder setDecoderBackend(DecoderBackend backend) {
+      this.decoderBackend = backend == null ? DecoderBackend.AUTO : backend;
+      return this;
     }
 
     public Builder setFormats(Collection<BarcodeFormat> formats) {

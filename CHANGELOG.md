@@ -129,6 +129,23 @@ API may still change between minor versions.
   screens and running the activity in portrait.
 
 ### Changed
+- **The native zxing-cpp decoder is now the default**, with the Java decoder as the
+  fallback where there is no native build for the device's ABI. Measured on the reference
+  device: 56–82% faster on every 2D case and on frames that decode nothing under all
+  formats — what live preview does almost every frame — and slower only on 1D hits, by
+  about 1.7 ms on the single frame of a session that succeeds. `BENCHMARKS.md` §10.6c.
+  `ScannerOptions.setDecoderBackend(JAVA)` restores the old decoder.
+
+  **Two behaviour changes come with it.** The viewfinder's animated candidate points stop
+  appearing: zxing-cpp reports a symbol's corners once it has found one and has no
+  equivalent of `NEED_RESULT_POINT_CALLBACK`. The points of a *found* symbol are still
+  reported, so result thumbnails are unaffected. And decode hints other than the format
+  selection are not honoured, because no mapping to zxing-cpp's options exists. A caller
+  relying on either should select the Java backend.
+
+  **UPC-A is deliberately unchanged.** zxing-cpp renders a UPC-A symbol as 13 digits and
+  labels it `EAN_13`, citing ISO/IEC 15420:2009; this library converts it back to the
+  12-digit `UPC_A` it has always returned, so the string a host receives does not change.
 - **Everything moved out of the `com.google.zxing` namespace** into
   `io.github.kakakakacat.zxing`, the decoder included, and `applicationId` is now
   `io.github.kakakakacat.zxing.android`. Publishing classes named `com.google.zxing.*`
