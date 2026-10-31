@@ -53,7 +53,7 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | What | Result | Where |
 | --- | --- | --- |
 | `:core:test` | 602 tests, 0 failures | local |
-| `:scanner:testDebugUnitTest` | 9 coordinate-mapping + 6 hint-construction tests | local + CI |
+| `:scanner:testDebugUnitTest` | 33 tests: 9 coordinate-mapping, 6 hint-construction, 18 luma-plane | local + CI |
 | `:scanner:connectedDebugAndroidTest` | 35 fixed frames, 16 formats, plus a live format-switch test, 0 failures | Android 14 device **and** CI emulators API 21/34/35/36 |
 | App install / launch / preview | works | Android 14 device, API 35 + 36 emulators |
 | CAMERA grant / deny / permanently-denied | works, no request loop | Android 14 device |
@@ -298,6 +298,26 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
 8. Feed CameraX `ImageProxy` `YUV_420_888` straight in: honour `rowStride`/`pixelStride`,
    crop to the scan region, no full-frame copy, and do not release a buffer while an
    async decode still holds it.
+
+   **Half done, and the half that is done is the half that does not need a camera.**
+   `YPlaneLuminanceSource` (in `:scanner`, `…android.camera`) reads a luma plane in
+   place: strides honoured, crop applied, only the scan rectangle ever copied, buffer
+   position never touched so the camera's buffer is not disturbed. It takes a
+   `ByteBuffer` and three integers rather than an `ImageProxy`, so the AAR gains no
+   CameraX dependency while the camera-stack question is open. 18 unit tests, including
+   four that decode a real QR code through the actual reader out of a padded and
+   interleaved plane; verified to fail (10 of 18) if the stride handling is broken.
+
+   **What is left is the camera stack itself**, which is Phase 6's decision, not a
+   performance change to slip in here. `ScannerView` still runs Camera1 and still uses
+   `PlanarYUVLuminanceSource`, so **nothing in the shipping app uses this yet and no
+   speedup has been measured**. Avoiding a full-frame copy per frame is a structural
+   fact about the code, not a number.
+
+   The buffer-lifetime half of the item is handled by documenting the ownership rule and
+   giving callers `detach()` — one scan-rectangle copy — for when the image must be
+   released before the decode finishes. It cannot be enforced from here until something
+   in this repo owns the `ImageProxy`.
 9. ~~API to enable/disable formats per scan so the native reader does less work.~~
    **Done** (`ScannerView.setFormats` now reaches the live decoder; it had silently done
    nothing on a running scanner). Deliberately taken before item 7: it is hours rather

@@ -72,6 +72,13 @@ permission is missing it reports `ScannerError.PERMISSION_DENIED` and leaves the
 conversation with the user to the host app. `CaptureActivity` in `android/` is a worked
 example of doing it, including the "don't ask again" case.
 
+**Feeding frames from CameraX.** `YPlaneLuminanceSource` wraps the luma plane of a
+`YUV_420_888` image where it lies — pass `getPlanes()[0]`'s buffer, its `rowStride` and
+`pixelStride`, and the scan rectangle. Row padding and interleaved luma are handled, only
+the scan rectangle is ever copied, and the buffer's position is left alone. The buffer
+must outlive the decode, or call `detach()` first. `ScannerView` itself still drives
+Camera1; this is the input path for a host that already runs CameraX.
+
 **Narrow the formats.** `setFormats` is the cheapest performance control the library
 has, and it can be changed at any time — including while scanning, which reaches the
 running decoder without reopening the camera. On the reference device a preview frame

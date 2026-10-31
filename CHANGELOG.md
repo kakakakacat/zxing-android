@@ -52,6 +52,15 @@ API may still change between minor versions.
   rules, statistics, result schema, and the pass / fail / **inconclusive** gates a
   comparison has to clear. Written before the harness, so the method cannot be fitted to
   the numbers.
+- `YPlaneLuminanceSource`: the luma plane of a `YUV_420_888` image read where it already
+  lies, for CameraX's `ImageProxy`. It honours `rowStride` and `pixelStride`, crops to the
+  scan region, and copies that region and nothing else — the usual "drain the buffer into
+  a `byte[]` and wrap it in `PlanarYUVLuminanceSource`" costs a full-frame copy per
+  preview frame to reach the same result. No CameraX dependency is added to the AAR: it
+  takes a `ByteBuffer` and three integers. **Not yet used by `ScannerView`, which still
+  runs Camera1** — the camera-stack decision is still open — so nothing in the shipping
+  app changes, and no speedup is claimed or measured. `detach()` is there for callers that
+  must release the image before the decode finishes.
 - CI: assemble + test + lint on every push, instrumentation tests on API 21/34/35/36
   emulators, and a tagged release workflow that publishes to GitHub Packages.
 
