@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package io.github.kakakakacat.zxing.android.result;
+package io.github.kakakakacat.zxing.android.result
 
-import android.view.View;
+import android.view.View
 
 /**
  * Handles the result of barcode decoding in the context of the Android platform, by dispatching the
@@ -24,17 +24,12 @@ import android.view.View;
  *
  * @author dswitkin@google.com (Daniel Switkin)
  */
-public final class ResultButtonListener implements View.OnClickListener {
-  private final ResultHandler resultHandler;
-  private final int index;
+class ResultButtonListener(
+    private val resultHandler: ResultHandler,
+    private val index: Int
+) : View.OnClickListener {
 
-  public ResultButtonListener(ResultHandler resultHandler, int index) {
-    this.resultHandler = resultHandler;
-    this.index = index;
-  }
-
-  @Override
-  public void onClick(View view) {
-    resultHandler.handleButtonPress(index);
+  override fun onClick(view: View?) {
+    resultHandler.handleButtonPress(index)
   }
 }
