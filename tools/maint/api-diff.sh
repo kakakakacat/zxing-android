@@ -75,6 +75,10 @@ echo "building $MODULE at $BASELINE"
 git -C "$REPO" worktree add -f --detach "$WORK/baseline" "$BASELINE" >/dev/null
 # local.properties carries sdk.dir and is deliberately not committed.
 [ -f "$REPO/local.properties" ] && cp "$REPO/local.properties" "$WORK/baseline/"
+# A linked worktree starts with empty submodule directories, and :scanner's CMake step
+# stops at "third_party/zxing-cpp is empty" (HANDOFF.md trap 5). The checkout is cheap
+# here because the worktree shares this repository's object store.
+git -C "$WORK/baseline" submodule update --init --recursive >/dev/null
 BASE_DIR="$(module_projectdir "$WORK/baseline")"
 (cd "$WORK/baseline" && ./gradlew -q "${MODULE}:assembleRelease" --console=plain)
 

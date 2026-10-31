@@ -14,32 +14,36 @@
  * limitations under the License.
  */
 
-package io.github.kakakakacat.zxing.android.camera;
+package io.github.kakakakacat.zxing.android.camera
 
 /**
  * Enumerates settings of the preference controlling the front light.
  */
-public enum FrontLightMode {
+enum class FrontLightMode {
 
   /** Always on. */
   ON,
+
   /** On only when ambient light is low. */
   AUTO,
+
   /** Always off. */
   OFF;
 
-  /**
-   * @param modeString one of the enum names, or null/unrecognised for {@link #OFF}
-   */
-  public static FrontLightMode parse(String modeString) {
-    if (modeString == null) {
-      return OFF;
-    }
-    try {
-      return valueOf(modeString);
-    } catch (IllegalArgumentException iae) {
-      return OFF;
+  companion object {
+    /**
+     * @param modeString one of the enum names, or null/unrecognised for [OFF]
+     */
+    @JvmStatic
+    fun parse(modeString: String?): FrontLightMode {
+      if (modeString == null) {
+        return OFF
+      }
+      return try {
+        valueOf(modeString)
+      } catch (iae: IllegalArgumentException) {
+        OFF
+      }
     }
   }
-
 }

@@ -14,14 +14,20 @@
  * limitations under the License.
  */
 
-package io.github.kakakakacat.zxing.android.camera.open;
+package io.github.kakakakacat.zxing.android.camera.open
+
+import android.hardware.Camera
 
 /**
- * Enumeration of directions a camera may face: front or back.
+ * Represents an open [Camera] and its metadata, like facing direction and orientation.
  */
-public enum CameraFacing {
+@Suppress("DEPRECATION") // camera APIs
+class OpenCamera(
+    private val index: Int,
+    val camera: Camera,
+    val facing: CameraFacing,
+    val orientation: Int
+) {
 
-  BACK,  // must be value 0!
-  FRONT, // must be value 1!
-
+  override fun toString(): String = "Camera #$index : $facing,$orientation"
 }

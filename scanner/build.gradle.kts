@@ -90,6 +90,15 @@ android {
   }
 }
 
+// Kotlin compiles against the same bytecode level the Java sources do; AGP fails the
+// compile task on a mismatch rather than warning. AGP 9 supplies the compiler itself, so
+// there is no Kotlin plugin and no Kotlin version here -- see docs/maint/HANDOFF.md.
+kotlin {
+  compilerOptions {
+    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+  }
+}
+
 dependencies {
   // `api`: callers handle Result and BarcodeFormat directly, so the decoder has to be
   // on their compile classpath.

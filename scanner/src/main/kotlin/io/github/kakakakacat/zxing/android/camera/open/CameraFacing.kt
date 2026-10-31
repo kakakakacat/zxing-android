@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009 ZXing authors
+ * Copyright (C) 2015 ZXing authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,13 @@
  * limitations under the License.
  */
 
-package io.github.kakakakacat.zxing.android;
+package io.github.kakakakacat.zxing.android.camera.open
 
-import io.github.kakakakacat.zxing.ResultPoint;
-import io.github.kakakakacat.zxing.ResultPointCallback;
+/**
+ * Enumeration of directions a camera may face: front or back.
+ */
+enum class CameraFacing {
 
-final class ViewfinderResultPointCallback implements ResultPointCallback {
-
-  private final ViewfinderView viewfinderView;
-
-  ViewfinderResultPointCallback(ViewfinderView viewfinderView) {
-    this.viewfinderView = viewfinderView;
-  }
-
-  @Override
-  public void foundPossibleResultPoint(ResultPoint point) {
-    viewfinderView.addPossibleResultPoint(point);
-  }
-
+  BACK,  // must be value 0!
+  FRONT, // must be value 1!
 }

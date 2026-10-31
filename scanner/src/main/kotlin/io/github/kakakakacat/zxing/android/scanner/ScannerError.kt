@@ -14,21 +14,24 @@
  * limitations under the License.
  */
 
-package io.github.kakakakacat.zxing.android.scanner;
+package io.github.kakakakacat.zxing.android.scanner
 
 /**
  * Why the scanner could not start. The upstream app collapsed every one of these into a
  * single "the Android camera encountered a problem, restart your device" dialog, which
  * told users to reboot when the camera was merely busy or not permitted.
  */
-public enum ScannerError {
+enum class ScannerError {
 
   /** The CAMERA permission is not granted. The caller is responsible for requesting it. */
   PERMISSION_DENIED,
+
   /** The device reports no camera the scanner can use. */
   NO_CAMERA,
+
   /** A camera exists but could not be opened — typically held by another app. */
   CAMERA_UNAVAILABLE,
+
   /** The camera opened but the preview could not be attached to the surface. */
   PREVIEW_FAILED
 }
