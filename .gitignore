@@ -14,3 +14,6 @@ build/
 local.properties
 .idea/
 __pycache__/
+
+# CMake/NDK build output for the native decoder backend.
+.cxx/

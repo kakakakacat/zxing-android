@@ -1,6 +1,7 @@
 # Pinned toolchain for the Android maintenance fork. See docs/maint/BUILD.md.
 [versions]
 agp = "9.4.1"
+ndk = "29.0.14206865"
 junit = "4.13.2"
 androidxTestRunner = "1.6.2"
 androidxTestCore = "1.6.1"

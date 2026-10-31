@@ -52,6 +52,19 @@ API may still change between minor versions.
   rules, statistics, result schema, and the pass / fail / **inconclusive** gates a
   comparison has to clear. Written before the harness, so the method cannot be fitted to
   the numbers.
+- **A `zxing-cpp` decoder backend**, behind the new `FrameDecoder` seam: zxing-cpp v3.1.1
+  as a pinned submodule, built by CMake for `arm64-v8a` and `armeabi-v7a` and shipped in
+  the AAR. Readers only — the writers and their bundled libzint are switched off.
+  **16 KB page alignment** (mandatory on Android 15+) is set by the linker *and* verified
+  on the built artifact by `:scanner:verifyNativeAlignment`, which fails the build; the
+  check was confirmed to fail when alignment is forced to 4 KB. 13 instrumentation tests,
+  including agreement with the Java backend on QR, Code 128, EAN-13, Data Matrix, Aztec
+  and PDF417 frames. A device without the right ABI falls back rather than crashing.
+  **Not the default, and not claimed to be faster** — that needs the A/B of Phase 5 item
+  10 under the gates in BENCHMARKS.md §10.6.
+- `FrameDecoder`, the seam a decoder backend sits behind, taking a `LuminanceSource`
+  rather than a `BinaryBitmap` so a backend brings its own binarization — the most
+  expensive single stage in the pipeline.
 - `YPlaneLuminanceSource`: the luma plane of a `YUV_420_888` image read where it already
   lies, for CameraX's `ImageProxy`. It honours `rowStride` and `pixelStride`, crops to the
   scan region, and copies that region and nothing else — the usual "drain the buffer into

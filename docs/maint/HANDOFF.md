@@ -54,7 +54,8 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | --- | --- | --- |
 | `:core:test` | 602 tests, 0 failures | local |
 | `:scanner:testDebugUnitTest` | 41 tests: 9 coordinate-mapping, 6 hint-construction, 18 luma-plane, 8 decoder-seam | local + CI |
-| `:scanner:connectedDebugAndroidTest` | 35 fixed frames, 16 formats, plus a live format-switch test, 0 failures | Android 14 device **and** CI emulators API 21/34/35/36 |
+| `:scanner:connectedDebugAndroidTest` | 13 tests: 35 fixed frames over 16 formats, a live format-switch test, and the native backend, 0 failures | Android 14 device **and** CI emulators API 21/34/35/36 |
+| 16 KB page alignment | `0x4000` on both shipped ABIs, enforced by `:scanner:verifyNativeAlignment` | local + CI |
 | App install / launch / preview | works | Android 14 device, API 35 + 36 emulators |
 | CAMERA grant / deny / permanently-denied | works, no request loop | Android 14 device |
 | 100× open-close stability loop | 0 crashes, 0 camera errors | `reports/stability-100-b0-DN-ENG41.log` |
@@ -87,7 +88,7 @@ latency, first-scan latency, CPU, memory, GC or power.
 - No Android 15/16 **physical** device is available. Anything needing a real camera on
   those versions stays unverified, and the README says so.
 
-### Four traps and a runbook
+### Five traps and a runbook
 
 1. **DroidLens global Gradle init script.** `~/.gradle/init.d/droidlens.gradle` injects a
    third-party SDK into debug builds of any project listed in
@@ -139,7 +140,14 @@ latency, first-scan latency, CPU, memory, GC or power.
    CPU. DN-ENG41 locked seven minutes into the first L2 run and sat there. Run
    `adb shell svc power stayon true` before any device benchmark; to tell a stall from
    slow work, watch fields 14/15 of `/proc/<pid>/stat`.
-5. **Emulator `wm size` changes persist.** The Android 16 large-screen reproduction ran
+5. **`third_party/zxing-cpp` is a git submodule.** A fresh clone without
+   `git submodule update --init --recursive` fails at CMake configure time; the
+   `CMakeLists.txt` says so in the error rather than leaving a missing-header pile. All
+   four workflows check out with `submodules: recursive`.
+6. **The native build needs the pinned NDK**, `29.0.14206865`, set in
+   `gradle/libs.versions.toml` and installed by CI. It is pinned because "whichever NDK
+   was lying around" is not something a decoder comparison can hold constant.
+7. **Emulator `wm size` changes persist.** The Android 16 large-screen reproduction ran
    `wm size 1600x2560 && wm density 240`. Both were reset afterwards, but if an emulator
    behaves oddly, `adb shell wm size reset && adb shell wm density reset`.
 
@@ -309,8 +317,19 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
    own. Handing a backend the output of `HybridBinarizer` would compare two halves of one
    decoder instead of two decoders.
 
-   Still to do: vendor zxing-cpp (v3.1.1 is current), the CMake build for both ABIs, the
-   JNI bridge, 16 KB page alignment, and packaging into the AAR.
+   **The native backend now exists and passes on a device.** zxing-cpp v3.1.1 is a git
+   submodule at `third_party/zxing-cpp`, built by CMake into `libzxingnative.so` for
+   `arm64-v8a` and `armeabi-v7a` and packaged in the AAR; readers only, so the writers
+   and their bundled libzint are left out. `NativeFrameDecoder` is the `FrameDecoder`
+   implementation, 13 instrumentation tests cover it, and it agrees with the Java backend
+   on QR, Code 128, EAN-13, Data Matrix, Aztec and PDF417 frames.
+
+   **It is not wired in as a default and must not be**, until item 10's A/B exists.
+
+   **Still to do in this item:** NEON is not enabled explicitly — zxing-cpp's own build
+   decides what it vectorises, and nothing here has checked what that produces for either
+   ABI. A way for the benchmark module to select the backend is also missing, which item
+   10 needs.
 8. Feed CameraX `ImageProxy` `YUV_420_888` straight in: honour `rowStride`/`pixelStride`,
    crop to the scan region, no full-frame copy, and do not release a buffer while an
    async decode still holds it.

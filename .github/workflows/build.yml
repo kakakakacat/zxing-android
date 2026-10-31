@@ -12,6 +12,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          # zxing-cpp is a submodule pinned to a release tag. Without this the native
+          # build fails at CMake configure time with a message saying exactly that.
+          submodules: recursive
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -38,6 +42,15 @@ jobs:
 
       - name: Scanner unit tests (coordinate mapping)
         run: ./gradlew :scanner:testDebugUnitTest
+
+      - name: Install the pinned NDK
+        # Pinned in gradle/libs.versions.toml. The runner ships some NDK, but not
+        # necessarily this one, and "whichever NDK the runner had" is not a thing a
+        # decoder comparison can hold constant.
+        run: |
+          NDK_VERSION=$(grep -E '^ndk = ' gradle/libs.versions.toml | cut -d'"' -f2)
+          echo "installing NDK $NDK_VERSION"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION"
 
       - name: L1 classification rules
         # How a decode is scored against its expectation decides every number in an L1
