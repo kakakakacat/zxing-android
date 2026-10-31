@@ -140,6 +140,12 @@ dependencies {
   // generated frames can be proved deterministic without a device.
   testImplementation(libs.junit)
 
+  // The manifest, the scoring rules and the result envelope that the host L1 runner
+  // uses. Shared rather than reimplemented: a device file and a host file are only
+  // subtractable if one piece of code scored both. androidTest only -- nothing the AAR
+  // ships depends on it.
+  androidTestImplementation(project(":benchmark-corpus"))
+
   androidTestImplementation(libs.junit)
   androidTestImplementation(libs.androidx.test.runner)
   androidTestImplementation(libs.androidx.test.ext.junit)

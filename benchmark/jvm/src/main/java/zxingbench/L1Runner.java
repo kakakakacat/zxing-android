@@ -110,6 +110,8 @@ public final class L1Runner {
     int measure = Integer.parseInt(opts.getOrDefault("measure", "10"));
     String runId = opts.getOrDefault("run-id", "local-" + System.currentTimeMillis());
     String commit = opts.getOrDefault("commit", "unknown");
+    // Off by default; see the device runner for what a luminance hash settles.
+    boolean lumaHash = Boolean.parseBoolean(opts.getOrDefault("luma-hash", "false"));
 
     Manifest manifest = Manifest.parse(
         new String(Files.readAllBytes(manifestPath), StandardCharsets.UTF_8));
@@ -172,6 +174,9 @@ public final class L1Runner {
       row.put("decode_ns_min", nanos[0]);
       row.put("decode_ns_max", nanos[nanos.length - 1]);
       row.put("repeats", measure);
+      if (lumaHash) {
+        row.put("luma_sha256", sha256(frame.luminance));
+      }
       rows.add(row);
 
       if (++done % 200 == 0) {
@@ -188,6 +193,17 @@ public final class L1Runner {
       }
     }
     System.out.println("wrote " + out);
+  }
+
+  /** The hash of the plane handed to the decoder; see the device runner. */
+  private static String sha256(byte[] bytes) throws java.security.NoSuchAlgorithmException {
+    byte[] digest = java.security.MessageDigest.getInstance("SHA-256").digest(bytes);
+    StringBuilder hex = new StringBuilder(digest.length * 2);
+    for (byte b : digest) {
+      hex.append(Character.forDigit((b >> 4) & 0xF, 16));
+      hex.append(Character.forDigit(b & 0xF, 16));
+    }
+    return hex.toString();
   }
 
   private static Result decodeOnce(Frame frame, Map<DecodeHintType,Object> hints)

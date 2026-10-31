@@ -55,7 +55,7 @@ jobs:
       - name: L1 classification rules
         # How a decode is scored against its expectation decides every number in an L1
         # result file. One of these rules was wrong once; see BENCHMARKS.md §9.
-        run: ./gradlew :benchmark-jvm:test
+        run: ./gradlew :benchmark-corpus:test
 
       - name: Benchmark frame generator and goldens (L2, host side)
         # The generated replay frames are the comparability key for every L2 result
@@ -68,6 +68,7 @@ jobs:
           python3 -I benchmark/tools/test_l2_report.py
           python3 -I benchmark/tools/test_compare.py
           python3 -I benchmark/tools/test_noise_floor.py
+          python3 -I benchmark/tools/test_l1_compare.py
 
       - name: Assemble the L2 benchmark APK
         # Not run here — a shared CI runner cannot produce a timing worth keeping. This
