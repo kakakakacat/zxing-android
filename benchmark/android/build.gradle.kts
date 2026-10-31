@@ -104,6 +104,12 @@ val recordL2RunnerArgs = tasks.register("recordL2RunnerArgs") {
   val outFile = layout.buildDirectory.file("l2-runner-args.json")
   outputs.file(outFile)
   val args = l2RunnerArgs
+  // The arguments are the task's input. Without this the task has only an output, so
+  // Gradle calls it up to date whenever the file exists and never rewrites it: a run
+  // with -Pl2.backend=native was recorded as "java" because the file left over from the
+  // previous run was considered current. A protocol record that can silently describe a
+  // different run than the one that produced the numbers is worse than no record.
+  inputs.property("runnerArgs", args.toString())
   doLast {
     outFile.get().asFile.writeText(
       args.entries.joinToString(",\n", "{\n", "\n}\n") {

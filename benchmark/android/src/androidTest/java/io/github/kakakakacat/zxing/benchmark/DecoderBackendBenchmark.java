@@ -129,22 +129,11 @@ public final class DecoderBackendBenchmark {
     // produces the numbers, not a reader of them later.
     Result expected = FramePipeline.endToEnd(FramePipeline.reader(config), frame);
     Result actual = FramePipeline.endToEnd(decoder, frame);
-    if (expected == null) {
-      if (actual != null) {
-        throw new IllegalStateException(backend + " found " + actual.getText()
-            + " in " + frame.sha256 + " where the Java decoder found nothing");
-      }
-    } else {
-      if (actual == null) {
-        throw new IllegalStateException(backend + " found nothing in " + frame.sha256
-            + " where the Java decoder found " + expected.getText());
-      }
-      if (!expected.getText().equals(actual.getText())
-          || expected.getBarcodeFormat() != actual.getBarcodeFormat()) {
-        throw new IllegalStateException(backend + " disagrees on " + frame.sha256
-            + ": java=" + expected.getBarcodeFormat() + "/" + expected.getText()
-            + " vs " + actual.getBarcodeFormat() + "/" + actual.getText());
-      }
+    String disagreement = BackendAgreement.disagreement(expected, actual);
+    if (disagreement != null) {
+      throw new IllegalStateException(
+          backend + " disagrees with the Java decoder on " + frame.sha256
+              + ": " + disagreement);
     }
   }
 

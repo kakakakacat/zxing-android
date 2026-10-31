@@ -121,9 +121,22 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeCreate
   if (decoder == nullptr) {
     return 0;
   }
-  // Match what the Java backend does on a preview frame: look for one symbol and return.
-  // tryHarder/tryRotate are deliberately left at their defaults rather than tuned here --
-  // tuning before the A/B of phase 5 item 10 would make the comparison meaningless.
+  // Configured to attempt the same work the Java backend attempts, which is the only way
+  // a comparison between them measures the decoders rather than their defaults.
+  //
+  // zxing-cpp defaults tryHarder, tryRotate, tryInvert and tryDownscale all to true: it
+  // will look for codes at 90/180/270 degrees, for inverted codes, and in downscaled
+  // copies of the image. This fork's Java reader does none of that -- L2Config.DEFAULT is
+  // explicitly "no TRY_HARDER", and the preview path rotates frames itself rather than
+  // asking the decoder to search rotations. Leaving these on is not neutrality; it hands
+  // the native side several times the work and then reports it as slower.
+  //
+  // This is the effort level, not an optimisation. A caller that wants rotation or
+  // inversion search should get it through the hint set on both backends alike.
+  decoder->options.setTryHarder(false);
+  decoder->options.setTryRotate(false);
+  decoder->options.setTryInvert(false);
+  decoder->options.setTryDownscale(false);
   decoder->options.setMaxNumberOfSymbols(1);
   return static_cast<jlong>(reinterpret_cast<uintptr_t>(decoder));
 }
