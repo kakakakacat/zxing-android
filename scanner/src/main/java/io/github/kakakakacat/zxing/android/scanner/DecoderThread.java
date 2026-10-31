@@ -22,14 +22,10 @@ import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
 import io.github.kakakakacat.zxing.BarcodeFormat;
-import io.github.kakakakacat.zxing.BinaryBitmap;
 import io.github.kakakakacat.zxing.DecodeHintType;
-import io.github.kakakakacat.zxing.MultiFormatReader;
 import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource;
-import io.github.kakakakacat.zxing.ReaderException;
 import io.github.kakakakacat.zxing.Result;
 import io.github.kakakakacat.zxing.ResultPointCallback;
-import io.github.kakakakacat.zxing.common.HybridBinarizer;
 
 import java.util.Collection;
 import java.util.EnumMap;
@@ -139,13 +135,12 @@ final class DecoderThread extends Thread {
 
   private final class DecodeHandler extends Handler {
 
-    private final MultiFormatReader reader;
+    private final FrameDecoder decoder;
     private boolean running = true;
 
     DecodeHandler() {
       super(Looper.myLooper());
-      reader = new MultiFormatReader();
-      reader.setHints(hintsFor(fixedHints, initialFormats));
+      decoder = new JavaFrameDecoder(fixedHints, initialFormats);
     }
 
     @Override
@@ -158,12 +153,11 @@ final class DecoderThread extends Thread {
       } else if (message.what == MSG_SET_FORMATS) {
         @SuppressWarnings("unchecked")
         Collection<BarcodeFormat> formats = (Collection<BarcodeFormat>) message.obj;
-        // setHints rebuilds the reader list, which also discards the state
-        // decodeWithState carries between frames. That is correct here: the state belongs
-        // to readers the caller has just asked to stop using.
-        reader.setHints(hintsFor(fixedHints, formats));
+        decoder.setFormats(formats);
       } else if (message.what == MSG_QUIT) {
         running = false;
+        // The backend may hold memory the garbage collector will not take.
+        decoder.close();
         Looper looper = Looper.myLooper();
         if (looper != null) {
           looper.quit();
@@ -173,16 +167,7 @@ final class DecoderThread extends Thread {
 
     private void decode(byte[] data, int width, int height) {
       PlanarYUVLuminanceSource source = frameSource.buildLuminanceSource(data, width, height);
-      Result rawResult = null;
-      if (source != null) {
-        try {
-          rawResult = reader.decodeWithState(new BinaryBitmap(new HybridBinarizer(source)));
-        } catch (ReaderException re) {
-          // Not found in this frame; fall through and ask for the next one.
-        } finally {
-          reader.reset();
-        }
-      }
+      Result rawResult = source == null ? null : decoder.decode(source);
 
       if (rawResult == null) {
         // arg1 carries the session id so a reply from a torn-down session can be dropped.

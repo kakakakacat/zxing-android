@@ -53,7 +53,7 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | What | Result | Where |
 | --- | --- | --- |
 | `:core:test` | 602 tests, 0 failures | local |
-| `:scanner:testDebugUnitTest` | 33 tests: 9 coordinate-mapping, 6 hint-construction, 18 luma-plane | local + CI |
+| `:scanner:testDebugUnitTest` | 41 tests: 9 coordinate-mapping, 6 hint-construction, 18 luma-plane, 8 decoder-seam | local + CI |
 | `:scanner:connectedDebugAndroidTest` | 35 fixed frames, 16 formats, plus a live format-switch test, 0 failures | Android 14 device **and** CI emulators API 21/34/35/36 |
 | App install / launch / preview | works | Android 14 device, API 35 + 36 emulators |
 | CAMERA grant / deny / permanently-denied | works, no request loop | Android 14 device |
@@ -295,6 +295,22 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
 7. `zxing-cpp` backend behind the existing decoder seam, CMake building `arm64-v8a` and
    `armeabi-v7a`, shipped in the same AAR. **16 KB page alignment is mandatory** for
    Android 15+.
+
+   **In progress. The seam exists now** — it did not before, despite this item saying
+   "the existing decoder seam". `DecoderThread` constructed a `MultiFormatReader`
+   directly, so there was nothing for a second backend to sit behind and nothing for
+   item 10 to switch between. `FrameDecoder` is that seam and `JavaFrameDecoder` is the
+   shipping implementation; 8 contract tests pin the behaviour a second backend has to
+   match, and all 35 existing tests still pass unchanged through it.
+
+   **The seam takes a `LuminanceSource`, not a `BinaryBitmap`**, which is a decision
+   worth not reversing by accident: binarization belongs to a decoder, it is the most
+   expensive single stage at roughly 4.9 ms on a 1280x720 frame, and zxing-cpp has its
+   own. Handing a backend the output of `HybridBinarizer` would compare two halves of one
+   decoder instead of two decoders.
+
+   Still to do: vendor zxing-cpp (v3.1.1 is current), the CMake build for both ABIs, the
+   JNI bridge, 16 KB page alignment, and packaging into the AAR.
 8. Feed CameraX `ImageProxy` `YUV_420_888` straight in: honour `rowStride`/`pixelStride`,
    crop to the scan region, no full-frame copy, and do not release a buffer while an
    async decode still holds it.
