@@ -75,12 +75,13 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | L1 corpus, both backends, DN-ENG41 | java 862/4/254/46/2, zxing-cpp 890/3/227/48/0 | `reports/l1-49bd3beb3-*` |
 | L1 at TRY_HARDER, both backends | java 921 correct, zxing-cpp 960 | `reports/l1-49bd3beb3-*-tryharder.json` |
 | L1 device harness against the host run | same five totals through the same decoder | §9.1 |
-| `:scanner:testDebugUnitTest` | 41 tests: 9 coordinate-mapping, 6 hint-construction, 18 luma-plane, 8 decoder-seam | local + CI |
-| `:scanner:connectedDebugAndroidTest` | 13 tests: 35 fixed frames over 16 formats, a live format-switch test, and the native backend, 0 failures | Android 14 device **and** CI emulators API 21/34/35/36 |
+| `:scanner:testDebugUnitTest` | 69 tests: 9 coordinate-mapping, 6 hint-construction, 18 luma-plane, 8 decoder-seam, 6 backend-selection, 10 native-rendering, 3 Kotlin class-literal mapping, 9 Java source compatibility | local + CI |
+| `:scanner:connectedDebugAndroidTest` | 21 tests: 35 fixed frames over 16 formats, a live format-switch test, the default-backend checks and the native backend, 0 failures | Android 14 device **and** CI emulators API 21/34/35/36 |
 | 16 KB page alignment | `0x4000` on both shipped ABIs, enforced by `:scanner:verifyNativeAlignment` | local + CI |
 | App install / launch / preview | works | Android 14 device, API 35 + 36 emulators |
 | CAMERA grant / deny / permanently-denied | works, no request loop | Android 14 device |
-| 100× open-close stability loop | 0 crashes, 0 camera errors | `reports/stability-100-b0-DN-ENG41.log` |
+| 100× open-close stability loop | 0 crashes, 0 camera errors | `reports/stability-100-b0-DN-ENG41.log`, and twice more after the Kotlin conversion: `reports/stability-100-kotlin-camera-*`, `reports/stability-100-kotlin-scanner-*` |
+| `:android-integration:testDebugUnitTest` | 5 tests, written in Java so javac has to accept the Kotlin API | local + CI |
 | L1 over all 1168 samples | 862 correct / 4 incorrect / 254 not-found / 46 correct-no-result / 2 false-positive | local |
 | `:benchmark-jvm:test` | 9 tests on the L1 classification rules | local + CI |
 | Published AAR + jar | zero `com/google` entries | local `publishToMavenLocal` |

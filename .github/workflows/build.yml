@@ -40,7 +40,7 @@ jobs:
           python3 -I benchmark/dataset/build_manifest.py
           git diff --exit-code benchmark/dataset/manifest.json
 
-      - name: Scanner unit tests (coordinate mapping)
+      - name: Scanner unit tests (coordinate mapping, luma plane, decoder seam)
         run: ./gradlew :scanner:testDebugUnitTest
 
       - name: Integration API stays source-compatible with Java
