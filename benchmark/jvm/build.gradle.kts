@@ -22,7 +22,9 @@ dependencies {
   // to the same core.
   implementation(project(":core"))
 
-  testImplementation(libs.junit)
+  // The manifest, the classification rules and the result envelope, shared with the
+  // device runner so the two L1 files can be compared sample by sample.
+  implementation(project(":benchmark-corpus"))
 }
 
 tasks.named<JavaExec>("run") {

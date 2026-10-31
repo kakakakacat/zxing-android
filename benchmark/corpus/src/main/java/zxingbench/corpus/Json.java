@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package zxingbench;
+package zxingbench.corpus;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -22,32 +22,32 @@ import java.util.List;
 import java.util.Map;
 
 /** Minimal JSON reader/writer, so the benchmark has no third-party dependency. */
-final class Json {
+public final class Json {
 
   private Json() {
   }
 
-  static final class Value {
+  public static final class Value {
     private final Object raw;
 
     private Value(Object raw) {
       this.raw = raw;
     }
 
-    boolean isNull() {
+    public boolean isNull() {
       return raw == null;
     }
 
-    String string() {
+    public String string() {
       return (String) raw;
     }
 
-    double number() {
+    public double number() {
       return ((Number) raw).doubleValue();
     }
 
     @SuppressWarnings("unchecked")
-    List<Value> array() {
+    public List<Value> array() {
       List<Object> list = (List<Object>) raw;
       List<Value> out = new ArrayList<>(list.size());
       for (Object o : list) {
@@ -57,13 +57,13 @@ final class Json {
     }
 
     @SuppressWarnings("unchecked")
-    Value get(String key) {
+    public Value get(String key) {
       Map<String,Object> map = (Map<String,Object>) raw;
       return new Value(map.get(key));
     }
   }
 
-  static Value parse(String s) {
+  public static Value parse(String s) {
     Parser p = new Parser(s);
     Object v = p.value();
     p.skipWhitespace();
@@ -74,7 +74,7 @@ final class Json {
   }
 
   /** Escapes a string for JSON output. */
-  static String quote(String s) {
+  public static String quote(String s) {
     if (s == null) {
       return "null";
     }

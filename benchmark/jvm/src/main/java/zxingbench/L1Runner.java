@@ -24,6 +24,11 @@ import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource;
 import io.github.kakakakacat.zxing.Result;
 import io.github.kakakakacat.zxing.common.HybridBinarizer;
 
+import zxingbench.corpus.L1Classifier;
+import zxingbench.corpus.L1Report;
+import zxingbench.corpus.L1Status;
+import zxingbench.corpus.Manifest;
+
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
 import java.io.BufferedWriter;
@@ -93,22 +98,6 @@ public final class L1Runner {
     }
   }
 
-  /** One sample's outcome. Status values are disjoint and counted separately. */
-  enum Status {
-    /** Decoded, and both format and text matched the manifest. */
-    CORRECT,
-    /** Decoded something, but it did not match the manifest. */
-    INCORRECT,
-    /** Expected a result, got none. */
-    NOT_FOUND,
-    /** Negative sample, correctly produced no result. */
-    CORRECT_NO_RESULT,
-    /** Negative sample that decoded anyway. */
-    FALSE_POSITIVE,
-    /** The reader threw something other than NotFoundException. */
-    ERROR
-  }
-
   public static void main(String[] args) throws Exception {
     Map<String,String> opts = parseArgs(args);
     Path repo = Paths.get(opts.getOrDefault("repo", ".")).toAbsolutePath().normalize();
@@ -122,14 +111,15 @@ public final class L1Runner {
     String runId = opts.getOrDefault("run-id", "local-" + System.currentTimeMillis());
     String commit = opts.getOrDefault("commit", "unknown");
 
-    Manifest manifest = Manifest.load(manifestPath);
+    Manifest manifest = Manifest.parse(
+        new String(Files.readAllBytes(manifestPath), StandardCharsets.UTF_8));
     System.out.printf("L1 %s: %d samples, dataset %s%n",
         config, manifest.samples.size(), manifest.datasetHash.substring(0, 16));
 
     Map<DecodeHintType,Object> hints = config.hints();
     List<Map<String,Object>> rows = new ArrayList<>();
-    Map<Status,Integer> totals = new EnumMap<>(Status.class);
-    for (Status s : Status.values()) {
+    Map<L1Status,Integer> totals = new EnumMap<>(L1Status.class);
+    for (L1Status s : L1Status.values()) {
       totals.put(s, 0);
     }
 
@@ -167,7 +157,7 @@ public final class L1Runner {
       }
       Arrays.sort(nanos);
 
-      Status status = classify(sample, last, error);
+      L1Status status = classify(sample, last, error);
       totals.put(status, totals.get(status) + 1);
 
       Map<String,Object> row = new LinkedHashMap<>();
@@ -192,7 +182,7 @@ public final class L1Runner {
     writeResults(out, runId, commit, config.name(), manifest, warmup, measure, totals, rows);
 
     System.out.println("--- status counts");
-    for (Map.Entry<Status,Integer> e : totals.entrySet()) {
+    for (Map.Entry<L1Status,Integer> e : totals.entrySet()) {
       if (e.getValue() > 0) {
         System.out.printf("  %-18s %d%n", e.getKey(), e.getValue());
       }
@@ -209,29 +199,17 @@ public final class L1Runner {
     return reader.decode(new BinaryBitmap(new HybridBinarizer(source)));
   }
 
-  // Package-private so the classification rules can be tested without a corpus run.
-  static Status classify(Manifest.Sample sample, Result result, Throwable error) {
-    if (error != null && !(error instanceof io.github.kakakakacat.zxing.NotFoundException)) {
-      return Status.ERROR;
-    }
-    if (sample.isNegative()) {
-      return result == null ? Status.CORRECT_NO_RESULT : Status.FALSE_POSITIVE;
-    }
-    if (result == null) {
-      return Status.NOT_FOUND;
-    }
-    if (!result.getBarcodeFormat().toString().equals(sample.expectedFormat)) {
-      return Status.INCORRECT;
-    }
-    // Compared raw, exactly as upstream's AbstractBlackBoxTestCase does. An earlier
-    // revision stripped a trailing newline from the expectation but not from the decoded
-    // text, which marked nine samples INCORRECT whose payload genuinely ends in one: the
-    // sidecar carries the barcode's content byte for byte, newline included, so there is
-    // nothing to normalise away. Normalising only one side can only invent mismatches.
-    if (sample.expectedText != null && !sample.expectedText.equals(result.getText())) {
-      return Status.INCORRECT;
-    }
-    return Status.CORRECT;
+  /**
+   * Scores one decode. The rules live in {@link L1Classifier}, shared with the device
+   * runner: two L1 files are only subtractable if the same code scored both.
+   */
+  private static L1Status classify(Manifest.Sample sample, Result result, Throwable error) {
+    boolean hardError =
+        error != null && !(error instanceof io.github.kakakakacat.zxing.NotFoundException);
+    return L1Classifier.classify(sample,
+        result == null ? null : result.getBarcodeFormat().toString(),
+        result == null ? null : result.getText(),
+        hardError);
   }
 
   private static void writeResults(Path out,
@@ -241,51 +219,26 @@ public final class L1Runner {
                                    Manifest manifest,
                                    int warmup,
                                    int measure,
-                                   Map<Status,Integer> totals,
+                                   Map<L1Status,Integer> totals,
                                    List<Map<String,Object>> rows) throws IOException {
     Files.createDirectories(out.getParent());
+    Map<String,Object> envelope = new LinkedHashMap<>();
+    envelope.put("run_id", runId);
+    envelope.put("commit", commit);
+    envelope.put("runner", "host-jvm");
+    envelope.put("backend", "zxing-java");
+    envelope.put("config", config);
+    envelope.put("dataset_hash", manifest.datasetHash);
+    envelope.put("sample_count", manifest.samples.size());
+    envelope.put("warmup", warmup);
+    envelope.put("measure", measure);
+    envelope.put("jvm", System.getProperty("java.vm.name") + " "
+        + System.getProperty("java.version"));
+    envelope.put("os", System.getProperty("os.name") + " " + System.getProperty("os.arch"));
+    envelope.put("note",
+        "Host JVM result. Diagnostic only; not an Android performance result.");
     try (BufferedWriter w = Files.newBufferedWriter(out, StandardCharsets.UTF_8)) {
-      w.write("{\n");
-      w.write("  \"layer\": \"L1\",\n");
-      w.write("  \"run_id\": " + Json.quote(runId) + ",\n");
-      w.write("  \"commit\": " + Json.quote(commit) + ",\n");
-      w.write("  \"config\": " + Json.quote(config) + ",\n");
-      w.write("  \"dataset_hash\": " + Json.quote(manifest.datasetHash) + ",\n");
-      w.write("  \"sample_count\": " + manifest.samples.size() + ",\n");
-      w.write("  \"warmup\": " + warmup + ",\n");
-      w.write("  \"measure\": " + measure + ",\n");
-      w.write("  \"jvm\": " + Json.quote(System.getProperty("java.vm.name") + " "
-          + System.getProperty("java.version")) + ",\n");
-      w.write("  \"os\": " + Json.quote(System.getProperty("os.name") + " "
-          + System.getProperty("os.arch")) + ",\n");
-      w.write("  \"note\": \"Host JVM result. Diagnostic only; not an Android performance result.\",\n");
-      w.write("  \"status_counts\": {");
-      boolean first = true;
-      for (Map.Entry<Status,Integer> e : totals.entrySet()) {
-        if (!first) {
-          w.write(",");
-        }
-        first = false;
-        w.write("\n    " + Json.quote(e.getKey().name()) + ": " + e.getValue());
-      }
-      w.write("\n  },\n");
-      w.write("  \"samples\": [\n");
-      for (int i = 0; i < rows.size(); i++) {
-        w.write("    {");
-        boolean f2 = true;
-        for (Map.Entry<String,Object> e : rows.get(i).entrySet()) {
-          if (!f2) {
-            w.write(", ");
-          }
-          f2 = false;
-          Object v = e.getValue();
-          String rendered = v == null ? "null"
-              : v instanceof Number ? v.toString() : Json.quote(v.toString());
-          w.write(Json.quote(e.getKey()) + ": " + rendered);
-        }
-        w.write(i == rows.size() - 1 ? "}\n" : "},\n");
-      }
-      w.write("  ]\n}\n");
+      L1Report.write(w, envelope, totals, rows);
     }
   }
 
