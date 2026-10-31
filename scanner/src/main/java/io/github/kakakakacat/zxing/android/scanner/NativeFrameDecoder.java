@@ -151,6 +151,22 @@ final class NativeFrameDecoder implements FrameDecoder {
     return LOAD_FAILURE;
   }
 
+  /**
+   * What the loaded library was compiled with, for example
+   * {@code abi=arm64-v8a;neon=1;zxingcpp=3.1.1}.
+   *
+   * <p>Compile-time facts, not a runtime CPU probe. zxing-cpp has no NEON intrinsics: it
+   * relies on the auto-vectorizer and tests {@code __ARM_NEON} to decide whether a
+   * strided column is worth packing before thresholding. Whether that macro was defined
+   * is a property of the build, and a runtime feature check would not answer it.
+   */
+  static String buildInfo() {
+    if (!AVAILABLE) {
+      throw new IllegalStateException("libzxingnative is not loaded", LOAD_FAILURE);
+    }
+    return nativeBuildInfo();
+  }
+
   @Override
   public Result decode(LuminanceSource source) {
     if (handle == 0L) {
@@ -229,6 +245,8 @@ final class NativeFrameDecoder implements FrameDecoder {
   public String name() {
     return NAME;
   }
+
+  private static native String nativeBuildInfo();
 
   private static native long nativeCreate();
 

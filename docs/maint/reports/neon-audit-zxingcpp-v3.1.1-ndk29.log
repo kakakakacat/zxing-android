@@ -1,0 +1,84 @@
+Is the native decoder actually using NEON?
+==========================================
+
+Date     2026-10-31
+Commit   60e69f57d (plus the NEON guard added in the commit that carries this log)
+Subject  libzxingnative.so, zxing-cpp v3.1.1, NDK 29.0.14206865, CMake RelWithDebInfo
+Why      Phase 5 item 7 names "zxing-cpp + ARM NEON". "NEON" was asserted in the plan
+         and never checked. This checks it.
+
+Finding 1 -- zxing-cpp contains no NEON intrinsics at all
+----------------------------------------------------------
+There is no arm_neon.h, no vld1/vmlaq, no hand-written SIMD kernel anywhere in
+core/src. The only mention of the architecture is a feature test:
+
+  core/src/GlobalHistogramBinarizer.cpp:140
+    #if defined(__AVX__) || defined(__ARM_NEON)
+      ... copy a strided column into a packed buffer first ...
+    #endif
+
+and its own comment explains why: the copy is worth paying for because "the
+auto-vectorizer makes that part 8x faster", not because of intrinsics.
+
+So "zxing-cpp + NEON" does not mean a hand-vectorised decoder. It means two things
+that have to hold:
+
+  a) __ARM_NEON must be defined, or that packed-copy path is compiled out silently;
+  b) the auto-vectorizer must actually emit SIMD.
+
+Both are checked below. Neither was checked before.
+
+Finding 2 -- (a) holds, and is now enforced at build time
+----------------------------------------------------------
+zxing_native.cpp now fails to compile on an ARM ABI if __ARM_NEON is undefined.
+It shares toolchain flags with zxing-cpp's translation units, since zxing-cpp is
+added to the same CMake project.
+
+Confirmed on the device as well, through NativeFrameDecoder.buildInfo(), which
+reports compile-time facts rather than a runtime CPU probe:
+
+  abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+
+An attempt to defeat it through the documented switch failed, which is itself worth
+recording:
+
+  -DANDROID_ARM_NEON=FALSE
+  => CMake Error at .../android-legacy.toolchain.cmake:171
+     "Disabling Neon is no longer supported"
+
+NDK 29 no longer allows NEON to be turned off for armeabi-v7a. So the guard cannot
+fire through that route today. It was verified to have teeth by the route that is
+still open -- a stray -mfpu flag, one line away in any build file:
+
+  cppFlags += "-mfpu=vfpv3-d16"   (armeabi-v7a)
+  => zxing_native.cpp:37: error: "__ARM_NEON is not defined for this ARM ABI ..."
+
+Finding 3 -- (b) holds: the auto-vectorizer did emit SIMD, on both shipped ABIs
+--------------------------------------------------------------------------------
+Instruction census over the stripped release libraries, llvm-objdump -d:
+
+  arm64-v8a
+    instructions total                                  260646
+    using vector registers (v0.16b / .8h / .4s / .2d)   7089
+
+  armeabi-v7a
+    instructions total                                  271472
+    using q registers (NEON-only, never scalar VFP)     1281
+    vld1 / vst1 (NEON element load/store)               3033
+
+The armeabi-v7a count is deliberately restricted to q-register operands and
+vld1/vst1. A naive count of "v*" mnemonics on ARMv7 is misleading, because vmov,
+vadd and friends are also scalar VFP instructions and would inflate the number.
+
+What this does NOT say
+-----------------------
+- Nothing about speed. This is a census of instructions in a binary, not a
+  measurement. Whether any of it makes a frame decode faster is phase 5 item 10's
+  A/B, under the gates of BENCHMARKS.md section 10.6, and no claim may be made
+  before that.
+- Nothing about WHICH functions were vectorised. The census is library-wide. The
+  hot path for this app is the binarizer and the 1D/2D locators; whether the
+  vectorised instructions are in those or in unrelated code is not established
+  here.
+- Nothing about armeabi-v7a devices in particular. No such device is available,
+  so that ABI is built and inspected but has never been run.

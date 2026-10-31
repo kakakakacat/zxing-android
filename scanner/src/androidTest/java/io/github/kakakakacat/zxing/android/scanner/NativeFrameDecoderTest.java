@@ -238,6 +238,21 @@ public final class NativeFrameDecoderTest {
   }
 
   @Test
+  public void theLibraryWasBuiltWithNeonOnArm() {
+    // zxing-cpp ships no NEON intrinsics; it relies on the auto-vectorizer and tests
+    // __ARM_NEON to decide whether to pack a strided column before thresholding. If the
+    // macro were undefined that path would be compiled out and nothing would say so.
+    // The C++ side also refuses to compile without it on an ARM ABI; this is the same
+    // fact confirmed on the artifact that actually loaded.
+    String info = NativeFrameDecoder.buildInfo();
+    assertTrue("unexpected build info: " + info, info.contains("abi="));
+    assertTrue("no zxing-cpp version in: " + info, info.contains("zxingcpp=3.1.1"));
+    if (info.contains("abi=arm64-v8a") || info.contains("abi=armeabi-v7a")) {
+      assertTrue("built without NEON on an ARM ABI: " + info, info.contains("neon=1"));
+    }
+  }
+
+  @Test
   public void theBackendNamesItself() {
     FrameDecoder decoder = new NativeFrameDecoder(null);
     try {

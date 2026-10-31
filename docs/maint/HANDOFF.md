@@ -326,10 +326,29 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
 
    **It is not wired in as a default and must not be**, until item 10's A/B exists.
 
-   **Still to do in this item:** NEON is not enabled explicitly — zxing-cpp's own build
-   decides what it vectorises, and nothing here has checked what that produces for either
-   ABI. A way for the benchmark module to select the backend is also missing, which item
-   10 needs.
+   **NEON is checked, and "zxing-cpp + NEON" turned out to mean something other than the
+   plan implies.** zxing-cpp has **no NEON intrinsics at all** — no `arm_neon.h`, no
+   hand-written kernel. It relies on the auto-vectorizer, and tests `__ARM_NEON` in one
+   place only (`GlobalHistogramBinarizer.cpp:140`) to decide whether packing a strided
+   column before thresholding is worth it. So there is no "turn NEON on" switch to find;
+   there are two conditions, and both now hold and are checked:
+
+   - `__ARM_NEON` is defined. The C++ **fails to compile** on an ARM ABI without it, and
+     the device reports it too: `abi=arm64-v8a;neon=1;zxingcpp=3.1.1`. Note NDK 29
+     **refuses** `ANDROID_ARM_NEON=FALSE` outright ("Disabling Neon is no longer
+     supported"), so the guard cannot fire that way; it was verified to have teeth
+     through the route still open, a stray `-mfpu=vfpv3-d16`.
+   - The auto-vectorizer did emit SIMD on both shipped ABIs: 7089 vector-register
+     instructions on arm64-v8a, and on armeabi-v7a 1281 q-register instructions plus
+     3033 `vld1`/`vst1`. Evidence and method:
+     `reports/neon-audit-zxingcpp-v3.1.1-ndk29.log`.
+
+   **That is a census, not a speed claim**, and it does not say *which* functions were
+   vectorised — the count is library-wide. No armeabi-v7a device exists here, so that
+   ABI is built and inspected but has never been run.
+
+   **Still to do in this item:** a way for the benchmark module to select the backend,
+   which item 10 needs.
 8. Feed CameraX `ImageProxy` `YUV_420_888` straight in: honour `rowStride`/`pixelStride`,
    crop to the scan region, no full-frame copy, and do not release a buffer while an
    async decode still holds it.

@@ -62,6 +62,12 @@ API may still change between minor versions.
   and PDF417 frames. A device without the right ABI falls back rather than crashing.
   **Not the default, and not claimed to be faster** — that needs the A/B of Phase 5 item
   10 under the gates in BENCHMARKS.md §10.6.
+- A build-time guard that the native decoder is compiled with NEON: zxing-cpp has no
+  NEON intrinsics and relies on the auto-vectorizer, testing `__ARM_NEON` in one place to
+  decide whether to pack a strided column before thresholding. Undefined, that path
+  vanishes silently, so the C++ refuses to compile without it on an ARM ABI. Audited on
+  the shipped libraries in `docs/maint/reports/neon-audit-zxingcpp-v3.1.1-ndk29.log` — a
+  census of emitted SIMD, not a speed claim.
 - `FrameDecoder`, the seam a decoder backend sits behind, taking a `LuminanceSource`
   rather than a `BinaryBitmap` so a backend brings its own binarization — the most
   expensive single stage in the pipeline.

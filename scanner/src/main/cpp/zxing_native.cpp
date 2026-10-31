@@ -21,12 +21,35 @@
 
 #include <jni.h>
 
+// zxing-cpp carries no NEON intrinsics. It relies on the auto-vectorizer, and it tests
+// __ARM_NEON to decide whether to copy a strided column into a packed buffer first --
+// worth it only because the vectorizer can then do the threshold pass several lanes at a
+// time (GlobalHistogramBinarizer.cpp). If the macro is not defined that path is compiled
+// out silently and nothing else in the build notices.
+//
+// So the macro is asserted rather than assumed. On arm64 NEON is part of the ARMv8-A
+// baseline. On armeabi-v7a NDK 29 refuses to turn it off -- ANDROID_ARM_NEON=FALSE is
+// rejected outright with "Disabling Neon is no longer supported" -- so today this cannot
+// fire through that route. What it does catch is an -mfpu flag that quietly drops NEON,
+// which is a one-line change away in any build file and which nothing else would report.
+// Verified: adding -mfpu=vfpv3-d16 to the armeabi-v7a build makes this fire.
+//
+// These translation units share the toolchain flags with zxing-cpp's, since it is added
+// to this same CMake project.
+#if defined(__arm__) || defined(__aarch64__)
+#if !defined(__ARM_NEON)
+#error "__ARM_NEON is not defined for this ARM ABI: zxing-cpp's packed-copy path would \
+be compiled out. Check for an -mfpu flag that drops NEON."
+#endif
+#endif
+
 #include <cstdint>
 #include <exception>
 #include <memory>
 #include <string>
 
 #include "BarcodeFormat.h"
+#include "Version.h"
 #include "ReadBarcode.h"
 #include "ReaderOptions.h"
 
@@ -57,6 +80,39 @@ std::string toStdString(JNIEnv* env, jstring value) {
 }  // namespace
 
 extern "C" {
+
+/**
+ * What this library was built with, for the record and for a device test.
+ *
+ * <p>Reports the compile-time facts, not a runtime probe: the question is what the
+ * shipped artifact was compiled with, which no amount of runtime feature detection
+ * answers.
+ */
+JNIEXPORT jstring JNICALL
+Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeBuildInfo(
+    JNIEnv* env, jclass) {
+  std::string info;
+#if defined(__aarch64__)
+  info += "abi=arm64-v8a";
+#elif defined(__arm__)
+  info += "abi=armeabi-v7a";
+#elif defined(__x86_64__)
+  info += "abi=x86_64";
+#else
+  info += "abi=other";
+#endif
+#if defined(__ARM_NEON)
+  info += ";neon=1";
+#else
+  info += ";neon=0";
+#endif
+#if defined(__ARM_FEATURE_CRC32)
+  info += ";crc32=1";
+#endif
+  info += ";zxingcpp=";
+  info += ZXING_VERSION_STR;
+  return env->NewStringUTF(info.c_str());
+}
 
 JNIEXPORT jlong JNICALL
 Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeCreate(
