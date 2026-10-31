@@ -22,7 +22,11 @@ android {
 
   sourceSets {
     getByName("main") {
+      // Kotlin alongside Java in the same legacy directory. AGP's built-in Kotlin finds
+      // src/main/kotlin by default, which this layout does not have, so `src` has to be
+      // named for both. See docs/maint/HANDOFF.md on Kotlin and AGP 9.
       java.setSrcDirs(listOf("src"))
+      kotlin.setSrcDirs(listOf("src"))
       res.setSrcDirs(listOf("res"))
       assets.setSrcDirs(listOf("assets"))
       manifest.srcFile("AndroidManifest.xml")
@@ -66,6 +70,13 @@ android {
   lint {
     abortOnError = false
     checkReleaseBuilds = false
+  }
+}
+
+// Same bytecode level as the Java sources; AGP fails the compile task on a mismatch.
+kotlin {
+  compilerOptions {
+    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
   }
 }
 

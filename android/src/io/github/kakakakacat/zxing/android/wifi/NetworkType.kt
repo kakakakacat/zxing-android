@@ -14,32 +14,30 @@
  * limitations under the License.
  */
 
-package io.github.kakakakacat.zxing.android.wifi;
+package io.github.kakakakacat.zxing.android.wifi
 
-enum NetworkType {
+internal enum class NetworkType {
 
   WEP,
   WPA,
   NO_PASSWORD,
   WPA2_EAP;
 
-  static NetworkType forIntentValue(String networkTypeString) {
-    if (networkTypeString == null) {
-      return NO_PASSWORD;
-    }
-    switch (networkTypeString) {
-      case "WPA":
-      case "WPA2":
-        return WPA;
-      case "WPA2-EAP":
-        return WPA2_EAP;
-      case "WEP":
-        return WEP;
-      case "nopass":
-        return NO_PASSWORD;
-      default:
-        throw new IllegalArgumentException(networkTypeString);
+  companion object {
+    // Plain public rather than internal: WifiConfigManager is still Java and Kotlin mangles
+    // an internal function's name out of its reach. See docs/maint/HANDOFF.md.
+    @JvmStatic
+    fun forIntentValue(networkTypeString: String?): NetworkType {
+      if (networkTypeString == null) {
+        return NO_PASSWORD
+      }
+      return when (networkTypeString) {
+        "WPA", "WPA2" -> WPA
+        "WPA2-EAP" -> WPA2_EAP
+        "WEP" -> WEP
+        "nopass" -> NO_PASSWORD
+        else -> throw IllegalArgumentException(networkTypeString)
+      }
     }
   }
-
 }

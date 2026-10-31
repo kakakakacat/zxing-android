@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package io.github.kakakakacat.zxing.android;
+package io.github.kakakakacat.zxing.android
 
-enum IntentSource {
+internal enum class IntentSource {
 
   NATIVE_APP_INTENT,
   PRODUCT_SEARCH_LINK,
   ZXING_LINK,
   NONE
-
 }
