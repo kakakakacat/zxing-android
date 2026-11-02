@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `f4a01c025` on branch `maint/android`, **which is pushed**.
+Last updated at commit `7d032431b` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -92,6 +92,7 @@ Last updated at commit `f4a01c025` on branch `maint/android`, **which is pushed*
 | `b8aeeeae9` | A frame posted behind `MSG_QUIT` was dropped rather than closed |
 | `2d26c1221` | The R8 release build runs CameraX, checked on a device |
 | `f4a01c025` | **L3 built and baselined** — and the Camera1 main-thread block it found |
+| `7d032431b` | **A-19**: predictive back had silently disabled both back handlers |
 
 Nothing is uncommitted. `maint/android` is pushed through `2e9e5ce16` and CI is green on
 it. Nothing is released; no tag has been pushed.
