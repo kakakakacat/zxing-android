@@ -21,8 +21,10 @@
   <uses-permission android:name="android.permission.INTERNET"/>
   <uses-permission android:name="android.permission.VIBRATE"/>
   <uses-permission android:name="android.permission.READ_CONTACTS"/>
-  <!-- Still declared: the Wi-Fi result handler uses them. WifiConfigManager itself
-       no longer works on Android 10+, tracked as an audit item, not silently dropped. -->
+  <!-- CHANGE_WIFI_STATE is what addNetworkSuggestions requires, which is the route a
+       scanned network takes on Android 10 and the fallback above it; the legacy
+       WifiConfiguration path below Android 10 needs both. The Android 11+ route, a
+       settings prompt through ACTION_WIFI_ADD_NETWORKS, needs neither. -->
   <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
   <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
 

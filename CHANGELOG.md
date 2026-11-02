@@ -12,6 +12,13 @@ API may still change between minor versions.
 ## [Unreleased]
 
 ### Fixed
+- **A-08: scanning a `WIFI:` barcode adds the network again.** `WifiManager.addNetwork`
+  has returned failure for ordinary apps since Android 10, so the button logged "Unable
+  to add network" behind a toast claiming a connection had been requested. The network is
+  now offered to the system through `ACTION_WIFI_ADD_NETWORKS` on Android 11+, where the
+  user confirms it in a system prompt and it is saved for real, registered with
+  `addNetworkSuggestions` on Android 10, and added the old way below that. A WEP barcode
+  cannot be expressed as a network suggestion, so it says so instead of appearing to work.
 - **A-06 / A-07: exporting the history and sharing a barcode image work again.** Both
   wrote into the legacy external storage root and shared a `file://` URI; scoped storage
   has forbidden the first since Android 10 and `FileUriExposedException` the second since

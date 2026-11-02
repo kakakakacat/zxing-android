@@ -17,7 +17,6 @@
 package io.github.kakakakacat.zxing.android.wifi
 
 import android.net.wifi.WifiConfiguration
-import android.net.wifi.WifiEnterpriseConfig
 import android.net.wifi.WifiManager
 import android.os.AsyncTask
 import android.util.Log
@@ -29,8 +28,14 @@ import java.util.regex.Pattern
  * @author Sean Owen
  * @author Steffen Kieß
  */
-@Suppress("DEPRECATION") // AsyncTask, and the whole WifiConfiguration API: defect A-08
-class WifiConfigManager(private val wifiManager: WifiManager) :
+/**
+ * The pre-Android-10 route for adding a scanned network, kept for the devices where it is
+ * the only one. `addNetwork`/`enableNetwork` return failure for a non-system app from
+ * API 29 on, which was defect A-08; [WifiNetworkAdder] picks this path only below that
+ * and uses network suggestions above it. `minSdk` is 21, so this is still reachable.
+ */
+@Suppress("DEPRECATION") // the whole WifiConfiguration API, deliberately, see above
+internal class WifiConfigManager(private val wifiManager: WifiManager) :
     AsyncTask<WifiParsedResult, Any, Any?>() {
 
   override fun doInBackground(vararg args: WifiParsedResult): Any? {
@@ -239,22 +244,9 @@ class WifiConfigManager(private val wifiManager: WifiManager) :
       return false
     }
 
-    private fun parseEap(eapString: String?): Int = when (eapString) {
-      null, "NONE" -> WifiEnterpriseConfig.Eap.NONE
-      "PEAP" -> WifiEnterpriseConfig.Eap.PEAP
-      "PWD" -> WifiEnterpriseConfig.Eap.PWD
-      "TLS" -> WifiEnterpriseConfig.Eap.TLS
-      "TTLS" -> WifiEnterpriseConfig.Eap.TTLS
-      else -> throw IllegalArgumentException("Unknown value for EAP method: $eapString")
-    }
+    private fun parseEap(eapString: String?): Int = WifiEapMethods.parseEap(eapString)
 
-    private fun parsePhase2(phase2String: String?): Int = when (phase2String) {
-      null, "NONE" -> WifiEnterpriseConfig.Phase2.NONE
-      "GTC" -> WifiEnterpriseConfig.Phase2.GTC
-      "MSCHAP" -> WifiEnterpriseConfig.Phase2.MSCHAP
-      "MSCHAPV2" -> WifiEnterpriseConfig.Phase2.MSCHAPV2
-      "PAP" -> WifiEnterpriseConfig.Phase2.PAP
-      else -> throw IllegalArgumentException("Unknown value for phase 2 method: $phase2String")
-    }
+    private fun parsePhase2(phase2String: String?): Int =
+        WifiEapMethods.parsePhase2(phase2String)
   }
 }

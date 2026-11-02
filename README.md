@@ -162,7 +162,8 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 - [x] **A-06** History CSV export writes to app-specific storage and is shared through a
       `FileProvider`
 - [x] **A-07** Share-barcode-as-image, the same way
-- [ ] **A-08** Wi-Fi result handler cannot add networks on Android 10+
+- [x] **A-08** Wi-Fi result handler adds networks through the system prompt on
+      Android 11+, a network suggestion on Android 10, the old path below that
 - [x] **A-09** Book search and every outbound link this app builds are https; the
       book-search URL matcher accepts https too
 - [x] **A-10** App-share picker and the browser special case: `<queries>` declared, and
@@ -257,7 +258,6 @@ years of callers and buy nothing.
 
 | ID | Problem | Where |
 | --- | --- | --- |
-| A-08 | Scanning a `WIFI:` barcode silently does nothing on Android 10+ | app |
 | A-16 | On a large screen, Android 16 forces the landscape-designed capture UI into portrait | app |
 | — | No L3 or L4 numbers exist: nothing is known about camera-ready or first-scan latency | all |
 | — | Only one device has been tested: Android 14, no GMS | all |

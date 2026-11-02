@@ -16,14 +16,10 @@
 
 package io.github.kakakakacat.zxing.android.result
 
-import android.content.Context
-import android.net.wifi.WifiManager
-import android.os.AsyncTask
-import android.util.Log
 import android.widget.Toast
 import io.github.kakakakacat.zxing.android.CaptureActivity
 import io.github.kakakakacat.zxing.android.R
-import io.github.kakakakacat.zxing.android.wifi.WifiConfigManager
+import io.github.kakakakacat.zxing.android.wifi.WifiNetworkAdder
 import io.github.kakakakacat.zxing.client.result.ParsedResult
 import io.github.kakakakacat.zxing.client.result.WifiParsedResult
 
@@ -41,20 +37,27 @@ class WifiResultHandler(private val parent: CaptureActivity, result: ParsedResul
 
   override fun getButtonText(index: Int): Int = R.string.button_wifi
 
-  @Suppress("DEPRECATION") // AsyncTask, and WifiConfigManager's own API: defect A-08
   override fun handleButtonPress(index: Int) {
     if (index == 0) {
       val wifiResult = getResult() as WifiParsedResult
-      val wifiManager =
-          activity.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager?
-      if (wifiManager == null) {
-        Log.w(TAG, "No WifiManager available from device")
-        return
+      // Which route is taken depends on the Android version; WifiNetworkAdder says why.
+      // The toast has to follow the outcome rather than announce a connection in advance:
+      // on Android 11+ the user still has a system prompt to confirm, on Android 10 the
+      // platform decides when to use the suggestion, and a WEP barcode cannot be added at
+      // all. Saying "requesting connection" to all of those was half of what made defect
+      // A-08 invisible.
+      val message = when (WifiNetworkAdder.add(activity, wifiResult)) {
+        WifiNetworkAdder.Outcome.PROMPTING -> null // the system dialog is the feedback
+        WifiNetworkAdder.Outcome.SUGGESTED -> R.string.wifi_suggested_network
+        WifiNetworkAdder.Outcome.LEGACY -> R.string.wifi_changing_network
+        WifiNetworkAdder.Outcome.UNSUPPORTED -> R.string.wifi_wep_unsupported
+        WifiNetworkAdder.Outcome.BAD_BARCODE -> R.string.wifi_add_failed
       }
-      activity.runOnUiThread {
-        Toast.makeText(activity.applicationContext, R.string.wifi_changing_network, Toast.LENGTH_SHORT).show()
+      if (message != null) {
+        activity.runOnUiThread {
+          Toast.makeText(activity.applicationContext, message, Toast.LENGTH_LONG).show()
+        }
       }
-      WifiConfigManager(wifiManager).executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, wifiResult)
       parent.restartPreviewAfterDelay(0L)
     }
   }
@@ -67,7 +70,4 @@ class WifiResultHandler(private val parent: CaptureActivity, result: ParsedResul
 
   override fun getDisplayTitle(): Int = R.string.result_wifi
 
-  private companion object {
-    private val TAG = WifiResultHandler::class.java.simpleName
-  }
 }

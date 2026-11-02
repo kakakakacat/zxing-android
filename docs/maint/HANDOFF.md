@@ -122,6 +122,8 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | A-06: history CSV export | before, "SD card is not accessible"; after, the file is written and the Intent carries the grant | DN-ENG41, `reports/a06-a07-scoped-storage-DN-ENG41-20261102.log` |
 | A-07: share the barcode image | the print service opened the `content://` URI and rendered the QR; the exported PNG decodes to its own contents | DN-ENG41, same log |
 | The export sweep | a file dated a month earlier is deleted, a recent one kept | DN-ENG41, same log |
+| A-08: scanning a WPA `WIFI:` barcode | before, `Unable to add network`; after, the system "Save this network?" prompt and the SSID in `cmd wifi list-networks` | API 36 emulator, `reports/a08-wifi-DN-ENG41-api36-20261102.log` |
+| A-08: a WEP barcode | reported, not silently dropped | API 36 emulator, `reports/a08-wep-unsupported-api36.png` |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -676,11 +678,9 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
 
 ### Phase 3 — carried-forward defects (independent; can be picked up any time)
 
-All of these survived the Kotlin conversion untouched, by decision; **A-06, A-07, A-09 and
-A-10 have since been fixed**. A-08's `WifiConfigManager` carries the whole deprecated
-`WifiConfiguration` API in a `@Suppress` that names the defect instead. A-12 and A-16 are
-not in `:app` at all — A-12 is `AmbientLightManager` in `:scanner`, A-16 is the capture
-layout — and neither carries a comment yet.
+All of these survived the Kotlin conversion untouched, by decision; **A-06, A-07, A-08,
+A-09 and A-10 have since been fixed**. What is left is A-12 and A-16, and neither is in
+`:app`: A-12 is `AmbientLightManager` in `:scanner`, A-16 is the capture layout.
 
 **A-09 is fixed**, and the one-command repro is now the check that it stays fixed:
 
@@ -781,8 +781,38 @@ app that accepts `text/csv`; the API 36 emulator offers Drive and Gmail with no 
 denial, but neither has an account on it. The unobserved step is the same provider call
 that A-07's print preview does observe.
 
-- **A-08** Wi-Fi result handler cannot add networks on Android 10+. Modern path is
-  `WifiNetworkSuggestion` or `ACTION_WIFI_ADD_NETWORKS`.
+**A-08 is fixed, by route rather than by patch.** `WifiNetworkAdder` chooses what the
+platform allows: Android 11+ hands a `WifiNetworkSuggestion` to settings through
+`ACTION_WIFI_ADD_NETWORKS`, which prompts the user and saves the network for real;
+Android 10 registers it with `addNetworkSuggestions`, which is weaker — the platform
+decides when to use it — but is all that version has; below that the old
+`WifiConfiguration` path still works, which is why `WifiConfigManager` is still here.
+`minSdk` is 21, so that branch is reachable.
+
+Two things changed besides the route. **WEP cannot be expressed as a network suggestion
+at all**, so a WEP barcode is now reported rather than silently dropped. And the toast
+follows the outcome instead of announcing a connection in advance: "requesting connection
+to network" was half of what made this defect invisible, because it said the same thing
+whether the network had been added or `addNetwork` had just returned -1.
+
+**Driven as a real scan on the Android 16 emulator**, which is the recipe to reuse:
+generate the `WIFI:` QR with this fork's `:core`, `adb emu virtualscene-image wall <png>`,
+and let the app decode it off the camera. The code must be small enough on the poster to
+fit inside the viewfinder — 600 px on an 800 px canvas is clipped by the frame and never
+decodes, 420 px on 1400 px works. Before: `Unable to add network "A08TestNet"` and
+nothing else. After: the system's "Save this network?" dialog, and after Save the SSID
+appears in `adb shell cmd wifi list-networks` as `wpa2-psk`.
+
+**Not verified:** the Android 10 and pre-Android-10 routes, because no such device or
+emulator exists here, and the `ActivityNotFoundException` fallback, because
+`ACTION_WIFI_ADD_NETWORKS` resolves on both machines available.
+
+**Also found, and left alone:** replaying a history row does not leave the result on
+screen. `CaptureActivity.onResume` resets the status view after `onActivityResult` has
+handled the replay, so the result flashes and the preview comes back. It is why A-08 had
+to be driven on the emulator rather than from a seeded history row on DN-ENG41. Not part
+of A-08 and not in the audit; worth a look.
+
 - **A-12** Ambient-light torch control rebuilds the autofocus manager on every toggle.
 - **A-16** Android 16 ignores `screenOrientation` on large screens, so the
   landscape-designed capture UI runs portrait. The crop mapping is fixed; the **layout**

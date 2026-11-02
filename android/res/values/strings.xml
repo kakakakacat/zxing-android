@@ -148,4 +148,10 @@
   <string name="result_wifi">Found WLAN Configuration</string>
   <string name="sbc_name">Google Book Search</string>
   <string name="wifi_changing_network">Requesting connection to network\u2026</string>
+  <!-- Android 10 only: the suggestion is registered and the platform decides when to
+       use it, so nothing is "requested". -->
+  <string name="wifi_suggested_network">Network saved as a suggestion. Android will connect when it is in range.</string>
+  <!-- The network suggestion API has no WEP, so Android 10+ cannot add such a network. -->
+  <string name="wifi_wep_unsupported">Android can no longer add WEP networks. Add it by hand in Wi\u2011Fi settings.</string>
+  <string name="wifi_add_failed">Sorry, that network could not be added.</string>
 </resources>

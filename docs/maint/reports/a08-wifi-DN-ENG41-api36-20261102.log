@@ -1,0 +1,60 @@
+A-08 Wi-Fi result handler, A/B on the zxing_api36 emulator (Android 16), 2026-11-02
+
+Driven as a real scan, not a replay: a WIFI: QR code was generated with this fork's
+:core, put on the emulator's virtual-scene wall with
+  adb -s emulator-5556 emu virtualscene-image wall <png>
+and the app decoded it off the camera. The code has to be small enough on the poster
+to fit inside the viewfinder -- a 600 px code on an 800 px canvas is clipped by the
+frame and never decodes; 420 px on a 1400 px canvas works.
+
+DN-ENG41 could not be used for this: its camera cannot be aimed from the command
+line, and replaying a Wi-Fi row from history does not leave the result on screen
+long enough to press the button -- CaptureActivity.onResume resets the status view
+after onActivityResult has handled it. That is a separate oddity, not A-08.
+
+== BEFORE, scanning WIFI:S:A08TestNet;T:WPA;P:supersecret123;; ==
+  the result screen offers "Connect to Network", the toast says
+  "Requesting connection to network...", and then:
+
+    W WifiConfigManager: Unable to add network "A08TestNet"
+
+  Nothing else happens. That is the whole of defect A-08: addNetwork returns -1 for a
+  non-system app from Android 10 on, and the UI had already claimed success.
+
+== AFTER, the same barcode ==
+  Pressing the button starts com.android.settings/.wifi.addappnetworks.
+  AddAppNetworksActivity, which asks "Save this network? A08TestNet" with Cancel and
+  Save. Pressing Save:
+
+    V WifiConfigManager: Adding/Updating network A08TestNet          (system, uid 1000)
+    D WifiConfigManager: Enable disabled network: "A08TestNet" num=0
+    D WifiClientModeImpl: ConnectableState ... "A08TestNet"WPA_PSK nid=1
+
+  and the network is saved:
+
+    $ adb shell cmd wifi list-networks
+    Network Id      SSID                         Security type
+    0            AndroidWifi                      open
+    1            A08TestNet                       wpa2-psk
+
+  No toast on this path: the system dialog is the feedback, and a toast saying a
+  connection was requested would be the same lie as before, only earlier.
+
+== AFTER, WIFI:S:A08WepNet;T:WEP;P:abcdef1234;; ==
+  WEP has no equivalent in the network suggestion API, so it is reported rather than
+  silently dropped:
+
+    W WifiNetworkAdder: WEP cannot be expressed as a network suggestion
+
+  and the toast reads "Android can no longer add WEP networks. Add it by hand in
+  Wi-Fi settings." Screenshot: reports/a08-wep-unsupported-api36.png
+
+== What is not verified ==
+  The Android 10 route (addNetworkSuggestions) and the pre-Android-10 route (the old
+  WifiConfiguration path, kept because minSdk is 21). No device or emulator running
+  either version is available here. The branch that selects them is a plain
+  Build.VERSION.SDK_INT check; the code they run is not.
+
+  ACTION_WIFI_ADD_NETWORKS resolves on both machines that are available --
+  com.android.settings.wifi.addappnetworks.AddAppNetworksActivity on DN-ENG41 as well
+  as on the emulator -- so the ActivityNotFoundException fallback is also untested.
