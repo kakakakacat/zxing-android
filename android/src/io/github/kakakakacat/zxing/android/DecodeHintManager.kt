@@ -26,9 +26,7 @@ import java.util.regex.Pattern
 /**
  * The decode hints carried by a SCAN Intent or a scan URI.
  *
- * Public members for the same reason as [DecodeFormatManager]: `:app`'s Java
- * `CaptureActivity` is the caller and an `internal` function's name is mangled out of its
- * reach.
+ * Moved out of `:scanner` with [DecodeFormatManager], for the reason recorded there.
  *
  * @author Lachezar Dobrev
  */

@@ -25,11 +25,11 @@ import java.util.regex.Pattern
 /**
  * The format selection carried by a SCAN Intent or a scan URI.
  *
- * Both entry points are called from `:app`'s `CaptureActivity`, which is Java and sits in this
- * same package in a different module. That is why the members here are plain `public` rather
- * than `internal`: Kotlin mangles an `internal` function's name and Java cannot call it, so
- * `internal` would break the only caller while protecting nothing -- the class is public in
- * bytecode either way. See the Kotlin note in docs/maint/HANDOFF.md.
+ * Both entry points are called from `CaptureActivity`, and nothing else uses them. They lived
+ * in `:scanner` while that was the only way `:app`'s Java could reach them; once both sides
+ * were Kotlin, `internal` stopped `:app` from seeing them at all, and the choice was to widen
+ * the published AAR's API or to move them here, next to their one caller. See the Kotlin note
+ * in docs/maint/HANDOFF.md.
  */
 internal object DecodeFormatManager {
 
