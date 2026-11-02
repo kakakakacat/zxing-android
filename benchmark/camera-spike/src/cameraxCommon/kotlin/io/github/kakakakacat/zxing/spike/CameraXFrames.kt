@@ -23,6 +23,8 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.core.CameraXConfig
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import androidx.camera.core.AspectRatio
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
@@ -88,7 +90,16 @@ object CameraXFrames {
     // Asked for explicitly so the flavors decode comparable frames. Whatever the camera
     // actually gives back is printed in the result line, because a request is not a
     // guarantee and a timing against an unstated frame size says nothing.
+    //
+    // The aspect ratio has to be pinned as well as the size. Without it CameraX answered
+    // 1920x1440 on both test devices while the Camera1 path negotiated 1920x1080 — 38% more
+    // pixels per frame for CameraX, in a comparison whose whole point is that the two sides
+    // differ in one dimension. It was found by reading the frame sizes the two backends
+    // printed, which is why they are printed.
     val resolution = ResolutionSelector.Builder()
+        .setAspectRatioStrategy(
+            AspectRatioStrategy(AspectRatio.RATIO_16_9,
+                                AspectRatioStrategy.FALLBACK_RULE_AUTO))
         .setResolutionStrategy(
             ResolutionStrategy(Size(TARGET_WIDTH, TARGET_HEIGHT),
                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER))

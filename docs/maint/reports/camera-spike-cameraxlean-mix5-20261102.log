@@ -1,0 +1,53 @@
+# Phase 6 spike on the SECOND physical device.
+#
+# Xiaomi 25010PN30C (xuanyuan), Android 15 / API 35, SM8550, arm64-v8a, 5 cameras,
+# 4 KB pages, HyperOS OS2.0.207.0.VOACNXM, rooted with Magisk.
+#
+# Reached through the webcontrol root agent, not adb: no ADB listener was opened on this
+# phone. Same protocol as tools/maint/camera-spike-run.sh -- cold start, force-stop, 2 s
+# for the HAL to release, logcat streamed to a file, 15 runs, median reported. Every flavor
+# in this set was asked for, and got, a 1920x1080 frame.
+#
+# Two things this device needs that DN-ENG41 does not, both found by watching it fail:
+#   - "svc power stayon true". The screen times out partway through a 15-run loop and the
+#     paused activity stops receiving frames, which reads exactly like a backend failure.
+#   - "cmd appops set <pkg> CAMERA allow" as well as "pm grant". HyperOS revokes the
+#     runtime grant again after an app opens the camera without a user-visible prompt;
+#     "dumpsys package" then says granted=false and appops says "Uid mode: ignore", while
+#     CameraX logs "cannot open camera 0 without camera permission" in a 700 ms retry loop
+#     forever. Fifteen runs reported no result at all before this was understood.
+#
+device: 25010PN30C, sdk 35
+fingerprint: Xiaomi/xuanyuan/xuanyuan:15/AQ3A.240912.001/OS2.0.207.0.VOACNXM:user/release-keys
+package: io.github.kakakakacat.zxing.spike.cameraxlean, runs: 15, backCameraOnly=1
+
+run 1: backend=cameraxlean processToFirstFrameMs=789 createToFirstFrameMs=741 openToFirstFrameMs=719 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=6 region=1200x675 found=false
+run 2: backend=cameraxlean processToFirstFrameMs=833 createToFirstFrameMs=783 openToFirstFrameMs=765 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=4 region=1200x675 found=false
+run 3: backend=cameraxlean processToFirstFrameMs=792 createToFirstFrameMs=739 openToFirstFrameMs=720 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=5 region=1200x675 found=false
+run 4: backend=cameraxlean processToFirstFrameMs=811 createToFirstFrameMs=769 openToFirstFrameMs=747 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=3 region=1200x675 found=false
+run 5: backend=cameraxlean processToFirstFrameMs=812 createToFirstFrameMs=767 openToFirstFrameMs=746 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=4 region=1200x675 found=false
+run 6: backend=cameraxlean processToFirstFrameMs=791 createToFirstFrameMs=745 openToFirstFrameMs=724 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=5 region=1200x675 found=false
+run 7: backend=cameraxlean processToFirstFrameMs=809 createToFirstFrameMs=768 openToFirstFrameMs=746 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=5 region=1200x675 found=false
+run 8: backend=cameraxlean processToFirstFrameMs=783 createToFirstFrameMs=742 openToFirstFrameMs=719 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=3 region=1200x675 found=false
+run 9: backend=cameraxlean processToFirstFrameMs=768 createToFirstFrameMs=722 openToFirstFrameMs=700 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=4 region=1200x675 found=false
+run 10: backend=cameraxlean processToFirstFrameMs=788 createToFirstFrameMs=743 openToFirstFrameMs=725 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=4 region=1200x675 found=false
+run 11: backend=cameraxlean processToFirstFrameMs=781 createToFirstFrameMs=736 openToFirstFrameMs=716 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=6 region=1200x675 found=false
+run 12: backend=cameraxlean processToFirstFrameMs=786 createToFirstFrameMs=745 openToFirstFrameMs=723 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=4 region=1200x675 found=false
+run 13: backend=cameraxlean processToFirstFrameMs=784 createToFirstFrameMs=732 openToFirstFrameMs=713 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=3 region=1200x675 found=false
+run 14: backend=cameraxlean processToFirstFrameMs=798 createToFirstFrameMs=751 openToFirstFrameMs=725 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=3 region=1200x675 found=false
+run 15: backend=cameraxlean processToFirstFrameMs=801 createToFirstFrameMs=761 openToFirstFrameMs=735 frame=1920x1080 rowStride=1920 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=cameraxlean decodeMs=5 region=1200x675 found=false

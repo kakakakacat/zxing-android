@@ -1,3 +1,10 @@
+# SUPERSEDED for the backend comparison. Taken before the spike pinned CameraX's
+# aspect ratio, so CameraX here is answering 1920x1440 while Camera1 negotiates
+# 1920x1080 -- 38% more pixels on one side of a one-variable comparison. Section 1
+# of the decision record uses the later, pinned runs. This file is kept because
+# section 3's default-vs-limiter pairs were both measured under these conditions and
+# are still a fair comparison with each other.
+#
 # Phase 6 spike: CameraX's camera-validator retry, on an AVD that has no front camera.
 #
 # Emulator timings are inadmissible as a result (BENCHMARKS.md §10.7). This file is kept

@@ -154,8 +154,12 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 - [ ] Predictive back
 - [x] App launches, previews and survives on API 35 and API 36 emulators
 - [ ] Instrumentation suite run on API 35 and API 36 in CI (workflow written, not yet run)
-- [ ] Verified on a physical Android 15 or 16 device *(no such device available here —
-      will stay unticked until one is)*
+- [x] Verified on a physical **Android 15** device: the 21 `:scanner` instrumentation tests
+      pass on a Xiaomi 25010PN30C (API 35, SM8550), reached through a root agent rather than
+      adb — `docs/maint/reports/instrumentation-21-mix5-api35-20261102.log`. Android 16 is
+      still emulator-only, and neither device has 16 KB pages
+- [ ] Verified on a physical Android 16 device *(none available — will stay unticked until
+      one is)*
 
 ### Phase 3 — carried-forward defects
 
@@ -229,12 +233,15 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 - [x] Decision record comparing Camera1 / Camera2 / CameraX on OS coverage, device
       compatibility, APK size, startup latency and maintenance cost —
       [`docs/maint/decisions/0001-camera-backend.md`](docs/maint/decisions/0001-camera-backend.md).
-      Measured, not argued: `benchmark/camera-spike` builds the same app three times over
-      three camera stacks, so a size delta and a startup delta are attributable to the stack
-      and nothing else. CameraX reaches a decodable frame **158 ms (20%) sooner** than the
-      Camera1 stack that ships today, on 15 cold launches each; it costs **+558 KB**, of
-      which **351 KB is `camera-view` alone** and avoidable. One question is open and is the
-      maintainer's to settle: current CameraX needs **minSdk 23** and this project is at 21.
+      Measured on two physical devices, not argued: `benchmark/camera-spike` builds the same
+      app three times over three camera stacks, so a size delta and a startup delta are
+      attributable to the stack and nothing else. **The two devices disagree about
+      latency** — CameraX reaches a decodable frame 273 ms (29%) sooner on the Android 14
+      no-GMS phone and is 1 ms apart from Camera1 on the Android 15 flagship, over 15 cold
+      launches each — so the recommendation rests on maintenance and deprecation, not speed.
+      CameraX costs **+558 KB**, of which **351 KB is `camera-view` alone** and avoidable.
+      One question is open and is the maintainer's to settle: current CameraX needs
+      **minSdk 23** and this project is at 21.
 - [ ] CameraX adopted in `:scanner` (blocked on the minSdk question above)
 - [ ] If adopted: preview, ROI, result points and screen-coordinate mapping verified
 

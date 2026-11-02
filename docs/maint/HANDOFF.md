@@ -139,10 +139,12 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | A-16: the result screen in a portrait window | stacks, and the scanned text is on screen | API 36 emulator, `reports/a16-portrait-result-after.png` |
 | `:scanner:testDebugUnitTest` after A-16 | 84 tests, 0 failures | local |
 | 100× open-close stability loop after A-16 | 0 fatal exceptions | DN-ENG41, `reports/stability-100-a16-DN-ENG41-20261102.log` |
-| Phase 6 spike: cold launch to first decodable frame, 15 runs per flavor | camera1 860 ms, camerax 705 ms, cameraxlean 726 ms (medians, ranges disjoint) | DN-ENG41, `reports/camera-spike-*-DN-ENG41-20261102.log` |
 | Phase 6 spike: release APK, R8 on, two ABIs | 1,608,303 B; CameraX +558,174; without `camera-view` +207,382 | local, `reports/camera-spike-apk-size-20261102.log` |
 | Phase 6 spike: CameraX's one-camera retry | 5,987 ms → 114 ms with the back-camera limiter; no change on the two-camera phone | API 36 emulator + DN-ENG41, `reports/camera-spike-camerax-validator-api36-20261102.log` |
 | `YPlaneLuminanceSource` against a real `ImageProxy` | QR decoded, `rowStride=1920 pixelStride=1`, no copy | API 36 emulator, `reports/camera-spike-decode-api36-20261102.log` |
+| `:scanner:connectedDebugAndroidTest` on **real Android 15** | 21 tests, 0 failures | Mix5 (API 35, SM8550), `reports/instrumentation-21-mix5-api35-20261102.log` |
+| Phase 6 spike on a **second** physical device, 15 runs per flavor, 1920x1080 both sides | `onCreate`→first frame: camera1 742 ms, camerax 741 ms, cameraxlean 745 ms — **no difference** | Mix5, `reports/camera-spike-*-mix5-20261102.log` |
+| Phase 6 spike re-measured on DN-ENG41 with the aspect ratio pinned | camera1 955 ms, camerax 682 ms, cameraxlean 665 ms, one session | DN-ENG41, `reports/camera-spike-*-DN-ENG41-20261102.log` |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -156,12 +158,61 @@ latency, first-scan latency, CPU, memory, GC or power.
 - Host: macOS 27.2 arm64, JDK 25 (Android Studio JBR); Gradle toolchain targets JDK 17
 - Android SDK at `$ANDROID_HOME` = `/Users/dm/Library/Android/sdk`, platform 36, build-tools 36.0.0
 - Physical device: **DN-ENG41, Android 14 (API 34), serial `T3515NNFBC000055`, no GMS**
-  — the only real device available, and the only no-GMS verification point
+  — the no-GMS verification point, and where every L2 number in this repository comes from
+- Second physical device: **Xiaomi 25010PN30C "mix5", Android 15 (API 35), SM8550**, on the
+  user's home LAN and reached through a root agent rather than adb. See "The second device"
+  below. It is the Android 15 verification point; it is **not** an L2 device, because
+  nothing here locks its clocks and it is reached over a link that drops
 - Emulators created for this work: AVDs `zxing_api35` (Android 15) and `zxing_api36`
   (Android 16), Pixel 7 profile, arm64. Start with
   `emulator -avd zxing_api36 -no-snapshot -no-audio -camera-back virtualscene`
-- No Android 15/16 **physical** device is available. Anything needing a real camera on
-  those versions stays unverified, and the README says so.
+- No Android **16** physical device is available, and neither device has 16 KB pages, so
+  the alignment the AAR is built and checked for still has no hardware behind it. The README
+  says so.
+
+### The second device, and how to reach it
+
+**Xiaomi 25010PN30C (`xuanyuan`), Android 15 / API 35, HyperOS `OS2.0.207.0.VOACNXM`,
+SM8550, arm64-v8a, five cameras, `getconf PAGE_SIZE` = 4096.** The user calls it the mix5.
+It sits on the home LAN at `192.168.100.111` behind an iStoreOS soft router, and it is the
+first Android 15 hardware this project has been able to touch.
+
+**It is not reached over adb and no ADB listener was opened on it.** It runs the webcontrol
+root agent from the user's separate `~/router` project, and the router keeps a `ctl` client
+on `127.0.0.1:17900` that speaks to it over WebRTC. The useful endpoints are `POST /exec`
+(root shell, returns `{"output","exitCode"}`), `POST /push` (`{"path","data"}`, data
+base64, 64 MiB cap) and `POST /pull`.
+
+```sh
+ssh router                      # ~/.ssh/config: ssh.kakacat.net through cloudflared access
+# on the router, with the APK already copied there:
+openssl base64 -A -in /tmp/at.apk -out /tmp/at.b64          # the router has no base64(1)
+{ printf '{"path":"/data/local/tmp/x.apk","data":"'; cat /tmp/at.b64; printf '"}'; } > /tmp/p.json
+curl -s -m 600 -X POST 127.0.0.1:17900/push -H 'Content-Type: application/json' \
+     --data-binary @/tmp/p.json
+```
+
+Five things that will otherwise be rediscovered the hard way:
+
+1. **Put the command in a file, never inline.** The exec path evaluates the string twice, so
+   a `$f` in a shell loop arrives already expanded to nothing. Write the JSON with a quoted
+   heredoc and `curl --data-binary @file`, and put anything with variables into a script on
+   the phone — which is what `tools/maint/camera-spike-run-ondevice.sh` is for.
+2. **`cmd appops set <pkg> CAMERA allow` as well as `pm grant`.** HyperOS revokes the
+   runtime grant again once an app opens the camera without a user-visible prompt, and
+   CameraX's response is a silent 700 ms retry loop forever.
+3. **`svc power stayon true` before any loop.** The screen times out mid-run and a paused
+   activity stops getting frames; it reads as a backend failure.
+4. **`wm dismiss-keyguard` after `input keyevent KEYCODE_WAKEUP`.** An activity started
+   under the lockscreen does not resume.
+5. **The link is slow and drops.** Roughly 24 KB/s through the cloudflared tunnel on a bad
+   stretch, and one 16 MB transfer died halfway. Strip the APK to `arm64-v8a` and re-sign it
+   (`zip -d <apk> 'lib/x86_64/*' 'lib/armeabi-v7a/*'` then `apksigner sign --ks
+   ~/.android/debug.keystore`) — it halved the instrumentation APK from 12 MB to 6.3 MB —
+   send with `-o ServerAliveInterval=15`, and retry rather than assume a failure is real.
+
+The agent is the user's own and the phone is the user's own; nothing here was installed
+beyond the test APKs under `/data/local/tmp`, and the spike APKs remain installed.
 
 ### Traps, and the runbook for each
 
@@ -302,19 +353,38 @@ latency, first-scan latency, CPU, memory, GC or power.
 
 ## Start here if you are new to this file
 
+**There is a second physical device now, and it is an Android 15 one.** A Xiaomi
+25010PN30C (`xuanyuan`, API 35, SM8550, five cameras, 4 KB pages) on the user's home LAN,
+reached through the `~/router` webcontrol root agent rather than adb — **no ADB listener was
+opened on it**; APKs go over the control channel's `/push` and commands over `/exec`. The
+recipe, and the two traps that device has, are in "The second device" below.
+
+The first thing it bought: **the 21 `:scanner` instrumentation tests pass on real Android 15
+hardware**, closing a README item open since Phase 2
+(`reports/instrumentation-21-mix5-api35-20261102.log`).
+
+The second thing it bought was a correction.
+
 **Phase 6 has a decision record now, and it is the one thing waiting on the user.**
 `docs/maint/decisions/0001-camera-backend.md` compares Camera1, Camera2 and CameraX and
-recommends CameraX — measured on DN-ENG41 rather than argued, through
-`benchmark/camera-spike`, which builds the same application three times over three camera
-stacks so that a delta belongs to the stack and nothing else. CameraX reaches a decodable
-frame 158 ms (20%) sooner than the stack that ships today, with no overlap across 15 cold
-launches each, and costs +558 KB — of which 351 KB is `camera-view` alone and avoidable.
+recommends CameraX, through `benchmark/camera-spike`, which builds the same application
+three times over three camera stacks so that a delta belongs to the stack and nothing else.
+
+**Its first version led with latency and that was wrong.** On DN-ENG41 CameraX reaches a
+decodable frame 273 ms (29%) sooner; on the Mix5 the two are **1 ms apart over 15 cold
+launches each**, ranges almost fully overlapping. So the recommendation now rests on
+maintenance and deprecation — 1,285 lines of Camera1 quirk handling against a library that
+ships a per-device quirk database — and not on speed. CameraX costs +558 KB, of which
+351 KB is `camera-view` alone and avoidable.
+
+**Two devices disagreed about the headline of a record written from one.** That is the
+same rule `BENCHMARKS.md` already applies to L2 and it applies to spikes too.
 
 **The open question is not technical: current CameraX requires minSdk 23 and this project
 is at 21.** 1.4.2 is the last line that supports 21 and it was released on 2025-03-26. The
 record lays out both options and takes neither; see its last section.
 
-Three things the spike turned up that are worth knowing whatever is decided:
+Four things the spike turned up that are worth knowing whatever is decided:
 
 - **CameraX spends five seconds retrying when a device has only one camera.** It verifies
   that both lens facings exist. `setAvailableCamerasLimiter(DEFAULT_BACK_CAMERA)` removes it:
@@ -324,7 +394,12 @@ Three things the spike turned up that are worth knowing whatever is decided:
   camera buffer, no copy, on both CameraX flavors.
 - **DN-ENG41's back camera reports no flash unit and auto-focus OFF only**, from
   `dumpsys media.camera`. A-12's torch control and `AutoFocusManager` are therefore both
-  unexercised on the only physical device here.
+  unexercised on it. The Mix5 has five cameras and can test both.
+- **CameraX answers a revoked CAMERA permission with a silent 700 ms retry loop that never
+  ends and never reports.** Fifteen Mix5 runs produced no result and no exception before the
+  logcat line `cannot open camera 0 without camera permission` explained it. Whatever
+  replaces `ScannerView` has to keep reporting `ScannerError.PERMISSION_DENIED` rather than
+  inherit that silence.
 
 **Phase 3 is closed: all seven carried-forward defects are fixed**, each with its own
 commit and its own before/after on a device or an emulator. See "Phase 3" below; the
@@ -1010,9 +1085,16 @@ against a real `ImageProxy`. It had not; the reader was too late.
 
 ### Known gaps in the testing itself
 
-- One physical device only, and it is Android 14. No real-camera verification on
-  Android 15 or 16, and none on a low-end or a non-Qualcomm device. **Every L2 number is
-  from that one device**, at one pinned operating point, in one thermal state.
+- Two physical devices now, Android 14 and Android 15, both Qualcomm and both 4 KB pages.
+  No real-camera verification on Android 16, nothing non-Qualcomm, nothing low-end with a
+  modern OS, and no 16 KB page hardware. **Every L2 number is still from DN-ENG41 alone**,
+  at one pinned operating point, in one thermal state — the Mix5 is reached over a link that
+  drops and nothing locks its clocks, so it cannot produce an L-layer timing.
+- **The two devices disagreed about the Phase 6 latency result**, which is the clearest
+  demonstration in this repository of why a one-device number is not a result. The spike
+  numbers also drift between sessions on DN-ENG41 — its camera1 median read 810 ms and
+  955 ms the same afternoon with nothing changed — so only compare flavors measured in the
+  same session.
 - The L2 effect floor comes from a single pair of runs. More pairs would sharpen the
   tail estimate; the current floors take the conservative reading instead.
 - ~~13 samples report `INCORRECT` in L1…~~ **Settled.** It was not a charset gap — every

@@ -1,7 +1,9 @@
 # 0001 — The camera backend: Camera1, Camera2 or CameraX
 
 **Status:** proposed. One question is the user's to answer — see "The decision this needs".
-**Date:** 2026-11-02
+**Date:** 2026-11-02, **revised the same day on a second physical device** — the revision
+changed the recommendation's reasoning, not the recommendation. Read "Time to a decodable
+frame" before quoting any latency figure from an earlier reading of this file.
 **Phase:** 6. Also unblocks Phase 5 item 8, which has been waiting on it.
 
 Everything below that is a number was measured here, on the devices named, by the scripts
@@ -11,12 +13,16 @@ named. Where something was not measured, it says so instead of arguing.
 
 ## The short version
 
-**CameraX wins on every dimension that was measured**, and the one it loses — APK size —
-is mostly the fault of a single optional artifact that this project does not need.
+**CameraX is the recommendation, but not because it is faster.** It was measured as faster
+on the first device and is **indistinguishable from Camera1 on the second**, so startup
+latency is not an argument either way. What survives two devices is the maintenance
+argument, the deprecation argument, and the size figure — and the size figure is the one
+CameraX loses, mostly to a single optional artifact this project does not need.
 
 | | Camera1 (today) | CameraX | CameraX without `camera-view` |
 | --- | --- | --- | --- |
-| Cold launch to first decodable frame, DN-ENG41 | **860 ms** | **705 ms** | **726 ms** |
+| `onCreate` → first decodable frame, **DN-ENG41** (API 34, no-GMS) | 955 ms | **682 ms** | **665 ms** |
+| `onCreate` → first decodable frame, **Mix5** (API 35, SM8550) | **742 ms** | **741 ms** | 745 ms |
 | Release APK, R8 on, two ABIs | 1,608,303 B | +558,174 B (+34.7%) | +207,382 B (+12.9%) |
 | AndroidX libraries dragged in | — | AppCompat, fragment, activity, viewpager, … | none beyond lifecycle |
 | Resource entries added | — | 273 | 0 |
@@ -39,6 +45,9 @@ nothing else.
 - `tools/maint/camera-spike-run.sh <flavor> [runs] [serial]` launches a flavor N times,
   genuinely cold each time (force-stop, 2 s for the HAL to release, fresh process), and
   reports the median of the lines the activity prints.
+- `tools/maint/camera-spike-run-ondevice.sh` is the same protocol as a shell script that
+  runs *on* the phone, for the second device, which is reached through the webcontrol root
+  agent rather than adb. No ADB listener was opened on that phone.
 - `tools/maint/camera-spike-size.sh` builds all three at release and prints the size table.
 
 **This is a spike, not a benchmark layer.** It does not lock clocks, does not wait for a
@@ -57,32 +66,58 @@ decoder waits for. It is not the first frame drawn on screen, and the two are no
 
 ### 1. Time to a decodable frame
 
-DN-ENG41 (Android 14, two cameras), 15 cold launches per flavor, device idle on AC, clocks
-**not** locked. Median, with the full range in brackets.
+Two physical devices, 15 cold launches per flavor per device, screen on, clocks **not**
+locked. Median, with the full range in brackets. Every run in these tables got a 1920x1080
+frame, on both backends.
 
-| | camera1 | camerax | camerax + limiter | cameraxlean + limiter |
-| --- | --- | --- | --- | --- |
-| process start → first frame | 860 (839–911) | 705 (688–743) | 698 (671–759) | 726 (710–780) |
-| `onCreate` → first frame | 810 (788–857) | 652 (635–689) | 646 (620–698) | 673 (657–717) |
-| camera open → first frame | 759 (738–806) | 640 (622–676) | 631 (605–680) | 659 (642–701) |
+**DN-ENG41** — Android 14, no GMS, the phone every other measurement in this repository
+comes from. One session, the three flavors run back to back.
 
-Logs: `reports/camera-spike-camera1-DN-ENG41-20261102.log`,
-`reports/camera-spike-camerax-DN-ENG41-20261102.log`,
-`reports/camera-spike-camerax-backcameraonly-DN-ENG41-20261102.log`,
-`reports/camera-spike-cameraxlean-DN-ENG41-20261102.log`.
+| | camera1 | camerax | cameraxlean |
+| --- | --- | --- | --- |
+| process start → first frame | 1024 (996–1157) | 751 (721–1142) | 737 (696–782) |
+| `onCreate` → first frame | 955 (927–1081) | **682** (656–1074) | **665** (635–707) |
+| camera open → first frame | 891 (858–1004) | 661 (638–1048) | 649 (619–686) |
 
-**The ranges do not overlap**: Camera1's best launch of fifteen is slower than CameraX's
-worst. On the `onCreate` measurement, which is the fairest of the three because both clocks
-start in the same place, CameraX is **158 ms (20%) faster**.
+**Mix5** — Xiaomi 25010PN30C, Android 15, SM8550, five cameras. Same session rule.
 
-Two honest qualifications:
+| | camera1 | camerax | cameraxlean |
+| --- | --- | --- | --- |
+| process start → first frame | 789 (776–810) | 796 (769–824) | 791 (768–833) |
+| `onCreate` → first frame | **742** (728–764) | **741** (724–775) | 745 (722–783) |
+| camera open → first frame | 667 (642–679) | 723 (706–755) | 724 (700–765) |
+
+Logs: `reports/camera-spike-*-DN-ENG41-20261102.log` and
+`reports/camera-spike-*-mix5-20261102.log`.
+
+**So the latency argument does not generalise, and the first version of this file was wrong
+to lead with it.** On DN-ENG41 CameraX reaches a frame 273 ms (29%) sooner with ranges that
+barely touch; on the Mix5 the two are **1 ms apart on 15 runs each, with the ranges almost
+entirely overlapping**. One device is not a result — which is the rule this repository
+already applies to every L2 number, and it applies here too.
+
+A plausible reading, offered as a hypothesis and **not measured**: the Camera1 path's cost
+is `CameraConfigurationManager`'s parameter negotiation, which is a long sequence of
+`getParameters`/`setParameters` round trips into the HAL, and that hurts far more on a slow
+device than on a flagship. If that is right, CameraX's advantage is real but only on weak
+hardware. Testing it means instrumenting the open sequence, which the spike does not do.
+
+Three honest qualifications, all of which were found by looking rather than assumed:
 
 - **The "camera open → first frame" row flatters Camera1.** Camera1 cannot be opened until
   there is a surface to draw into, so its clock starts at `surfaceCreated` — after a wait
-  that the row does not count. CameraX's starts at the first line of its own setup. Camera1
-  still loses.
-- **This is one device.** Every number above belongs to DN-ENG41, which is also the only
-  physical device this project has. See "What this does not settle".
+  the row does not count. CameraX's clock starts at the first line of its own setup. This is
+  why the `onCreate` row, where both clocks start in the same place, is the one to read.
+- **The first reading of this comparison had a confound, now removed.** CameraX was
+  answering with 1920x1440 while Camera1 negotiated 1920x1080 — 38% more pixels per frame,
+  in a comparison whose whole point is that the two sides differ in one dimension. It was
+  visible in the frame sizes the spike prints, which is why it prints them. Pinning
+  `AspectRatioStrategy(RATIO_16_9)` fixed it; it moved DN-ENG41's CameraX median by about
+  35 ms and did not change any ordering.
+- **DN-ENG41 drifts between sessions.** Its camera1 median read 810 ms earlier in the same
+  day and 955 ms in the session above, with nothing changed. It is the thermally-saturated
+  phone described in HANDOFF.md trap 3 and these runs do not lock its clocks. Only compare
+  flavors measured in the same session; the tables above obey that.
 
 ### 2. APK size
 
@@ -140,6 +175,10 @@ wants anyway:
 | Android 16 emulator, 1 camera | 5,987 ms | **114 ms** |
 | DN-ENG41, 2 cameras | 705 ms | 698 ms |
 
+(These four are from an earlier session, before the aspect ratio was pinned, and so do not
+line up with section 1's tables. Both sides of each pair were measured alike, which is what
+this comparison needs; nothing here is a cross-session comparison.)
+
 So it costs nothing where both cameras exist and saves five seconds where one is missing.
 **A single-camera device is not exotic** — kiosk hardware, scanners, cheap tablets — and this
 is exactly the class of surprise that only shows up on a device nobody tested on. The
@@ -162,7 +201,7 @@ CameraX, so its 18 unit tests all feed it synthetic planes. The spike closed tha
 
 That is the structural claim of item 8 shown working end to end for the first time.
 
-### 5. What the reference device actually is
+### 5. What the two devices actually are
 
 `dumpsys media.camera` on DN-ENG41: two cameras, HAL `device@3.5`, and
 `android.info.supportedHardwareLevel = 3` — `LEVEL_3` — on **both**. So Camera2 and CameraX
@@ -172,7 +211,37 @@ latency numbers above is a shim artifact.
 Worth recording while the dump was open, because it bears on an earlier defect: the back
 camera reports `Has a flash unit: false` and `android.control.afAvailableModes = [0]`, which
 is auto-focus OFF only. This device has no torch and no auto-focus. A-12's torch work and
-`AutoFocusManager` are therefore both untested on the only physical device available.
+`AutoFocusManager` are therefore both untested on it.
+
+**Mix5** — Xiaomi 25010PN30C (`xuanyuan`), Android 15 / API 35, HyperOS
+`OS2.0.207.0.VOACNXM`, SM8550 (Qualcomm), arm64-v8a, **five cameras**, `getconf PAGE_SIZE`
+= 4096. A flagship, and the first Android 15 hardware this project has been able to touch.
+Both lens facings exist, so CameraX's camera validator never fires here.
+
+Its page size being 4096 is worth stating plainly: **this device does not test 16 KB page
+support.** The AAR is built and verified for 16 KB alignment, and that check still has no
+hardware behind it. What this device does prove is that `libzxingnative.so` loads and
+decodes on real Android 15.
+
+### 5b. What the second device cost to measure, which is itself a finding
+
+Two failures on the Mix5 looked exactly like backend bugs and were neither. Both are in
+`reports/camera-spike-*-mix5-20261102.log`, and both are the reason that file says how to
+reproduce it rather than just carrying numbers.
+
+- **Fifteen runs in a row reported no result at all, with no exception anywhere.** The cause
+  was in the CameraX log: `cannot open camera 0 without camera permission`, repeating in a
+  700 ms retry loop forever. `pm grant` had been run and had succeeded — and HyperOS had
+  revoked it again, because the app opened the camera without a user-visible prompt.
+  `dumpsys package` said `granted=false` and `appops` said `Uid mode: CAMERA: ignore`.
+  `cmd appops set <pkg> CAMERA allow` alongside `pm grant` is what makes it stick.
+- **A run that worked for 11 launches and then stopped** was the screen timing out: a paused
+  activity receives no frames. `svc power stayon true` first.
+
+Neither is a CameraX defect and neither would have shown up on a device driven by adb from a
+desk. They are recorded because **the next person to run this on a third device will hit
+them**, and because a silent infinite retry on a permission failure is worth knowing about
+in a library this project is considering shipping.
 
 ---
 
@@ -186,8 +255,12 @@ rediscovering the entries that matter on hardware this project does not own. Thi
 **one** physical device. That is the whole case, and it is a judgement rather than a
 measurement; anyone who disagrees should build a fourth flavor rather than argue.
 
-**Nothing on a second physical device, or on a non-Qualcomm one.** Same gap as every other
-measurement in this repository.
+**Nothing on a third physical device, and nothing non-Qualcomm.** There are two now, and
+they disagreed about the thing this record originally led with, which is the whole argument
+for not trusting one. Both are Qualcomm; neither is low-end-with-a-modern-OS, which is the
+combination most likely to behave differently again.
+
+**Nothing on hardware with 16 KB pages.** Both devices report `PAGE_SIZE` 4096.
 
 **No sustained-scanning comparison.** The spike measures the first frame of a cold start and
 stops. Whether CameraX's steady-state frame delivery costs more or less CPU than Camera1's is
@@ -235,6 +308,18 @@ is being tested on anything today either.
 
 ## Recommendation
 
+**The reasoning changed when the second device arrived; the recommendation did not.** The
+case for CameraX is no longer "it is faster" — on the Mix5 it is not. It is:
+
+- `android.hardware.Camera` has been deprecated since API 21 and this project carries
+  **1,285 lines** of its quirk handling, written for hardware from 2010.
+- CameraX ships a per-device quirk database that this project cannot reproduce with two
+  phones, and `CameraConfigurationUtils` is this project's attempt at the same thing.
+- On weak hardware CameraX did start measurably faster; on fast hardware it costs nothing.
+  A scanner's worst case is the cheap phone, and that is where the 273 ms was.
+
+The case against is 207 KB of APK and minSdk 23. Both are stated below and neither is hidden.
+
 1. Adopt **CameraX**, at **minSdk 23**, current stable line.
 2. Do **not** take `camera-view`. Drive a `SurfaceView` through `Preview.setSurfaceProvider`
    and keep `PreviewCoordinateMapper` for the overlay mapping. Saves 350,792 bytes of the
@@ -247,7 +332,14 @@ is being tested on anything today either.
    CameraX handles badly has somewhere to fall back to — the same shape as
    `ScannerOptions.setDecoderBackend`, which is already how the decoder backends are
    selected.
+6. **Grant the camera permission the way a real app does, and handle the denial.** The
+   Mix5 showed CameraX responding to a revoked permission with a silent 700 ms retry loop
+   that never ends and never reports. `ScannerView` already reports
+   `ScannerError.PERMISSION_DENIED` before opening anything; whatever replaces it must keep
+   doing that rather than inherit CameraX's silence.
 
 **If adopted, the second Phase 6 checkbox still has to be earned**: preview, ROI, result
 points and screen-coordinate mapping verified on a device, plus the 100× open/close stability
-loop and the 21 instrumentation tests, before the Camera1 path stops being the default.
+loop and the 21 instrumentation tests, before the Camera1 path stops being the default. Both
+devices are available for that now, and the 21 tests already pass on the Android 15 one —
+`reports/instrumentation-21-mix5-api35-20261102.log`.

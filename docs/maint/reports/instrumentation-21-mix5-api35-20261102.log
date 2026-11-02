@@ -1,0 +1,37 @@
+# :scanner instrumentation suite on a physical Android 15 device.
+#
+# The README had carried "Verified on a physical Android 15 or 16 device" as an open item
+# since Phase 2, for the honest reason that no such device existed here. One does now: a
+# Xiaomi 25010PN30C (xuanyuan), Android 15 / API 35, SM8550, arm64-v8a, reached through the
+# webcontrol root agent rather than adb -- no ADB listener was opened on this phone.
+#
+# How it was run, so it can be run again:
+#   ./gradlew :scanner:assembleDebugAndroidTest
+#   # strip the ABIs the phone does not have, so the transfer is 6 MB instead of 12:
+#   zip -d <apk> 'lib/x86_64/*' 'lib/armeabi-v7a/*' && apksigner sign --ks ~/.android/debug.keystore ...
+#   # ship it to the phone through the control channel and install:
+#   ctl /push {"path":"/data/local/tmp/zxing-at.apk","data":"<base64>"}
+#   ctl /exec pm install -t -r -g /data/local/tmp/zxing-at.apk
+#   ctl /exec am instrument -w io.github.kakakakacat.zxing.android.scanner.test/androidx.test.runner.AndroidJUnitRunner
+#
+# One thing this does NOT prove: 16 KB page support. getconf PAGE_SIZE on this device is
+# 4096, so the loader never had to honour the 16 KB alignment the AAR is built with. What it
+# does prove is that libzxingnative.so loads and decodes on real Android 15 hardware.
+#
+# What the suite covers is in HANDOFF.md; the 21 tests are 35 fixed frames over 16 formats,
+# a live format-switch test, the default-backend checks and the native backend.
+#
+# fingerprint / soc / page size, then the run:
+#
+Xiaomi/xuanyuan/xuanyuan:15/AQ3A.240912.001/OS2.0.207.0.VOACNXM:user/release-keys
+SM8550
+4096
+
+io.github.kakakakacat.zxing.android.scanner.DefaultBackendTest:.......
+io.github.kakakakacat.zxing.android.scanner.FrameDecodeTest:.
+io.github.kakakakacat.zxing.android.scanner.LiveFormatSwitchTest:.
+io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest:............
+
+Time: 0.608
+
+OK (21 tests)

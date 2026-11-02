@@ -2,39 +2,39 @@ device: DN-ENG41, sdk 34
 fingerprint: GigglePal/GigglePal_Companion/GigglePal_Companion:14/DN_ENG41_V1.3.8_20260309/T3501:userdebug/test-keys
 package: io.github.kakakakacat.zxing.spike.camera1, runs: 15
 
-run 1: backend=camera1 processToFirstFrameMs=911 createToFirstFrameMs=857 openToFirstFrameMs=806 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
-        backend=camera1 decodeMs=11 region=1200x675 found=false
-run 2: backend=camera1 processToFirstFrameMs=860 createToFirstFrameMs=810 openToFirstFrameMs=759 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
-        backend=camera1 decodeMs=14 region=1200x675 found=false
-run 3: backend=camera1 processToFirstFrameMs=908 createToFirstFrameMs=856 openToFirstFrameMs=799 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+run 1: backend=camera1 processToFirstFrameMs=1157 createToFirstFrameMs=1081 openToFirstFrameMs=1004 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=30 region=1200x675 found=false
+run 2: backend=camera1 processToFirstFrameMs=996 createToFirstFrameMs=933 openToFirstFrameMs=872 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
         backend=camera1 decodeMs=12 region=1200x675 found=false
-run 4: backend=camera1 processToFirstFrameMs=882 createToFirstFrameMs=831 openToFirstFrameMs=776 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
-        backend=camera1 decodeMs=13 region=1200x675 found=false
-run 5: backend=camera1 processToFirstFrameMs=865 createToFirstFrameMs=814 openToFirstFrameMs=759 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
-        backend=camera1 decodeMs=19 region=1200x675 found=false
-run 6: backend=camera1 processToFirstFrameMs=839 createToFirstFrameMs=788 openToFirstFrameMs=738 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
-        backend=camera1 decodeMs=22 region=1200x675 found=false
-run 7: backend=camera1 processToFirstFrameMs=880 createToFirstFrameMs=830 openToFirstFrameMs=780 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
-        backend=camera1 decodeMs=13 region=1200x675 found=false
-run 8: backend=camera1 processToFirstFrameMs=862 createToFirstFrameMs=812 openToFirstFrameMs=764 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
-        backend=camera1 decodeMs=11 region=1200x675 found=false
-run 9: backend=camera1 processToFirstFrameMs=853 createToFirstFrameMs=802 openToFirstFrameMs=745 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
-        backend=camera1 decodeMs=12 region=1200x675 found=false
-run 10: backend=camera1 processToFirstFrameMs=852 createToFirstFrameMs=802 openToFirstFrameMs=749 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
-        backend=camera1 decodeMs=12 region=1200x675 found=false
-run 11: backend=camera1 processToFirstFrameMs=856 createToFirstFrameMs=804 openToFirstFrameMs=755 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
-        backend=camera1 decodeMs=11 region=1200x675 found=false
-run 12: backend=camera1 processToFirstFrameMs=853 createToFirstFrameMs=802 openToFirstFrameMs=747 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
-        backend=camera1 decodeMs=12 region=1200x675 found=false
-run 13: backend=camera1 processToFirstFrameMs=840 createToFirstFrameMs=789 openToFirstFrameMs=741 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
-        backend=camera1 decodeMs=14 region=1200x675 found=false
-run 14: backend=camera1 processToFirstFrameMs=872 createToFirstFrameMs=821 openToFirstFrameMs=773 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+run 3: backend=camera1 processToFirstFrameMs=1008 createToFirstFrameMs=937 openToFirstFrameMs=858 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
         backend=camera1 decodeMs=17 region=1200x675 found=false
-run 15: backend=camera1 processToFirstFrameMs=858 createToFirstFrameMs=806 openToFirstFrameMs=757 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+run 4: backend=camera1 processToFirstFrameMs=1015 createToFirstFrameMs=949 openToFirstFrameMs=884 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=27 region=1200x675 found=false
+run 5: backend=camera1 processToFirstFrameMs=1002 createToFirstFrameMs=927 openToFirstFrameMs=868 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=20 region=1200x675 found=false
+run 6: backend=camera1 processToFirstFrameMs=1024 createToFirstFrameMs=955 openToFirstFrameMs=894 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=24 region=1200x675 found=false
+run 7: backend=camera1 processToFirstFrameMs=1048 createToFirstFrameMs=973 openToFirstFrameMs=899 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
         backend=camera1 decodeMs=10 region=1200x675 found=false
+run 8: backend=camera1 processToFirstFrameMs=1011 createToFirstFrameMs=946 openToFirstFrameMs=877 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=12 region=1200x675 found=false
+run 9: backend=camera1 processToFirstFrameMs=1025 createToFirstFrameMs=960 openToFirstFrameMs=894 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=39 region=1200x675 found=false
+run 10: backend=camera1 processToFirstFrameMs=1026 createToFirstFrameMs=968 openToFirstFrameMs=898 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=21 region=1200x675 found=false
+run 11: backend=camera1 processToFirstFrameMs=1070 createToFirstFrameMs=971 openToFirstFrameMs=886 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=11 region=1200x675 found=false
+run 12: backend=camera1 processToFirstFrameMs=1019 createToFirstFrameMs=951 openToFirstFrameMs=891 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=11 region=1200x675 found=false
+run 13: backend=camera1 processToFirstFrameMs=1089 createToFirstFrameMs=1029 openToFirstFrameMs=957 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=22 region=1200x675 found=false
+run 14: backend=camera1 processToFirstFrameMs=1097 createToFirstFrameMs=1029 openToFirstFrameMs=970 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=25 region=1200x675 found=false
+run 15: backend=camera1 processToFirstFrameMs=1015 createToFirstFrameMs=948 openToFirstFrameMs=890 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=27 region=1200x675 found=false
 
 runs with a result: 15
                              min  median     max       n
-processToFirstFrameMs        839     860     911      15
-createToFirstFrameMs         788     810     857      15
-openToFirstFrameMs           738     759     806      15
+processToFirstFrameMs        996    1024    1157      15
+createToFirstFrameMs         927     955    1081      15
+openToFirstFrameMs           858     891    1004      15
