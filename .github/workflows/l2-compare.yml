@@ -1,0 +1,95 @@
+name: L2 comparison
+
+# The one part of a benchmark a shared runner can do honestly.
+#
+# It does not measure anything: no locked clocks, no known thermal state, no device, so
+# any timing taken here would be a number nobody could compare to anything
+# (BENCHMARKS.md §6). What it does is read a result an operator measured on the reference
+# device and committed to docs/maint/reports/candidates/, pick the baseline that matches
+# its device, configuration and decoder backend, run the §10.6 gates, and put the verdict
+# in the job summary where a reviewer sees it.
+#
+# So a pull request touching the decode path carries a verdict instead of an opinion —
+# and when it carries no result at all, this says that out loud rather than going green.
+
+on:
+  push:
+    branches: [ maint/android, master ]
+  pull_request:
+    branches: [ maint/android, master ]
+  workflow_dispatch:
+
+jobs:
+  compare:
+    name: Judge candidate results against the baselines
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          # The decode-path check below diffs against the base of the pull request.
+          fetch-depth: 0
+
+      - name: Judge every committed candidate
+        id: judge
+        # Exit codes are the whole interface: 0 pass, 1 fail, 2 inconclusive, 3 a
+        # candidate could not be judged at all, 4 the manifest is broken.
+        #
+        # 2 does not fail the job on purpose. §10.6 makes `inconclusive` a first-class
+        # answer rather than a soft failure — two runs of the same binary are
+        # inconclusive and should be — and whether an inconclusive result is enough to
+        # merge on is a judgement a person makes with the report in front of them. 3 does
+        # fail: a result nobody could judge is a submission mistake, and the report names
+        # which baseline was missing.
+        run: |
+          set +e
+          python3 -I benchmark/tools/ci_compare.py \
+              --out-dir build/benchmark/ci-compare \
+              --summary "$GITHUB_STEP_SUMMARY"
+          code=$?
+          set -e
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          case "$code" in
+            0) echo "pass, or nothing to compare" ;;
+            2) echo "::warning title=L2 inconclusive::The gates could not tell a regression from noise. Read the job summary before merging a decode-path change." ;;
+            1) echo "::error title=L2 regression::A candidate run is slower than its baseline by more than the measured effect floor."; exit 1 ;;
+            3) echo "::error title=L2 result could not be judged::No baseline matches a candidate's device, configuration and backend, or the two result sets are not comparable."; exit 1 ;;
+            4) echo "::error title=Baseline manifest broken::docs/maint/reports/l2-baselines.json points at something that is not there or does not match."; exit 1 ;;
+            *) echo "::error::ci_compare.py exited $code"; exit 1 ;;
+          esac
+
+      - name: Say so when a decode-path change carries no measurement
+        # Deliberately a notice and not a failure. Plenty of changes under these paths are
+        # not performance changes, and a gate that cries wolf on every rename teaches
+        # people to ignore it. What it cannot do is stay silent: the whole point of the
+        # baselines is that a timing claim about this code has somewhere to come from.
+        if: github.event_name == 'pull_request'
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}" || true
+          base="origin/${{ github.base_ref }}"
+          changed=$(git diff --name-only "$base...HEAD" || true)
+          decode=$(printf '%s\n' "$changed" | grep -E \
+              '^(core/src/main/|scanner/src/main/|benchmark/android/src/main/|third_party/zxing-cpp)' || true)
+          candidates=$(ls docs/maint/reports/candidates/*.json 2>/dev/null || true)
+          if [ -n "$decode" ] && [ -z "$candidates" ]; then
+            {
+              echo ""
+              echo "### This pull request changes the decode path and carries no L2 result"
+              echo ""
+              echo "Changed:"
+              echo ""
+              printf '%s\n' "$decode" | sed 's/^/- `/; s/$/`/'
+              echo ""
+              echo "That is fine for a change that is not about speed. It is not fine for one that is:"
+              echo "no timing in the pull request description came from this repository's protocol."
+              echo "See \`docs/maint/reports/candidates/README.md\`."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::notice title=No L2 result::This pull request changes the decode path and carries no measured result. See the job summary."
+          fi
+
+      - name: Upload the comparison
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l2-comparison
+          path: build/benchmark/ci-compare
+          if-no-files-found: ignore

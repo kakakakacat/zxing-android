@@ -629,17 +629,43 @@ guess.
 | `l2-edef9d0a0-DN-ENG41-full-run2.json` | the same again, for the noise floor |
 | `l2-noise-floor-edef9d0a0-DN-ENG41.json` | the spread the floor came from |
 
-**What is left in Phase 4:**
+**Phase 4 is now closed.** L1, L2, L3 and L4 all exist, are baselined, and the last item
+on the list — the CI comparison step — is in.
 
-- **L3** (§11) — Macrobenchmark, physical device, cold start to first successful scan.
-  The hard part is the scene, not the harness: an unscripted scene makes the operator's
-  hand the dominant variable. Until the scene is fixed and photographed, L3 numbers are
-  inadmissible under §2.
-- **L4** (§12) — the sustained-scanning soak. This is the layer that would catch a native
-  decoder that is faster cold and slower hot.
-- **A CI comparison step.** `compare.py` exists and there is now a baseline to compare
-  against, but no workflow runs it. CI cannot produce a trustworthy timing on a shared
-  runner, so this needs a decision about where candidate runs come from.
+**How it answers "CI cannot produce a trustworthy timing", which was the open question.**
+It does not try to. No workflow runs a benchmark; `build.yml` only assembles the APKs.
+What `.github/workflows/l2-compare.yml` does is the half that was being skipped: an
+operator measures on the reference device and commits the result file to
+`docs/maint/reports/candidates/`, and `benchmark/tools/ci_compare.py` picks the baseline,
+runs the §10.6 gates and puts the verdict in the job summary. §13.3 is the whole of it.
+
+Three things in it are decisions rather than plumbing, and are the parts worth not
+reversing by accident:
+
+- **The baseline is selected on device, config *and decoder backend*.** compare.py
+  deliberately does not guard the backend, because across backends it is answering §10.6b's
+  A/B question. Selecting on it is what keeps the A/B and the regression check apart —
+  without it, the commit that moved the default to zxing-cpp would have had every later
+  candidate judged against a Java baseline, and the 56–82% win reported as a pass on a
+  change that did not cause it. `docs/maint/reports/l2-baselines.json` is the manifest,
+  and it is validated rather than trusted (exit 4, and a test that reads the real file).
+- **A baseline that records no backend must assert one, with a reason.** The `default` and
+  `full` baselines predate the field. A null that matched everything would silently judge a
+  native candidate against a Java run.
+- **`inconclusive` does not fail the build; "could not be judged" does.** Two runs of the
+  same binary are inconclusive and should be, so blocking on it would teach people to
+  waive it. A candidate with no matching baseline is a different thing — nobody can read
+  it — and it outranks `fail` when several candidates disagree.
+
+All five exit codes were watched coming out of the real tool against the real manifest
+before the workflow was committed (`reports/ci-compare-gate-checked-20261102.log`) —
+which is the same rule this file keeps arriving at: a check nobody has seen fail is a
+check nobody knows the shape of.
+
+An empty candidate directory is not a pass: when a pull request touches the decode path
+and carries no result, the summary says so and lists the files. A notice and not a
+failure, because most changes under those paths are not performance changes and a gate
+that cries wolf gets ignored.
 
 **The thermal question is settled, by amending the rule.** Every result from DN-ENG41
 carries `THERMAL_THROTTLE` or `THROTTLE_WAIT_DISABLED`, because the phone sits above its

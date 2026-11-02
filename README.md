@@ -229,6 +229,12 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 - [x] L4 baseline committed: DN-ENG41, both backends, 12-minute soaks in one session.
       **CameraX costs ~60% more CPU to keep scanning** (118% of one core against 74%);
       neither backend leaks (`docs/maint/reports/l4-verdict-DN-ENG41-20261102.md`)
+- [x] CI judges a measured result instead of taking one
+      (`.github/workflows/l2-compare.yml`, `benchmark/tools/ci_compare.py`). No workflow
+      runs a benchmark — a shared runner has no locked clocks and no device. An operator
+      commits a result to `docs/maint/reports/candidates/`; CI picks the baseline by
+      device, configuration **and decoder backend**, runs the gates and publishes the
+      verdict. `inconclusive` does not fail the build; a candidate nobody can judge does
 
 ### Phase 5 — Kotlin and native decoding
 

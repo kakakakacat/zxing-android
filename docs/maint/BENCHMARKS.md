@@ -1024,7 +1024,7 @@ reason, and that is exactly the shape of a result that looks healthy and is not.
 
 ## 13. The comparison tool
 
-Two pieces. `benchmark/tools/l2_report.py` **is built**; `benchmark/tools/compare.py` is not.
+Three pieces, all built: `benchmark/tools/l2_report.py` turns a run into a result file, `benchmark/tools/compare.py` turns two result files into a verdict, and `benchmark/tools/ci_compare.py` is what CI runs over the committed baselines.
 
 ### 13.1 `l2_report.py` — Microbenchmark output into the §8 envelope
 
@@ -1062,8 +1062,8 @@ It writes `verdict.json`, `cases.csv` and `report.md`, and exits **0** `pass`, *
 `fail`, **2** `inconclusive`, **3** the two result sets could not be compared at all —
 different frames, device, API level or configuration, each named in the output.
 
-CI has no step for it yet; one is added when there is a baseline to compare against, so
-that a pull request touching the decode path carries a verdict instead of an opinion.
+CI runs it through `ci_compare.py`; §13.3 is how, and why CI is allowed to judge a
+number it is not allowed to take.
 
 #### Warnings that block, and the one switch
 
@@ -1143,8 +1143,82 @@ to their operating point is why that is written down rather than averaged away.
 - Its tests cover each gate in §10.6, including every `inconclusive` reason, with
   synthetic result files.
 
-CI has no step for it yet; one is added when it exists, so that pull requests touching the
-decode path carry a verdict instead of an opinion.
+### 13.3 `ci_compare.py` — the step CI is allowed to run
+
+**CI cannot produce an L2 number.** A shared runner has no locked clocks, no known
+thermal state and no device, so a timing taken there is not comparable to anything and §6
+forbids keeping it. That is why no workflow runs a benchmark, and why `build.yml` only
+*assembles* the L2 APK.
+
+It can still do the other half, which is the half that gets skipped: reading a result
+somebody did measure, against the right baseline, under the gates. `.github/workflows/l2-compare.yml`
+runs `ci_compare.py` on every push and pull request.
+
+**The flow.** An operator runs the benchmark on the reference device, converts it with
+`l2_report.py`, and commits the result to `docs/maint/reports/candidates/`. CI picks the
+baseline, runs §10.6, writes the verdict into the job summary and uploads
+`verdict.json`, `cases.csv` and `report.md`. The candidate directory's README has the
+commands and the rule for taking a candidate away again.
+
+**Which baseline, and why that is a tool's job rather than a flag.** A candidate is
+judged against the committed result that shares its **device label, `config` and decoder
+backend**, out of `docs/maint/reports/l2-baselines.json`. Device and configuration are
+obvious. The backend is in that key although compare.py deliberately does *not* guard it
+(§10.6b): across backends compare.py answers "which decoder is faster", which is a real
+question and not a regression check. Selecting on the backend is what keeps the two
+apart — without it, the day the default moved from Java to zxing-cpp, every candidate
+would have been judged against a baseline from the other decoder and the 56–82% win would
+have been reported as a pass on a change that did not cause it.
+
+**A null backend does not match everything.** The `default` and `full` baselines predate
+both the `FrameDecoder` seam and the `backend` field, so their files record none. The
+manifest may still say which decoder produced them — there was one decoder in the tree —
+but it has to say so with `backend_asserted` and a `backend_note` giving the reason, which
+`ci_compare.py --check` enforces and every report prints. An unexplained null would
+quietly match a native candidate.
+
+**The manifest is checked, not trusted.** Every entry must name a file that exists, is
+layer L2, and whose device, config and backend are what the entry claims; keys must be
+unique and must match their own fields; every entry needs a `note` saying why it is a
+baseline. A manifest that selects the wrong file is the one failure mode a comparison tool
+must not have, so it is a hard error (exit 4) and `test_ci_compare.py` checks the
+committed manifest itself on every push.
+
+**Exit codes and what CI does with them.**
+
+| | | CI |
+| --- | --- | --- |
+| 0 | `pass`, or no candidate submitted | green |
+| 1 | `fail` — slower than baseline past the effect floor | **fails the job** |
+| 2 | `inconclusive` | green, with a warning annotation |
+| 3 | a candidate could not be judged at all | **fails the job** |
+| 4 | the manifest is broken | **fails the job** |
+
+**Each of those five answers was watched coming out of the real tool, against the real
+manifest**, before the workflow was committed — a candidate that is its own baseline, the
+same file 20% slower, a configuration nothing is baselined on, and a manifest pointing at
+a file that is not there:
+`reports/ci-compare-gate-checked-20261102.log`. A gate nobody has seen fail is a gate
+nobody knows the shape of.
+
+**2 does not fail on purpose.** §10.6 makes `inconclusive` a first-class answer rather
+than a soft failure — two runs of the same binary are inconclusive and should be — and
+whether an inconclusive result is enough to merge on is a judgement a person makes with
+the report in front of them. **3 does fail**, and it is the one worth defending: a result
+nobody could judge is the most expensive thing to let pass silently, which is why
+`unjudged` outranks `fail` when several candidates disagree.
+
+**An empty candidate directory is not a pass, and the summary says so.** When a pull
+request changes `core/src/main/`, `scanner/src/main/`, `benchmark/android/src/main/` or
+the zxing-cpp submodule and carries no result at all, the job adds a notice listing the
+changed files. Deliberately a notice and not a failure: plenty of changes under those
+paths are not performance changes, and a gate that cries wolf on every rename teaches
+people to ignore it. What it must not do is stay silent.
+
+**What this still does not give anyone.** The candidate comes from one device, in one
+thermal state, at one pinned operating point, run once — every §6 caveat and every caveat
+in §10.6c applies unchanged. CI checks that a claim was measured under the protocol and
+judged against the right baseline. It does not make one device a population.
 
 ---
 

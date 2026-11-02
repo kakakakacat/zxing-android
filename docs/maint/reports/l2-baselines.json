@@ -1,0 +1,50 @@
+{
+  "comment": [
+    "Which committed L2 result is the baseline for a candidate run, and why.",
+    "Read by benchmark/tools/ci_compare.py; the rules are BENCHMARKS.md section 13.3.",
+    "A candidate selects a baseline by device label, config and decoder backend -- the",
+    "three things that have to match before a difference belongs to the change under",
+    "test. Everything else compare.py guards for itself (frames, dataset, API level).",
+    "Adding an entry means deciding that this file is what future runs are judged",
+    "against. It is a decision, not an index of the directory: result files that record",
+    "a question rather than a baseline are deliberately absent."
+  ],
+  "baselines": [
+    {
+      "key": "DN-ENG41/mixed/native",
+      "file": "l2-ab-602d368c4-DN-ENG41-native.json",
+      "device": "DN-ENG41",
+      "config": "mixed",
+      "backend": "native",
+      "note": "The shipping decode path since ebe1708b4. 27 cases, clocks locked, zxing-cpp options matched to the Java reader's effort level (BENCHMARKS.md section 10.6c)."
+    },
+    {
+      "key": "DN-ENG41/mixed/java",
+      "file": "l2-ab-602d368c4-DN-ENG41-java.json",
+      "device": "DN-ENG41",
+      "config": "mixed",
+      "backend": "java",
+      "note": "The fallback decode path, measured in the same session as the native one. Kept as a baseline because setDecoderBackend(JAVA) is a supported choice and can regress on its own."
+    },
+    {
+      "key": "DN-ENG41/default/java",
+      "file": "l2-9b7f7a50c-DN-ENG41-default-ci.json",
+      "device": "DN-ENG41",
+      "config": "default",
+      "backend": "java",
+      "backend_asserted": true,
+      "backend_note": "The file records no backend: it predates both the FrameDecoder seam and the field. There was one decoder in the tree when it was taken and it was the Java one, so the backend is asserted here rather than read. A native candidate must not be judged against it.",
+      "note": "The hd/default slice, full cool-down wait. The narrow regression check for the Java path."
+    },
+    {
+      "key": "DN-ENG41/full/java",
+      "file": "l2-edef9d0a0-DN-ENG41-full-run1.json",
+      "device": "DN-ENG41",
+      "config": "full",
+      "backend": "java",
+      "backend_asserted": true,
+      "backend_note": "Same as the default slice above: taken before the backend field existed, on a tree with one decoder in it.",
+      "note": "The full 135-case matrix. run2 is the same binary again and is what the effect floor was measured from, so it is not a baseline -- comparing a candidate against either run is the same comparison."
+    }
+  ]
+}

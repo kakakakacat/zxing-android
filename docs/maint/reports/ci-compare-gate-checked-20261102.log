@@ -1,0 +1,105 @@
+# The CI comparison gate, watched producing each of its answers
+
+Date: 2026-11-02. Host: macOS, python3 -I. Nothing was measured here -- every
+candidate below is a committed result file, or that file with its numbers scaled,
+which is exactly what the gate is for: it judges a measurement, it does not take one.
+
+## A candidate that is its own baseline -- expect inconclusive (2)
+
+```
+baseline manifest: 4 entries, all readable
+## L2 comparison
+
+### `l2-ab-602d368c4-DN-ENG41-native.json` — **inconclusive**
+
+Baseline `DN-ENG41/mixed/native` (`l2-ab-602d368c4-DN-ENG41-native.json`), selected on device, config and backend.
+
+Every case came back inconclusive. The per-case reasons are in the uploaded `report.md`.
+
+Read through under section 10.6: NO_SUSTAINED_PERFORMANCE_MODE, THROTTLE_WAIT_DISABLED.
+
+exit 2
+```
+
+## The same file with every median 20% slower -- expect fail (1)
+
+```
+baseline manifest: 4 entries, all readable
+## L2 comparison
+
+### `l2-synthetic-slower.json` — **fail**
+
+Baseline `DN-ENG41/mixed/native` (`l2-ab-602d368c4-DN-ENG41-native.json`), selected on device, config and backend.
+
+| Case | Δ | Verdict | Why |
+| --- | --- | --- | --- |
+| `endToEnd[FHD_HIT_1D_DEFAULT]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[FHD_HIT_1D_ONED_ONLY_UPCA]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[FHD_HIT_1D_QR_ONLY]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[FHD_HIT_QR_DEFAULT]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[FHD_HIT_QR_ONED_ONLY_UPCA]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[FHD_HIT_QR_QR_ONLY]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[FHD_MISS_DEFAULT]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[FHD_MISS_ONED_ONLY_UPCA]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[FHD_MISS_QR_ONLY]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[HD_HIT_1D_DEFAULT]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[HD_HIT_1D_ONED_ONLY_UPCA]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[HD_HIT_1D_QR_ONLY]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[HD_HIT_QR_DEFAULT]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[HD_HIT_QR_ONED_ONLY_UPCA]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[HD_HIT_QR_QR_ONLY]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[HD_MISS_DEFAULT]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[HD_MISS_ONED_ONLY_UPCA]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[HD_MISS_QR_ONLY]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[VGA_HIT_1D_DEFAULT]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[VGA_HIT_1D_ONED_ONLY_UPCA]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[VGA_HIT_1D_QR_ONLY]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[VGA_HIT_QR_DEFAULT]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[VGA_HIT_QR_ONED_ONLY_UPCA]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[VGA_HIT_QR_QR_ONLY]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[VGA_MISS_DEFAULT]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[VGA_MISS_ONED_ONLY_UPCA]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+| `endToEnd[VGA_MISS_QR_ONLY]` | +20.0% | fail | 20.0% slower, intervals disjoint |
+
+Read through under section 10.6: NO_SUSTAINED_PERFORMANCE_MODE, THROTTLE_WAIT_DISABLED.
+
+exit 1
+```
+
+## The java A/B run, which has its own baseline -- expect inconclusive (2)
+
+```
+baseline manifest: 4 entries, all readable
+## L2 comparison
+
+### `l2-ab-602d368c4-DN-ENG41-java.json` — **inconclusive**
+
+Baseline `DN-ENG41/mixed/java` (`l2-ab-602d368c4-DN-ENG41-java.json`), selected on device, config and backend.
+
+Every case came back inconclusive. The per-case reasons are in the uploaded `report.md`.
+
+Read through under section 10.6: NO_SUSTAINED_PERFORMANCE_MODE, THROTTLE_WAIT_DISABLED.
+
+exit 2
+```
+
+## A config nothing is baselined on -- expect unjudged (3), not a pass
+
+```
+baseline manifest: 4 entries, all readable
+## L2 comparison
+
+### `l2-synthetic-qr-only.json` — **unjudged**
+
+Not judged: no committed baseline for DN-ENG41/qr_only/native. Baselines available: DN-ENG41/default/java, DN-ENG41/full/java, DN-ENG41/mixed/java, DN-ENG41/mixed/native. A run of a device, configuration or decoder backend nothing has been baselined on cannot be judged -- take the baseline first, or say in the pull request why this run is not a regression check.
+
+exit 3
+```
+
+## A manifest pointing at a file that is not there -- expect 4, and nothing judged
+
+```
+the baseline manifest is not usable:
+  'DN-ENG41/mixed/native': no such result file: l2-does-not-exist.json
+exit 4
+```
