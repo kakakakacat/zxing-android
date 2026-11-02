@@ -1,0 +1,16 @@
+device: DN-ENG41 android 14 (sdk 34)
+package: io.github.kakakakacat.zxing.android, cycles: 100
+  ...10
+  ...20
+  ...30
+  ...40
+  ...50
+  ...60
+  ...70
+  ...80
+  ...90
+  ...100
+--- FATAL exceptions
+--- camera errors
+--- summary
+  fatal_exceptions=0

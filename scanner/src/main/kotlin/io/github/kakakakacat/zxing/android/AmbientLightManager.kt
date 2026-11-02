@@ -37,11 +37,15 @@ class AmbientLightManager(
 ) : SensorEventListener {
 
   private val frontLightMode: FrontLightMode = frontLightMode ?: FrontLightMode.OFF
+  private val torchPolicy = TorchPolicy()
   private var cameraManager: CameraManager? = null
   private var lightSensor: Sensor? = null
 
   fun start(cameraManager: CameraManager?) {
     this.cameraManager = cameraManager
+    // A camera that has just been opened has its torch off, whatever the policy last
+    // asked for on the previous one.
+    torchPolicy.reset()
     if (frontLightMode == FrontLightMode.AUTO) {
       val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
       val sensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
@@ -58,30 +62,22 @@ class AmbientLightManager(
       sensorManager.unregisterListener(this)
       cameraManager = null
       lightSensor = null
+      torchPolicy.reset()
     }
   }
 
   override fun onSensorChanged(sensorEvent: SensorEvent) {
-    val ambientLightLux = sensorEvent.values[0]
-    val manager = cameraManager
-    if (manager != null) {
-      if (ambientLightLux <= TOO_DARK_LUX) {
-        manager.setTorch(true)
-      } else if (ambientLightLux >= BRIGHT_ENOUGH_LUX) {
-        manager.setTorch(false)
-      }
-    }
+    val manager = cameraManager ?: return
+    // Was defect A-12: this called setTorch on every callback, five a second, each one
+    // reading the camera's parameters and each change tearing down and rebuilding the
+    // AutoFocusManager. TorchPolicy says when a change is actually wanted, and null --
+    // the common case by far -- means the camera is not touched at all.
+    val wanted = torchPolicy.decide(sensorEvent.values[0], sensorEvent.timestamp) ?: return
+    manager.setTorch(wanted)
   }
 
   override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
     // do nothing
   }
 
-  private companion object {
-    // `private` on each one, not just on the companion: a `const val` in a private
-    // companion is still emitted as a *public* static field on the enclosing class, and
-    // these were private in Java. The API diff is what noticed.
-    private const val TOO_DARK_LUX = 45.0f
-    private const val BRIGHT_ENOUGH_LUX = 450.0f
-  }
 }

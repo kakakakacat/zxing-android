@@ -1,0 +1,53 @@
+A-12 ambient-light torch control, A/B on the zxing_api36 emulator (Android 16),
+with the regression checks on DN-ENG41 and both emulators. 2026-11-02
+
+Measured with tools/maint/flap-light-sensor.sh: the front light set to AUTO, then
+the emulator's light sensor driven across both thresholds -- 5 lux and 900 lux,
+alternating every half second for six seconds. A physical device's light sensor
+cannot be driven from here, which is why this one is on an emulator.
+
+What is counted is CameraConfiguration's own log line, one per actual change of the
+camera's flash mode. That is the thing with a cost: CameraManager.setTorch tears
+down the AutoFocusManager and builds a new one around every one of them.
+
+  BEFORE: 6 flash-mode changes in 6 seconds
+    [torch, on]  x6
+  AFTER:  1
+    [torch, on]
+
+The after-run was repeated three times, twice with the scratch script and once with
+the committed one, and gave 1 every time; the before-run was reproduced with the
+committed script too.
+
+Note what the emulator cannot show. Its camera reports no supported flash modes, so
+the torch never actually comes on and getTorchState keeps returning false. That is
+why only the "on" direction appears in the log: a setTorch(false) matches the state
+the camera reports and is dropped before it logs anything. It makes the before-count
+a count of on-attempts rather than of toggles, which is if anything the kinder
+reading of the old code.
+
+== The rule itself ==
+
+TorchPolicy carries the decision, away from the camera and the sensor, and has 8
+unit tests in :scanner. They were checked for teeth: deleting the interval check
+fails 4 of them.
+
+  $ ./gradlew :scanner:testDebugUnitTest
+  77 tests, 0 failures            (69 before, + 8 TorchPolicyTest)
+
+  with the interval check deleted: 77 tests, 4 failures --
+    aFlipBackIsHeldOffUntilTheIntervalHasPassed
+    theIntervalIsBetweenChanges_notSinceTheFirstOne
+    resetMakesTheNextDecisionImmediateAgain
+    aShorterIntervalIsHonoured
+
+== Nothing else moved ==
+
+  :scanner:connectedDebugAndroidTest   21 tests, 0 failures, on all three:
+                                       zxing_api36 (16), zxing_api35 (15), DN-ENG41 (14)
+  100x open-close stability loop       fatal_exceptions=0, no camera errors
+                                       (reports/stability-100-a12-DN-ENG41-20261102.log)
+  tools/maint/api-diff.sh :scanner     AmbientLightManager's companion disappears, its
+                                       two constants having moved; TorchPolicy appears
+                                       as the documented internal-is-public widening.
+                                       Nothing else changes.

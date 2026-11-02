@@ -124,6 +124,10 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | The export sweep | a file dated a month earlier is deleted, a recent one kept | DN-ENG41, same log |
 | A-08: scanning a WPA `WIFI:` barcode | before, `Unable to add network`; after, the system "Save this network?" prompt and the SSID in `cmd wifi list-networks` | API 36 emulator, `reports/a08-wifi-DN-ENG41-api36-20261102.log` |
 | A-08: a WEP barcode | reported, not silently dropped | API 36 emulator, `reports/a08-wep-unsupported-api36.png` |
+| A-12: six seconds of a flapping light sensor | 6 flash-mode changes before, 1 after, reproduced three times | API 36 emulator, `reports/a12-torch-flapping-api36-20261102.log` |
+| `:scanner:testDebugUnitTest` after A-12 | 77 tests, 0 failures; 4 fail with the interval check deleted | local |
+| `:scanner:connectedDebugAndroidTest` after A-12 | 21 tests, 0 failures | DN-ENG41 **and** API 35 + 36 emulators |
+| 100× open-close stability loop after A-12 | 0 fatal exceptions, 0 camera errors | DN-ENG41, `reports/stability-100-a12-DN-ENG41-20261102.log` |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -679,8 +683,8 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
 ### Phase 3 — carried-forward defects (independent; can be picked up any time)
 
 All of these survived the Kotlin conversion untouched, by decision; **A-06, A-07, A-08,
-A-09 and A-10 have since been fixed**. What is left is A-12 and A-16, and neither is in
-`:app`: A-12 is `AmbientLightManager` in `:scanner`, A-16 is the capture layout.
+A-09, A-10 and A-12 have since been fixed**. What is left is **A-16**, the capture
+layout.
 
 **A-09 is fixed**, and the one-command repro is now the check that it stays fixed:
 
@@ -813,7 +817,34 @@ handled the replay, so the result flashes and the preview comes back. It is why 
 to be driven on the emulator rather than from a seeded history row on DN-ENG41. Not part
 of A-08 and not in the audit; worth a look.
 
-- **A-12** Ambient-light torch control rebuilds the autofocus manager on every toggle.
+**A-12 is fixed, and the interesting part is which oscillation actually matters.** The
+lux thresholds are 45 and 450 and were already far apart, so a *steady* scene never
+oscillated. The loop that bites is the torch's own light: switching it on raises the
+measured lux, which can push the reading past the bright threshold, which switches it off,
+which drops the reading back under the dark one. **No threshold can see that happening**,
+because the sensor cannot tell the torch's light from the room's. So the fix is a floor on
+how often the state may flip — three seconds — not a wider dead band.
+
+`TorchPolicy` holds the rule, away from the camera and the sensor, which is the only
+reason it is a class of its own: it can be unit-tested, and it has 8 tests that were
+watched failing (4 of them) when the interval check is deleted. `AmbientLightManager` now
+calls `setTorch` only when the answer changes, so a steady scene does not touch the camera
+at all — the old code called it five times a second, each call reading the camera's
+parameters.
+
+**Measured on the API 36 emulator**, whose light sensor can be driven (`adb emu sensor set
+light`) where a physical one cannot: six seconds of a sensor flapping across both
+thresholds cost **6** flash-mode changes before and **1** after, and every one of the 6
+had torn down and rebuilt the `AutoFocusManager`. `tools/maint/flap-light-sensor.sh` is
+that measurement, and it reproduces both numbers. One caveat worth knowing: the emulator's
+camera reports no flash modes, so only the "on" direction ever reaches the log.
+
+**Left alone deliberately:** the teardown and rebuild inside `CameraManager.setTorch`.
+`AutoFocusManager.stop()` sets a `stopped` flag it never clears, so the object genuinely
+cannot be restarted, and making it restartable means reasoning about an in-flight
+`AutoFocusTask` resurrecting a stopped manager. It is now bounded by the rate check, and
+the camera stack is Phase 6's decision.
+
 - **A-16** Android 16 ignores `screenOrientation` on large screens, so the
   landscape-designed capture UI runs portrait. The crop mapping is fixed; the **layout**
   and the framing-rect shape still assume landscape.

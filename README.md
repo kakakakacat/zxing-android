@@ -168,7 +168,8 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       book-search URL matcher accepts https too
 - [x] **A-10** App-share picker and the browser special case: `<queries>` declared, and
       the picker asks for launcher activities instead of every installed application
-- [ ] **A-12** Ambient-light torch control rebuilds the autofocus manager on every toggle
+- [x] **A-12** Ambient-light torch control: a rate check, so the torch's own light
+      cannot flap it and rebuild the autofocus manager each time
 
 ### Phase 4 — measurement before optimisation
 

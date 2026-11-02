@@ -12,6 +12,14 @@ API may still change between minor versions.
 ## [Unreleased]
 
 ### Fixed
+- **A-12: the automatic front light no longer flaps.** With the front light set to AUTO,
+  every light-sensor reading called into the camera, and every reading that crossed a
+  threshold changed the flash mode — which tears down and rebuilds the autofocus manager
+  each time. The decision now lives in one place with a three-second floor between
+  changes, which is what the torch's own light needs: switching it on raises the measured
+  lux, and no threshold can tell that apart from the room getting brighter. Six seconds of
+  a sensor flapping across both thresholds cost six flash-mode changes before and one
+  after.
 - **A-08: scanning a `WIFI:` barcode adds the network again.** `WifiManager.addNetwork`
   has returned failure for ordinary apps since Android 10, so the button logged "Unable
   to add network" behind a toast claiming a connection had been requested. The network is
