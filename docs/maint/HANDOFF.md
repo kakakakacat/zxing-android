@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `a85e87079` on branch `maint/android`.
+Last updated at commit `2038009ba` on branch `maint/android`.
 
 ---
 
@@ -79,6 +79,10 @@ Last updated at commit `a85e87079` on branch `maint/android`.
 | `aac6682fb` | **The release would have published an unresolvable AAR**; fixed and guarded |
 | `d48de88f3` | **A-09 fixed**: https everywhere this app builds a URL, both schemes where it matches one |
 | `a85e87079` | **A-10 fixed**: `<queries>` declared, and the picker asks for launcher activities |
+| `c80ac0496` | **A-06, A-07 fixed**: exports go through a `FileProvider`, not the SD card root |
+| `173541d91` | **A-08 fixed**: a scanned network is added by the route the platform allows |
+| `69b3c7062` | **A-12 fixed**: a floor on torch toggles, because the torch moves the sensor |
+| `2038009ba` | **A-16 fixed**, and with it **all of Phase 3** |
 
 Nothing is uncommitted. Nothing is released; no tag has been pushed.
 
@@ -291,6 +295,10 @@ latency, first-scan latency, CPU, memory, GC or power.
 ---
 
 ## Start here if you are new to this file
+
+**Phase 3 is closed: all seven carried-forward defects are fixed**, each with its own
+commit and its own before/after on a device or an emulator. See "Phase 3" below; the
+three lessons worth carrying past the individual fixes are named at the top of it.
 
 **The Kotlin conversion is finished, Phase 5 item 6.**
 `:android-integration`, `:scanner` and `:app` have no Java source left; the only Java in
