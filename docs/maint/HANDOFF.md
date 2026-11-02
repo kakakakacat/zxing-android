@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `7d032431b` on branch `maint/android`, **which is pushed**.
+Last updated at commit `e451c13fe` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -93,6 +93,7 @@ Last updated at commit `7d032431b` on branch `maint/android`, **which is pushed*
 | `2d26c1221` | The R8 release build runs CameraX, checked on a device |
 | `f4a01c025` | **L3 built and baselined** — and the Camera1 main-thread block it found |
 | `7d032431b` | **A-19**: predictive back had silently disabled both back handlers |
+| `e451c13fe` | **L4 harness** — soak, leak slope, GC from ART's log. No baseline yet |
 
 Nothing is uncommitted. `maint/android` is pushed through `2e9e5ce16` and CI is green on
 it. Nothing is released; no tag has been pushed.
@@ -545,6 +546,19 @@ Everything else is below.
 ## What is left
 
 Ordered as the user asked for it. The README carries the same list as tickboxes.
+
+### Phase 4 — the harnesses all exist; L4 has no baseline
+
+**L4's harness is built, and that is all.** `tools/maint/l4-soak.sh` + `l4-sample.sh` +
+`benchmark/tools/l4_report.py`, 20 unit tests, `BENCHMARKS.md` §12. **Nothing is committed
+under `reports/` yet**, so there is no L4 number for anything to be compared against. The
+next step is one pair of soaks — `tools/maint/l4-soak.sh camera1 12 <serial>` then the same
+for `camerax`, back to back in one session, then `l4_report.py` for each.
+
+Two things about it worth knowing before running one: the reference device sits at thermal
+status 3 permanently, so every L4 number from it is a throttled number and the report says
+so; and with the phone on charge the battery never moves, so battery drain is not measured
+and `BATTERY_PINNED` says that too.
 
 ### Phase 4 — done, except L4
 
