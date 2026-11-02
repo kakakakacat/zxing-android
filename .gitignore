@@ -23,3 +23,4 @@ __pycache__/
 docs/maint/private/*
 !docs/maint/private/*.enc
 !docs/maint/private/README.md
+benchmark/l4/out/

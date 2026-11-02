@@ -214,7 +214,9 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       `tools/maint/l3-run.sh`, `benchmark/tools/l3_report.py`. Launch, camera open and
       first frame are measured; the **first-scan** target still needs a fixed, photographed
       scene and is reported as absent rather than as a zero
-- [ ] L4 sustained-scanning CPU/memory/thermal run
+- [x] L4 sustained-scanning CPU/memory/thermal harness — `tools/maint/l4-soak.sh`,
+      `benchmark/tools/l4_report.py`. Leak slope, GC from ART's own log, thermal and a
+      first/second-half split of every case
 - [x] Comparison tool with pass / fail / **inconclusive** verdicts and 95% intervals
       (`benchmark/tools/compare.py`) — exits 0 / 1 / 2, and 3 when the two result sets
       cannot be compared at all
@@ -224,7 +226,7 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       below, from two full-matrix runs of identical code
 - [x] L3 baseline committed: DN-ENG41, both camera backends, 12 cold launches each, both
       pairs in one session (`docs/maint/reports/l3-*-DN-ENG41-20261102.json`)
-- [ ] L4 baseline (the harness does not exist yet)
+- [ ] **L4 baseline** — the harness exists, no soak is committed yet
 
 ### Phase 5 — Kotlin and native decoding
 

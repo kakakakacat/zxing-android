@@ -69,7 +69,7 @@ ratio silently sets any pooled average.
 | **L1** | Does the decoder still decode what it used to, and roughly how expensive is a decode? | `:benchmark-jvm`, `zxingbench.L1Runner` | host JVM | **built** |
 | **L2** | How long does one frame take through the real Android frame path, stage by stage? | `:benchmark-android`, AndroidX Microbenchmark | device / emulator | **specified, §10** |
 | **L3** | How long from launch to a camera that is ready, and from there to a frame and to a scan? | Macrobenchmark + trace spans from `ScannerTrace` | physical device, API 29+ | **built**, §11. Every target but the scan is measured; the scan still needs a scene |
-| **L4** | What does sustained scanning cost in CPU, memory, GC and heat? | instrumented soak run | physical device | specified, §12 |
+| **L4** | What does sustained scanning cost in CPU, memory, GC and heat? | instrumented soak run | physical device | **built**, §12 |
 
 L1 is correctness-first and timing-second. L2 is the one that gates optimisation work.
 
@@ -945,16 +945,75 @@ API decision, left open rather than taken quietly.
 
 ## 12. L4 — sustained scanning
 
-Not built. A soak run: continuous scanning for a fixed duration on a physical device,
-recording CPU time, RSS, GC count and pause time, allocation rate, battery drain and
-thermal status over time.
+**Built.** `tools/maint/l4-soak.sh` with its on-device sampler `tools/maint/l4-sample.sh`,
+converted by `benchmark/tools/l4_report.py`. Physical device only; the script refuses an
+emulator, which has neither a camera nor a thermal envelope.
 
 Its purpose is to catch what a per-frame median hides — a leak, an allocation treadmill, or
 a win that evaporates once the device throttles. A native decoder that is faster cold and
 slower hot has not improved the product, and only L4 can say so.
 
-The existing 100-cycle open/close stability loop
-(`docs/maint/reports/stability-100-b0-DN-ENG41.log`) is a crash check, not an L4 run.
+The 100-cycle open/close stability loop
+(`docs/maint/reports/stability-100-b0-DN-ENG41.log`) remains a crash check, not an L4 run.
+
+### 12.1 What is sampled, and at which of two rates
+
+Two rates, because the expensive sample would otherwise measure the sampler. Every interval
+(5 s by default), from `/proc` alone: CPU jiffies, major faults, thread count and RSS. Every
+sixth row: `dumpsys meminfo` for Java heap, native heap and total PSS, plus thermal status
+and battery. The slow columns are therefore empty on most rows, and the converter counts
+only the rows that have them — `n` differs per case on purpose.
+
+The sampler runs **on the device**, not as a loop of `adb shell` calls, for the same reason
+the camera spike streams logcat rather than polling it: a per-sample round trip is tens of
+milliseconds of jitter on every row, and a stalled link becomes a gap that looks like the
+app going quiet.
+
+GC comes from ART's own logcat lines, counted with their pause and total times. **Zero
+logged collections is reported as an absent log, not as no GC**, because those are
+different claims and only one of them is observable from outside the process.
+
+### 12.2 The three questions it exists to answer
+
+- **Does it leak?** RSS is fitted against time by least squares, and the slope is reported
+  in kB/minute **next to the residual spread**, so a slope drawn through noise is visible as
+  one. The `RSS_GROWTH` warning fires only when the predicted rise exceeds twice that
+  spread, and says in so many words that a soak this short cannot separate a leak from a
+  cache filling.
+- **Does it allocate on a treadmill?** Collections, bytes freed and pause time from the GC
+  lines.
+- **Does a win evaporate when the device heats up?** Thermal status is sampled throughout,
+  and **every case is also split into first and second half**, so drift over the run is
+  visible without anyone having to plot it.
+
+### 12.3 The miss path is the default, and the result file says so
+
+A scanner with nothing in front of it decodes nothing on every frame. That is not a
+degenerate workload — §10 measured the all-formats miss as the *most expensive* case, and
+it is what live preview actually does almost every frame. So a soak against an empty scene
+is the right default, and the result records `scene: "miss"` with a `MISS_PATH` warning
+rather than leaving a reader to assume otherwise. A hit-path soak needs the fixed scene
+§11 still does not have.
+
+### 12.4 Running it
+
+```
+tools/maint/l4-soak.sh <camera1|camerax> [minutes] [serial]
+python3 -I benchmark/tools/l4_report.py \
+    --samples benchmark/l4/out/samples-<backend>.tsv \
+    --logcat benchmark/l4/out/logcat-<backend>.log \
+    --backend <backend> --scene miss \
+    --commit <sha> --run-id <backend>-<device>-<date> --device-label <device> \
+    --device-api <api> --out docs/maint/reports/l4-<backend>-<device>-<date>.json
+```
+
+**No baseline is committed yet.** The harness is built and tested; the first pair of soaks
+is the next step, and until one is committed under `docs/maint/reports/` there is no L4
+number for anything to be compared against.
+
+Root adb, for the same preference write L3 needs. The script fails if the app dies during
+the soak or is gone at the end — a soak whose process died has flat CPU for the wrong
+reason, and that is exactly the shape of a result that looks healthy and is not.
 
 ---
 
