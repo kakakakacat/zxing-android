@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `5da9aa797` on branch `maint/android`, **which is pushed**.
+Last updated at commit `81e925e3b` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -97,12 +97,16 @@ Last updated at commit `5da9aa797` on branch `maint/android`, **which is pushed*
 | `32e8904b3` | **L4 baseline**: CameraX costs ~60% more CPU to keep scanning |
 | `4e33b4263` | The L3 and L4 findings folded back into the camera decision |
 | `5da9aa797` | **The CI comparison step** — CI judges a measured result, it does not take one |
+| `0e2b34992` | `:app` shipped unstripped `.so`: 35.5 MB APK against 4.7 MB |
+| `81e925e3b` | **Phase 6 verified on Android 15**, and the torch defect it found |
 
-Nothing is uncommitted. `maint/android` is pushed through `6d4ab48b1`, and all three
-workflows are green on it: Build `41468529666`, Instrumentation `41468529072`, and the
-new **L2 comparison** `41468529824` — which validated the baseline manifest against the
-real committed files on a clean checkout and reported, correctly, that no candidate was
-submitted. Nothing is released; no tag has been pushed.
+Nothing is uncommitted. All three workflows were green on `6d4ab48b1`: Build
+`41468529666`, Instrumentation `41468529072`, and the new **L2 comparison** `41468529824`
+— which validated the baseline manifest against the real committed files on a clean
+checkout and reported, correctly, that no candidate was submitted. The two commits after
+it carry the Android 15 work; CI's verdict on them is at the top of this file's git log,
+not here, because this line has been wrong before. Nothing is released; no tag has been
+pushed.
 
 ---
 
