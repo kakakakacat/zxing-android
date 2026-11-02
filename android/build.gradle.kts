@@ -13,7 +13,7 @@ android {
     // and must not present itself as the published Barcode Scanner.
     // See docs/maint/MIGRATION.md.
     applicationId = "io.github.kakakakacat.zxing.android"
-    minSdk = 21
+    minSdk = 23
     targetSdk = 36
     versionCode = 10800
     versionName = "4.7.9-maint.1"

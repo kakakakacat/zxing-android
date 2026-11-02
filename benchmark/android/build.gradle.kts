@@ -15,7 +15,7 @@ android {
   defaultConfig {
     // The library's floor, so the benchmark cannot accidentally measure a path that
     // the shipped AAR does not take on an old device.
-    minSdk = 21
+    minSdk = 23
     testInstrumentationRunner = "androidx.benchmark.junit4.AndroidBenchmarkRunner"
 
     // BENCHMARKS.md §10.5: CI runs the hd/default slice; the full matrix is a manual

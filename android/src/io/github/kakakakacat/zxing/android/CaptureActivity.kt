@@ -293,8 +293,7 @@ class CaptureActivity : Activity(), ScannerView.Listener {
               prefs.getString(PreferencesActivity.KEY_FRONT_LIGHT_MODE, FrontLightMode.OFF.toString())))
 
   private fun hasCameraPermission(): Boolean =
-      Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-          checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+      checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
 
   /**
    * Starts the scanner if we are allowed to. Otherwise asks for CAMERA once, and explains
@@ -336,8 +335,7 @@ class CaptureActivity : Activity(), ScannerView.Listener {
    * is the system settings screen, so offer it rather than leaving a dead end.
    */
   private fun displayCameraPermissionDeniedAndExit() {
-    val canAskAgain = Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-        shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)
+    val canAskAgain = shouldShowRequestPermissionRationale(Manifest.permission.CAMERA)
     val builder = AlertDialog.Builder(this)
     builder.setTitle(getString(R.string.app_name))
     builder.setMessage(if (canAskAgain) R.string.msg_camera_permission_denied

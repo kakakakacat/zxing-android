@@ -19,7 +19,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api: [ 21, 34, 35, 36 ]
+        # 23 is the project's minSdk. Nothing below it can install the APK.
+        api: [ 23, 34, 35, 36 ]
     steps:
       - uses: actions/checkout@v5
         with:

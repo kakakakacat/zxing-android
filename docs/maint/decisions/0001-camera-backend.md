@@ -1,6 +1,7 @@
 # 0001 — The camera backend: Camera1, Camera2 or CameraX
 
-**Status:** proposed. One question is the user's to answer — see "The decision this needs".
+**Status:** the minSdk question is **answered — 23**, and the bump landed on 2026-11-02.
+The rest is proposed and not started.
 **Date:** 2026-11-02, **revised the same day on a second physical device** — the revision
 changed the recommendation's reasoning, not the recommendation. Read "Time to a decodable
 frame" before quoting any latency figure from an earlier reading of this file.
@@ -272,9 +273,10 @@ measures what the preview looks like; adopting the lean path means writing that 
 
 ---
 
-## The decision this needs: minSdk 21 or 23
+## The decision this needed: minSdk 21 or 23 — **answered: 23**
 
-This is the one thing that is not a technical matter and is the user's to settle.
+Settled by the user on 2026-11-02 and applied the same day. The reasoning is kept below
+because the next person will ask why Android 5.x was dropped.
 
 `:scanner`, `:android-integration` and `:app` all declare **minSdk 21**. CameraX's floor:
 
@@ -289,9 +291,9 @@ This is the one thing that is not a technical matter and is the user's to settle
 (Read from each artifact's `AndroidManifest.xml` and the POM's `Last-Modified` on Google's
 Maven, 2026-11-02.)
 
-So the two options are:
+The two options were:
 
-1. **Raise minSdk to 23** and track current CameraX. Drops Android 5.0 and 5.1.
+1. **Raise minSdk to 23** and track current CameraX. Drops Android 5.0 and 5.1. ← chosen
 2. **Stay at minSdk 21** and pin CameraX 1.4.2, whose last release was **19 months ago** and
    which will not receive the quirk entries for hardware that ships from here on — which is
    most of the reason to adopt CameraX at all.

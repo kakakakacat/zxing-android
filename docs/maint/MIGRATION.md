@@ -58,10 +58,22 @@ and the Maven coordinates to their own identity in `android/build.gradle.kts` an
 
 ## Support range
 
-- **`minSdk` 19 → 21.** API 19/20 are below the floor of the current AGP/D8 and AndroidX
-  toolchain, and the Gradle library modules inherit that floor. No functionality is lost:
-  nothing in the camera, permission or threading code had an API-19-only path. Devices on
-  API 19/20 are still served by the upstream published APK.
+- **`minSdk` 19 → 21 → 23.** The second step was taken deliberately on 2026-11-02 so that
+  the project can track current CameraX, which requires 23 from 1.5.0 onward; the last
+  CameraX release supporting 21 was 1.4.2, on 2025-03-26. The reasoning, and the
+  measurements behind it, are in
+  [the camera-backend decision record](decisions/0001-camera-backend.md). **This drops
+  Android 5.0 and 5.1 (API 21/22)**. Nothing has been released yet, so no consumer is
+  being moved off a version they already had. Three code paths went with it, all of them already dead on
+  any device the project tests on: the install-time-permission branches in `ScannerView`
+  and `CaptureActivity`, and the version check around the browser-bookmark button in
+  `ShareActivity` — Android 6.0 removed `READ_HISTORY_BOOKMARKS`, so with minSdk 23 there
+  is no version left on which that button could work, and it is now simply disabled.
+
+  For the first step, 19 → 21: API 19/20 are below the floor of the current AGP/D8 and
+  AndroidX toolchain, and the Gradle library modules inherit that floor. No functionality
+  was lost there either — nothing in the camera, permission or threading code had an
+  API-19-only path. Devices on API 19/20 are still served by the upstream published APK.
 - **`targetSdk` 22 → 36.** This is what makes the runtime permission model, the API 31+
   `exported` rules, scoped storage and package visibility apply at all. Several of the
   fixes below exist because of it.

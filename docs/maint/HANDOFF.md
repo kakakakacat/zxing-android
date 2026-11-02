@@ -381,9 +381,17 @@ ships a per-device quirk database — and not on speed. CameraX costs +558 KB, o
 **Two devices disagreed about the headline of a record written from one.** That is the
 same rule `BENCHMARKS.md` already applies to L2 and it applies to spikes too.
 
-**The open question is not technical: current CameraX requires minSdk 23 and this project
-is at 21.** 1.4.2 is the last line that supports 21 and it was released on 2025-03-26. The
-record lays out both options and takes neither; see its last section.
+**That question is answered: the user chose minSdk 23**, and the bump is in
+(`:scanner`, `:android-integration`, `:app`, both benchmark modules, and the CI
+instrumentation matrix, whose API 21 leg became unrunnable). Android 5.0 and 5.1 are
+dropped; nothing has been released, so no consumer is being moved off a version they had.
+Three code paths the bump made unreachable went with it — the install-time-permission
+branches in `ScannerView` and `CaptureActivity`, and the version check around the
+browser-bookmark button in `ShareActivity`, which Android 6.0 had already made useless.
+`api-diff.sh :scanner` reports no Java-visible API difference, and the 21 instrumentation
+tests still pass on DN-ENG41.
+
+**So Phase 6 adoption and Phase 5 item 8 are both unblocked and neither is started.**
 
 Four things the spike turned up that are worth knowing whatever is decided:
 
@@ -1012,9 +1020,8 @@ the layout are the same thing on a real tablet; the camera on one is not.
 The decision record is `docs/maint/decisions/0001-camera-backend.md`; the summary and the
 open question are at the top of this file. What is left here:
 
-- **The minSdk question** — 21 with CameraX frozen at a 19-month-old release, or 23 with the
-  current line. The user's call; nothing else in Phase 6 can start until it is answered.
-- **Adoption**, if it is CameraX: `:scanner` grows the dependency, `ScannerView` binds
+- ~~**The minSdk question**~~ — **answered: 23**, done.
+- **Adoption**: `:scanner` grows the dependency, `ScannerView` binds
   `Preview` + `ImageAnalysis` instead of owning a `CameraManager`, and the frames go to
   `YPlaneLuminanceSource` rather than `PlanarYUVLuminanceSource`. That finishes Phase 5
   item 8 at the same time.

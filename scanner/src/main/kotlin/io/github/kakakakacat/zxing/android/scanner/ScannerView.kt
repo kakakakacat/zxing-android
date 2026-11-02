@@ -21,7 +21,6 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.Rect
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.Message
@@ -203,10 +202,11 @@ class ScannerView(
     cameraManager?.setTorch(on)
   }
 
+  // No SDK_INT guard: minSdk is 23, so the runtime permission model is the only one
+  // there is and the old "granted at install time" branch could never be taken.
   private fun hasCameraPermission(): Boolean =
-      Build.VERSION.SDK_INT < Build.VERSION_CODES.M ||
-          context.checkSelfPermission(Manifest.permission.CAMERA) ==
-              PackageManager.PERMISSION_GRANTED
+      context.checkSelfPermission(Manifest.permission.CAMERA) ==
+          PackageManager.PERMISSION_GRANTED
 
   private fun openCamera(holder: SurfaceHolder) {
     val manager = cameraManager

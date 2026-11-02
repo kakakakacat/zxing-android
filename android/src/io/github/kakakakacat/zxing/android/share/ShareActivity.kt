@@ -20,7 +20,6 @@ import android.app.Activity
 import android.content.Intent
 import android.database.Cursor
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.provider.BaseColumns
 import android.provider.ContactsContract
@@ -94,12 +93,12 @@ class ShareActivity : Activity() {
     setContentView(R.layout.share)
 
     findViewById<View>(R.id.share_contact_button).setOnClickListener(contactListener)
-    if (Build.VERSION.SDK_INT >= 23) { // Marshmallow / 6.0
-      // Can't access bookmarks in 6.0+
-      findViewById<View>(R.id.share_bookmark_button).isEnabled = false
-    } else {
-      findViewById<View>(R.id.share_bookmark_button).setOnClickListener(bookmarkListener)
-    }
+    // Android 6.0 removed READ_HISTORY_BOOKMARKS, so no app can read the browser's
+    // bookmarks any more. This used to be a version check; with minSdk 23 there is no
+    // version left on which the button could work, so it is simply disabled. The button,
+    // BookmarkPickerActivity and the PICK_BOOKMARK reply path are all still here --
+    // deleting the feature is a product decision, not part of raising a build floor.
+    findViewById<View>(R.id.share_bookmark_button).isEnabled = false
     findViewById<View>(R.id.share_app_button).setOnClickListener(appListener)
     clipboardButton = findViewById(R.id.share_clipboard_button)
     clipboardButton.setOnClickListener(clipboardListener)

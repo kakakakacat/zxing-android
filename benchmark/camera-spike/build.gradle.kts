@@ -22,9 +22,8 @@ android {
 
   defaultConfig {
     applicationId = "io.github.kakakakacat.zxing.spike"
-    // The library's floor. Raising it here would measure a build the project cannot ship:
-    // CameraX 1.5.0 and later require 23, which is itself one of the findings.
-    minSdk = 21
+    // The library's floor.
+    minSdk = 23
     targetSdk = 36
     versionCode = 1
     versionName = "spike"

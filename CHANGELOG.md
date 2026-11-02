@@ -11,6 +11,20 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
+### Changed
+- **`minSdk` raised from 21 to 23**, dropping Android 5.0 and 5.1. Taken as a decision
+  rather than drift: CameraX requires API 23 from 1.5.0 onward, and the last release that
+  supported 21 was 1.4.2 on 2025-03-26, so staying at 21 would have meant adopting a camera
+  library frozen nineteen months ago — and the point of adopting it is the per-device quirk
+  fixes that keep arriving. The comparison behind that choice, measured on two physical
+  devices, is in `docs/maint/decisions/0001-camera-backend.md`. Three code paths the bump
+  made unreachable were removed with it: the install-time-permission branches in
+  `ScannerView.hasCameraPermission` and `CaptureActivity`, and the version check around the
+  browser-bookmark button in `ShareActivity`, which Android 6.0 had already made useless on
+  every supported release. The bookmark button, `BookmarkPickerActivity` and the reply path
+  are all still present and simply disabled; removing the feature is a product decision, not
+  part of raising a build floor.
+
 ### Fixed
 - **A-16: the scan screen works on a large screen.** Android 16 ignores
   `android:screenOrientation` on a large screen, so the landscape-designed capture UI runs

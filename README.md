@@ -112,7 +112,7 @@ is checked in, and none should be.
 
 | | |
 | --- | --- |
-| `minSdk` | 21 (raised from upstream's 19 — rationale in [AUDIT.md](docs/maint/AUDIT.md) §2) |
+| `minSdk` | 23 (upstream was 19; raised to 21, then to 23 — see [AUDIT.md](docs/maint/AUDIT.md) §2 and [the camera-backend decision](docs/maint/decisions/0001-camera-backend.md)) |
 | `compileSdk` / `targetSdk` | 36 |
 | Camera | Camera1 (`android.hardware.Camera`), as upstream. A Camera2/CameraX backend is under evaluation, not yet decided |
 | Google Play Services | Not required. The scan path is fully offline |
@@ -240,9 +240,9 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       no-GMS phone and is 1 ms apart from Camera1 on the Android 15 flagship, over 15 cold
       launches each — so the recommendation rests on maintenance and deprecation, not speed.
       CameraX costs **+558 KB**, of which **351 KB is `camera-view` alone** and avoidable.
-      One question is open and is the maintainer's to settle: current CameraX needs
-      **minSdk 23** and this project is at 21.
-- [ ] CameraX adopted in `:scanner` (blocked on the minSdk question above)
+- [x] **minSdk raised 21 → 23**, the one question the record left open. Current CameraX
+      needs 23; staying at 21 would have pinned it to 1.4.2, last released 2025-03-26
+- [ ] CameraX adopted in `:scanner` (unblocked, not started)
 - [ ] If adopted: preview, ROI, result points and screen-coordinate mapping verified
 
 ## Namespace and independence
