@@ -7,6 +7,14 @@ android {
   namespace = "io.github.kakakakacat.zxing.android"
   compileSdk = 36
 
+  // The app has no native code of its own, but it packages :scanner's. Without an NDK
+  // here AGP cannot find llvm-strip and ships every .so **unstripped**: it says so once,
+  // at info level, as "missing strip tool for ABI" and then "packaging them as they are".
+  // That was 18.6 MB of debug_info for arm64-v8a alone against 1.8 MB stripped. The AAR
+  // was never affected -- :scanner sets this and its libraries are stripped -- so it was
+  // only ever the app's own APK, which is also why nothing downstream noticed.
+  ndkVersion = libs.versions.ndk.get()
+
   defaultConfig {
     // Deliberately not the upstream application id, and not inside the
     // com.google.zxing namespace at all: this build is not signed with the upstream key
