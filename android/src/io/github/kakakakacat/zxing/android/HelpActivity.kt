@@ -17,9 +17,12 @@
 package io.github.kakakakacat.zxing.android
 
 import android.app.Activity
+import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
 import android.webkit.WebView
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 
 /**
  * An HTML-based help screen.
@@ -29,6 +32,9 @@ import android.webkit.WebView
 class HelpActivity : Activity() {
 
   private lateinit var webView: WebView
+
+  /** Held as `Any?` so the API 33 type is never named in a field signature; see CaptureActivity. */
+  private var backInvokedCallback: Any? = null
 
   override fun onCreate(icicle: Bundle?) {
     super.onCreate(icicle)
@@ -41,14 +47,53 @@ class HelpActivity : Activity() {
     } else {
       webView.restoreState(icicle)
     }
+    registerBackCallback()
   }
 
+  // Below API 33 the back key still arrives here; at 33 and above it does not, and the
+  // callback registered in onCreate does this instead. See CaptureActivity.syncBackCallback
+  // for why the key stopped arriving at all.
   override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
     if (keyCode == KeyEvent.KEYCODE_BACK && webView.canGoBack()) {
       webView.goBack()
       return true
     }
     return super.onKeyDown(keyCode, event)
+  }
+
+  /**
+   * Registered for the life of the activity rather than only while the WebView has history,
+   * which is what [CaptureActivity] does.
+   *
+   * `WebView` reports `canGoBack` on demand and has no callback for it changing, so keeping
+   * a registration in step with it would mean polling. The cost of registering throughout is
+   * that the system cannot draw a cross-activity preview animation for the back that leaves
+   * this screen — on a help screen behind a WebView, that is the cheaper of the two.
+   */
+  private fun registerBackCallback() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+      return
+    }
+    val callback = OnBackInvokedCallback {
+      if (webView.canGoBack()) {
+        webView.goBack()
+      } else {
+        finish()
+      }
+    }
+    onBackInvokedDispatcher.registerOnBackInvokedCallback(
+        OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
+    backInvokedCallback = callback
+  }
+
+  override fun onDestroy() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      (backInvokedCallback as OnBackInvokedCallback?)?.let {
+        onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it)
+      }
+      backInvokedCallback = null
+    }
+    super.onDestroy()
   }
 
   override fun onSaveInstanceState(icicle: Bundle) {

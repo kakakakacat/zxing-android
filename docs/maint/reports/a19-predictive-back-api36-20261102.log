@@ -1,0 +1,54 @@
+A-19: predictive back silently disabled the back-key handling. API 36 emulator, 2026-11-02.
+
+## What is wrong
+
+CaptureActivity and HelpActivity handled the back key in onKeyDown. From API 33 the back
+key stops being delivered there once an app opts into OnBackInvokedDispatcher -- and for an
+app targeting API 36, which this one does, that opt-in is the default. So both handlers
+stopped running and nobody noticed, because the system's default back does something
+plausible: it leaves the activity.
+
+The visible symptom: **with a scan result on screen, back left the app** instead of
+returning to the preview. On a scanner whose whole loop is scan -> look -> scan again, that
+is the back button doing the opposite of what it did for fifteen years.
+
+## Reproduced, and the cause confirmed by A/B
+
+API 36 emulator, virtual-scene camera, a QR decoded off the poster so a result is on screen
+(`a19-predictive-back-result-on-screen-api36.png`), then a real back gesture:
+
+| | back with a result on screen |
+| --- | --- |
+| before the fix | **leaves the app** -> NexusLauncherActivity |
+| before the fix, with `android:enableOnBackInvokedCallback="false"` | stays, preview restarts |
+| after the fix | stays, preview restarts |
+
+The middle row is the cause, isolated: opting out of predictive back restores the old
+behaviour exactly, which no other explanation does. The flag was set only for that
+measurement and is not in the tree -- opting out is not the fix, it is the diagnosis.
+
+## A trap that nearly produced the wrong conclusion
+
+**`adb shell input keyevent KEYCODE_BACK` is not a back press** under predictive back. The
+first reproduction used it, and after the fix it still appeared to leave the app -- while
+the callback demonstrably ran, which the log line proved. An injected key event reaches both
+the dispatcher and the legacy path, so the handler runs *and* the activity finishes.
+
+A real edge-swipe gesture behaves correctly in both directions. Every result above is from
+a gesture. The pre-fix reproduction was re-run with a gesture before any of this was
+believed, because a fix verified with the wrong input is not verified.
+
+## After the fix
+
+| case | expected | observed |
+| --- | --- | --- |
+| result on screen, source NONE | return to the preview | returns, and immediately rescans the poster |
+| no result on screen | leave the app | leaves |
+| HelpActivity, no web history | leave Help | returns to CaptureActivity |
+
+Android 14 (DN-ENG41): no crash, and the 100-cycle open/close loop is clean -- 0 fatals,
+0 camera errors.
+
+Not tested: the NATIVE_APP_INTENT path, which needs a caller app. It is the one case the
+fix deliberately leaves to the system -- finishing without setResult already answers
+RESULT_CANCELED, which is exactly what the removed branch did explicitly.

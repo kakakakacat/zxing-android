@@ -160,6 +160,7 @@ it. Nothing is released; no tag has been pushed.
 | Phase 6 adoption: what CameraX costs `:app` | `res/` **+0 entries**, `classes.dex` +930,544 B, CameraX's own `.so` +65,332 B over two ABIs | local, `reports/camerax-adoption-apk-size-20261102.log` |
 | Phase 6 adoption: the **R8 release** build on CameraX | preview and viewfinder run; CameraX's own threads present in the process, which is the check, because a silent fallback to Camera1 looks identical | DN-ENG41, `reports/camerax-adoption-release-r8-DN-ENG41-20261102.png` |
 | **L3 baseline**, both backends, 12 cold launches × 2 pairs, one session each | CameraX to the window's first frame **−330 ms**; CameraX to a frame at the decoder **+200 ms**. Both reproduced across pairs | DN-ENG41, `reports/l3-*-DN-ENG41-20261102-run{1,2}.json`, read in `reports/l3-verdict-DN-ENG41-20261102.md` |
+| **A-19**: back with a result on screen | before: leaves the app. After: returns to the preview. Cause isolated by A/B against `enableOnBackInvokedCallback` | API 36 emulator, `reports/a19-predictive-back-api36-20261102.log` |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -1131,6 +1132,27 @@ added for the same reason. Evidence, with before/after screenshots:
 
 **Still not covered:** no physical large-screen device exists here. The window sizes and
 the layout are the same thing on a real tablet; the camera on one is not.
+
+### Phase 2 — predictive back, and a trap in how it is tested
+
+**A-19 is fixed.** From API 33 the back key stops reaching `onKeyDown` once an app opts
+into `OnBackInvokedDispatcher`, and at targetSdk 36 that opt-in is the default. Both
+activities' back handling had therefore stopped running — silently, because the system's
+default back does something plausible. With a scan result on screen, back left the app.
+
+The fix registers an `OnBackInvokedCallback` **only while back should be intercepted**,
+rather than registering once and deciding inside it. That is the point of predictive back:
+while nothing is registered the system knows back will leave and can draw the real preview
+animation for it. `lastResult` now changes in exactly one place so the registration cannot
+drift out of step with it.
+
+**The trap, and it will catch the next person too: `adb shell input keyevent KEYCODE_BACK`
+is not a back press under predictive back.** An injected key event reaches both the
+dispatcher and the legacy path, so a handler runs *and* the activity finishes. After the
+fix, the injected key still appeared to leave the app while a log line proved the callback
+had run. Only a real edge-swipe gesture behaves correctly, and the *pre-fix* reproduction
+was re-run with a gesture before any of this was believed. A fix verified with the wrong
+input is not verified.
 
 ### Phase 6 — the camera backend
 

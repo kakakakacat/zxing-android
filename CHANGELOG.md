@@ -66,6 +66,16 @@ API may still change between minor versions.
   part of raising a build floor.
 
 ### Fixed
+- **A-19: back no longer leaves the app when a scan result is on screen.** Both activities
+  handled the back key in `onKeyDown`. From API 33 the back key stops being delivered there
+  once an app opts into `OnBackInvokedDispatcher` — and for an app targeting API 36, as this
+  one does, that opt-in is the default. So the handlers silently stopped running and the
+  system's default back took over, which looks plausible and is wrong: on a scanner, back
+  with a result showing means "go back to scanning", not "quit". `CaptureActivity` now
+  registers an `OnBackInvokedCallback` while — and only while — back should return to the
+  preview, so the system can still draw a real predictive-back animation for the press that
+  does leave. `HelpActivity` does the same for its WebView history. Below API 33 the
+  `onKeyDown` path is unchanged.
 - **A-16: the scan screen works on a large screen.** Android 16 ignores
   `android:screenOrientation` on a large screen, so the landscape-designed capture UI runs
   in a portrait window. The viewfinder rectangle now turns with the window instead of

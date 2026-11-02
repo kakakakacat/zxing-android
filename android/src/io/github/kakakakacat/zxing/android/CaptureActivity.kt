@@ -36,6 +36,8 @@ import android.os.Handler
 import android.os.Looper
 import android.preference.PreferenceManager
 import android.provider.Browser
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import android.provider.Settings
 import android.util.Log
 import android.util.TypedValue
@@ -92,6 +94,15 @@ class CaptureActivity : Activity(), ScannerView.Listener {
   private lateinit var statusView: TextView
   private lateinit var resultView: View
   private var lastResult: Result? = null
+
+  /**
+   * The registered `OnBackInvokedCallback`, or null when nothing is registered.
+   *
+   * Held as `Any?` so the API 33 type is never named in a field signature: this class is
+   * loaded on API 23 devices too, and a field whose type cannot be resolved there is how
+   * that turns into a crash at class-load time rather than at the call site.
+   */
+  private var backInvokedCallback: Any? = null
   private var copyToClipboard = false
   private var source: IntentSource = IntentSource.NONE
   private var sourceUrl: String? = null
@@ -180,7 +191,7 @@ class CaptureActivity : Activity(), ScannerView.Listener {
     statusView = findViewById(R.id.status_view)
     applyPortraitResultLayout()
 
-    lastResult = null
+    setLastResult(null)
 
     val prefs = PreferenceManager.getDefaultSharedPreferences(this)
 
@@ -392,9 +403,19 @@ class CaptureActivity : Activity(), ScannerView.Listener {
 
   override fun onDestroy() {
     inactivityTimer.shutdown()
+    // The dispatcher outlives this activity's own teardown; leaving a callback registered
+    // against a destroyed activity is a leak with a lambda holding `this` in it.
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+      (backInvokedCallback as OnBackInvokedCallback?)?.let {
+        onBackInvokedDispatcher.unregisterOnBackInvokedCallback(it)
+      }
+      backInvokedCallback = null
+    }
     super.onDestroy()
   }
 
+  // Below API 33 the back key still arrives here. At 33 and above it does not -- see
+  // backShouldReturnToPreview -- and this branch is dead there.
   override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
     when (keyCode) {
       KeyEvent.KEYCODE_BACK -> {
@@ -403,7 +424,7 @@ class CaptureActivity : Activity(), ScannerView.Listener {
           finish()
           return true
         }
-        if ((source == IntentSource.NONE || source == IntentSource.ZXING_LINK) && lastResult != null) {
+        if (backShouldReturnToPreview()) {
           restartPreviewAfterDelay(0L)
           return true
         }
@@ -490,7 +511,7 @@ class CaptureActivity : Activity(), ScannerView.Listener {
    */
   fun handleDecode(rawResult: Result, barcode: Bitmap?, scaleFactor: Float) {
     inactivityTimer.onActivity()
-    lastResult = rawResult
+    setLastResult(rawResult)
     val resultHandler = ResultHandlerFactory.makeResultHandler(this, rawResult)
 
     val fromLiveScan = barcode != null
@@ -786,6 +807,59 @@ class CaptureActivity : Activity(), ScannerView.Listener {
     builder.show()
   }
 
+  /**
+   * Back returns to the preview rather than leaving, which is true only while a result is
+   * on screen and this activity was not started for a result.
+   *
+   * A caller that launched us with SCAN expects back to cancel *it*, not to drop them back
+   * into a viewfinder they did not ask for.
+   */
+  private fun backShouldReturnToPreview(): Boolean =
+      (source == IntentSource.NONE || source == IntentSource.ZXING_LINK) && lastResult != null
+
+  /**
+   * The one place `lastResult` changes, so the predictive-back registration cannot drift
+   * out of step with it.
+   */
+  private fun setLastResult(result: Result?) {
+    lastResult = result
+    syncBackCallback()
+  }
+
+  /**
+   * Predictive back, and the defect it fixes.
+   *
+   * From API 33 the back *key* stops being delivered to [onKeyDown] once an app opts into
+   * `OnBackInvokedDispatcher` — and for an app targeting API 36, as this one does, that opt
+   * in is the default. So the back handling above silently stopped running: on Android 16,
+   * pressing back with a scan result on screen left the app instead of returning to the
+   * preview. Reproduced on the API 36 emulator, and confirmed to be the cause by setting
+   * `android:enableOnBackInvokedCallback="false"` and watching the old behaviour come back.
+   *
+   * The callback is registered **only while back should be intercepted**, rather than
+   * registered once and deciding inside. That is what predictive back is for: while nothing
+   * is registered the system knows back will leave this activity and can draw the real
+   * preview animation for it. It also means the "started for a result" case needs no
+   * callback at all — finishing without `setResult` already answers `RESULT_CANCELED`,
+   * which is exactly what the old branch did explicitly.
+   */
+  private fun syncBackCallback() {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+      return
+    }
+    val wanted = backShouldReturnToPreview()
+    val existing = backInvokedCallback as OnBackInvokedCallback?
+    if (wanted && existing == null) {
+      val callback = OnBackInvokedCallback { restartPreviewAfterDelay(0L) }
+      onBackInvokedDispatcher.registerOnBackInvokedCallback(
+          OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback)
+      backInvokedCallback = callback
+    } else if (!wanted && existing != null) {
+      onBackInvokedDispatcher.unregisterOnBackInvokedCallback(existing)
+      backInvokedCallback = null
+    }
+  }
+
   fun restartPreviewAfterDelay(delayMS: Long) {
     uiHandler.postDelayed({ scannerView.resumeScanning() }, maxOf(0L, delayMS))
     resetStatusView()
@@ -796,7 +870,7 @@ class CaptureActivity : Activity(), ScannerView.Listener {
     statusView.setText(R.string.msg_default_status)
     statusView.visibility = View.VISIBLE
     scannerView.getViewfinderView().visibility = View.VISIBLE
-    lastResult = null
+    setLastResult(null)
     waitForViewfinder()
   }
 

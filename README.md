@@ -167,7 +167,12 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 - [x] **A-16** The capture UI works in the portrait window Android 16 gives it on a
       large screen: the frame turns with the window, the status line follows it and the
       result screen stacks
-- [ ] Predictive back
+- [x] **Predictive back** — and it was not polish. From API 33 the back key stops reaching
+      `onKeyDown` once an app opts into `OnBackInvokedDispatcher`, which is the default at
+      targetSdk 36, so both back handlers had silently stopped running: with a scan result
+      on screen, back **left the app** instead of returning to the preview. Reproduced on
+      API 36 and the cause isolated by A/B
+      ([`docs/maint/reports/a19-predictive-back-api36-20261102.log`](docs/maint/reports/a19-predictive-back-api36-20261102.log))
 - [x] App launches, previews and survives on API 35 and API 36 emulators
 - [x] Instrumentation suite runs on API 23 / 34 / 35 / 36 emulators in CI — 21 tests,
       0 failures on each, green on `2e9e5ce16`
