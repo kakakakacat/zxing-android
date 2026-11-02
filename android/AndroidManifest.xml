@@ -26,6 +26,30 @@
   <uses-permission android:name="android.permission.CHANGE_WIFI_STATE"/>
   <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
 
+  <!-- Package visibility, Android 11 and up (defect A-10). Without this the platform
+       hands this app a filtered view of what is installed: the "share an application"
+       picker listed 32 of the 127 packages it should have, and resolveActivity could not
+       see the browser it special-cases. Two intents, both as narrow as the thing they are
+       for, rather than QUERY_ALL_PACKAGES, a permission meant for apps that genuinely
+       need the whole list, and this app does not.
+         - MAIN/LAUNCHER: the app picker, which wants exactly the apps a user could launch.
+         - VIEW on http(s): launchProductQuery, which asks which browser would handle a
+           product-search URL so it can pass EXTRA_APPLICATION_ID to it. -->
+  <queries>
+    <intent>
+      <action android:name="android.intent.action.MAIN"/>
+      <category android:name="android.intent.category.LAUNCHER"/>
+    </intent>
+    <intent>
+      <action android:name="android.intent.action.VIEW"/>
+      <data android:scheme="https"/>
+    </intent>
+    <intent>
+      <action android:name="android.intent.action.VIEW"/>
+      <data android:scheme="http"/>
+    </intent>
+  </queries>
+
   <uses-feature android:name="android.hardware.camera.any"/>
   <uses-feature android:name="android.hardware.camera.autofocus" android:required="false"/>
   <uses-feature android:name="android.hardware.camera.flash" android:required="false"/>

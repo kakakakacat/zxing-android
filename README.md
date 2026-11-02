@@ -165,8 +165,8 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 - [ ] **A-08** Wi-Fi result handler cannot add networks on Android 10+
 - [x] **A-09** Book search and every outbound link this app builds are https; the
       book-search URL matcher accepts https too
-- [ ] **A-10** App-share picker and the browser special case are hit by Android 11
-      package visibility
+- [x] **A-10** App-share picker and the browser special case: `<queries>` declared, and
+      the picker asks for launcher activities instead of every installed application
 - [ ] **A-12** Ambient-light torch control rebuilds the autofocus manager on every toggle
 
 ### Phase 4 — measurement before optimisation
@@ -259,7 +259,6 @@ years of callers and buy nothing.
 | --- | --- | --- |
 | A-06 / A-07 | History export and image sharing fail on Android 10+ (scoped storage) | app |
 | A-08 | Scanning a `WIFI:` barcode silently does nothing on Android 10+ | app |
-| A-10 | "Share → App" picker is mostly empty on Android 11+ | app |
 | A-16 | On a large screen, Android 16 forces the landscape-designed capture UI into portrait | app |
 | — | No L3 or L4 numbers exist: nothing is known about camera-ready or first-scan latency | all |
 | — | Only one device has been tested: Android 14, no GMS | all |

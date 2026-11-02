@@ -17,6 +17,7 @@
 package io.github.kakakakacat.zxing.android.share
 
 import android.app.ListActivity
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.AsyncTask
 import android.view.View
@@ -35,18 +36,33 @@ import io.github.kakakakacat.zxing.android.R
 internal class LoadPackagesAsyncTask(private val activity: ListActivity) :
     AsyncTask<Any, Any, List<AppInfo>>() {
 
-  // Defect A-10: getInstalledApplications returns almost nothing from Android 11 on without a
-  // <queries> element in the manifest. Carried forward. See docs/maint/HANDOFF.md, Phase 3.
+  // Launcher activities rather than getInstalledApplications (defect A-10). Two reasons,
+  // and the second is the one that fixes the bug:
+  //
+  //  - it is what this screen actually means. The picker turns an app into a
+  //    market://details?id= barcode for someone else to scan, so an app with no launcher
+  //    entry was never a sensible row.
+  //  - from Android 11 the platform filters what a package query may see, and
+  //    getInstalledApplications has no intent to match the manifest's <queries> against,
+  //    so it simply returns the few packages that are visible anyway. The MAIN/LAUNCHER
+  //    query does match, so this sees every launchable app again.
+  //
+  // A package can own more than one launcher activity, so rows are deduplicated by
+  // package name; label and icon still come from the application, as before, so what a
+  // row looks like has not changed.
   override fun doInBackground(vararg objects: Any): List<AppInfo> {
     val labelsPackages = ArrayList<AppInfo>()
     val packageManager: PackageManager = activity.packageManager
-    for (appInfo in packageManager.getInstalledApplications(0)) {
+    val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
+    val seen = HashSet<String>()
+    for (resolveInfo in packageManager.queryIntentActivities(launcherIntent, 0)) {
+      val appInfo = resolveInfo.activityInfo?.applicationInfo ?: continue
       val packageName: String? = appInfo.packageName
-      if (!isHidden(packageName)) {
+      if (!isHidden(packageName) && seen.add(packageName!!)) {
         val label = appInfo.loadLabel(packageManager)
         val icon = appInfo.loadIcon(packageManager)
         if (label != null) {
-          labelsPackages.add(AppInfo(packageName!!, label.toString(), icon))
+          labelsPackages.add(AppInfo(packageName, label.toString(), icon))
         }
       }
     }

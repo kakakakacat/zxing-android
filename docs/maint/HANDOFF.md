@@ -115,6 +115,9 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | A-09: the book-search request after the https fix | reaches the network; `ConnectException` on :443 instead of okhttp's cleartext rejection | DN-ENG41, `reports/a09-cleartext-ab-DN-ENG41-20261102.log` |
 | A-09: `isBookSearchUrl` on https / http / a bare ISBN | URL branch, URL branch, ISBN branch; the pre-fix build reads the https URL as an ISBN | DN-ENG41, same log |
 | The four `BROWSABLE` deep links after adding https | all four resolve to `CaptureActivity`, and implicit `SCAN` still does | DN-ENG41 |
+| A-10: the app picker, before and after | 79 rows → 49; 64 unlabelled vendor services gone, 34 real apps gained, 15 common | DN-ENG41, `reports/a10-package-visibility-DN-ENG41-20261102.log` |
+| A-10: what the app can see through intent queries | 0 packages without `<queries>`, 21 with it, `com.android.chrome` among them | API 36 emulator, same log |
+| `tools/maint/scrape-app-picker.sh` | reproduces both picker runs byte-identically, and was watched failing when the tap misses | DN-ENG41 |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -669,11 +672,10 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
 
 ### Phase 3 — carried-forward defects (independent; can be picked up any time)
 
-All of these survived the Kotlin conversion untouched, by decision; **A-09 has since been
-fixed**. The ones still open in `:app` carry a comment naming their number, so
+All of these survived the Kotlin conversion untouched, by decision; **A-09 and A-10 have
+since been fixed**. The ones still open in `:app` carry a comment naming their number, so
 `grep -rn 'Defect A-' android/src` lands on the exact lines: A-06 in
-`HistoryManager.saveHistory`, A-07 in `EncodeActivity.share`, A-10 in
-`LoadPackagesAsyncTask`. A-08's `WifiConfigManager` carries the whole deprecated
+`HistoryManager.saveHistory` and A-07 in `EncodeActivity.share`. A-08's `WifiConfigManager` carries the whole deprecated
 `WifiConfiguration` API in a `@Suppress` that names the defect instead. A-12 and A-16 are
 not in `:app` at all — A-12 is `AmbientLightManager` in `:scanner`, A-16 is the capture
 layout — and neither carries a comment yet.
@@ -711,13 +713,46 @@ supplemental info (title, shortener unwrapping); it fails as an ordinary `IOExce
 the extra line is simply absent, and the link still opens in the browser under the
 browser's own policy. `TitleRetriever` and `URIResultInfoRetriever` say so in place.
 
+**A-10 is fixed, and the measurement was wrong three times before it was right.** The
+`<queries>` element declares the two intents this app genuinely asks about — MAIN/LAUNCHER
+for the picker, VIEW on http(s) for `launchProductQuery` — instead of
+`QUERY_ALL_PACKAGES`, which is the permission for apps that need the whole list and which
+this app does not need. `LoadPackagesAsyncTask` asks `queryIntentActivities` for launcher
+activities rather than `getInstalledApplications`, because **an intent query is the only
+kind the platform can match a `<queries>` declaration against** — that is the part worth
+carrying forward. `getInstalledApplications` has no intent in it, so no declaration can
+widen it, and it keeps returning the handful of packages that were visible anyway.
+
+On DN-ENG41 the picker went from 79 rows to 49, and the drop is the fix working: 64 of
+the 79 were unlabelled vendor services with no launcher entry, visible only because such
+system packages are forceQueryable, and 34 real installed apps appeared that the app
+could not see at all before. Only 15 rows were common to both. Tapping one of the 34 now
+produces its `market://details?id=` barcode.
+
+**And the warning in it.** Three different measurement bugs each returned a plausible
+number: a fling that skips screens between dumps (32 instead of 79), two scrapes
+overwriting one temp file (a 35-row list that was neither run), and `tr '>' '>\n'`, which
+does **not** split a line — tr pads the shorter set, it cannot expand one character into
+two — so the dump stayed one line, the bounds match returned the root node's, and the
+script tapped the middle of the screen and scraped the previous screen's seven labels and
+called it an app list. `tools/maint/scrape-app-picker.sh` is the corrected scraper; it
+refuses to run unless `app_picker_list_item_label` is on screen, and both numbers above
+were reproduced with it, byte-identical.
+
+**Half verified, and which half.** DN-ENG41 has no browser — nothing on it answers VIEW
+https — so `launchProductQuery`'s Chrome special case cannot be exercised there. On the
+API 36 emulator, `dumpsys package queries` shows this app seeing 0 packages through
+intent queries without the declaration and 21 with it, `com.android.chrome` among them,
+which is the set `resolveActivity` reads. The product-search flow itself was not driven
+end to end: it needs a product barcode scanned after a `PRODUCT_SEARCH_LINK` or
+`zxing://` launch, and the virtual-scene camera cannot be aimed at the poster from the
+command line — `adb emu` has `virtualscene-image` but no macro command.
+
 - **A-06 / A-07** History CSV export and share-as-image write to the legacy external
   storage root; broken under scoped storage since Android 10. Needs app-specific storage
   plus a `FileProvider`.
 - **A-08** Wi-Fi result handler cannot add networks on Android 10+. Modern path is
   `WifiNetworkSuggestion` or `ACTION_WIFI_ADD_NETWORKS`.
-- **A-10** App-share picker and the browser special case are hit by Android 11 package
-  visibility; needs a `<queries>` element.
 - **A-12** Ambient-light torch control rebuilds the autofocus manager on every toggle.
 - **A-16** Android 16 ignores `screenOrientation` on large screens, so the
   landscape-designed capture UI runs portrait. The crop mapping is fixed; the **layout**

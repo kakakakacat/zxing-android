@@ -12,6 +12,14 @@ API may still change between minor versions.
 ## [Unreleased]
 
 ### Fixed
+- **A-10: the "share an application" picker can see installed apps again.** A `<queries>`
+  element declares the two intents this app asks about — MAIN/LAUNCHER for the picker and
+  VIEW on http(s) for the product-search browser hand-off — rather than
+  `QUERY_ALL_PACKAGES`. The picker asks `queryIntentActivities` for launcher activities
+  instead of `getInstalledApplications`, since an intent query is what the platform can
+  match that declaration against. On the test device the list went from 79 entries, of
+  which 15 were apps a user could launch and the rest unlabelled vendor services, to 49
+  launchable apps — 34 of them previously invisible to this app.
 - **A-09: the in-app book search is no longer blocked before it leaves the device, and
   the book-URL matcher stops missing https.** Every URL the app builds is https now — the Google Books API call, the
   read-this-page link, the book link under a scanned ISBN, and the maps / product-search /

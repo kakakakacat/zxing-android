@@ -1,0 +1,190 @@
+A-10 package visibility, A/B on DN-ENG41 (Android 14, serial T3515NNFBC000055) and
+the zxing_api36 emulator, 2026-11-02
+
+== 1. The "share an application" picker, DN-ENG41 ==
+
+Two APKs built from the same tree, differing only in this fix, kept side by side and
+installed in turn. Scraped by tools/maint/scrape-app-picker.sh: open the SHARE screen,
+tap Application, scroll in 300 px steps, collect every row label until four
+consecutive dumps add nothing new.
+
+Both counts below were produced twice, and the second time by the committed script, with
+byte-identical lists. That mattered, because the measurement was wrong three times before
+it was right and each failure looked like a result:
+
+  - a fast fling skips whole screens between dumps, so the scrape silently misses rows.
+    Gave 32 instead of 79, and 25 instead of 49.
+  - two scrapes running at once overwrite each other's temp file and leave a plausible
+    list that is neither run. Gave a 35-row file with two labels in it that are not apps.
+  - `tr '>' '>\n'` does not split a line. tr pads the shorter set; it cannot expand one
+    character into two. So the dump stayed one long line, `head -1` on the bounds match
+    returned the root node's bounds, and the script tapped the middle of the screen and
+    scraped the SHARE screen's own seven labels. It now locates the button with
+    `grep -o '<node[^>]*share_app_button[^>]*>'`, and refuses to scrape at all unless
+    `app_picker_list_item_label` is on screen. That guard was watched firing: on the
+    broken version it printed "the app picker did not open (tapped 320,480)" and exited 1.
+
+  before (getInstalledApplications, no <queries>): 79 rows
+  after  (MAIN/LAUNCHER query + <queries>):        49 rows
+  rows in both: 15
+
+The count went down and the screen got better, which is the point.
+
+  64 rows only in BEFORE. Every one is a vendor or platform service with no launcher
+  entry -- several have no label at all and show their package name. They were visible
+  only because system packages of that kind are forceQueryable, and they were never
+  sensible rows in a picker whose output is a market://details?id= barcode:
+    acu
+    als
+    aptxui
+    CACertApp
+    CallFeatureSetting
+    CneApp
+    com.qti.diagservices
+    com.qti.dpmserviceapp
+    com.qti.phone
+    com.qti.qualcomm.datastatusnotification
+    com.qti.service.colorservice
+    com.qualcomm.atfwd
+    com.qualcomm.atfwd2
+    com.qualcomm.qcrilmsgtunnel
+    com.qualcomm.qti.devicestatisticsservice
+    com.qualcomm.qti.dynamicddsservice
+    com.qualcomm.qti.ims
+    com.qualcomm.qti.lpa
+    com.qualcomm.qti.qms.service.connectionsecurity
+    com.qualcomm.qti.remoteSimlockAuth
+    com.qualcomm.qti.telephonyservice
+    com.qualcomm.qti.uim
+    com.qualcomm.qti.uimGbaApp
+    com.qualcomm.qti.workloadclassifier
+    com.qualcomm.qtil.btdsda
+    com.qualcomm.timeservice
+    com.qualcomm.uimremoteclient
+    com.qualcomm.uimremoteserver
+    ConfDialer
+    Conference URI Dialer
+    dcf
+    DcfClientService
+    Device Info
+    DxDLog
+    LocationServices
+    LTE Broadcast Manager
+    MBN Test
+    org.codeaurora.ims
+    Performance Mode
+    PowerOffAlarm
+    provision
+    QCC
+    QColor
+    QDCM-FF
+    QesdkSysApp
+    QMMI
+    QtiWifiService
+    RideMode Recording list
+    Sar Switch
+    SimContacts
+    Smart-Divert
+    SpecialAccessSettings
+    System Helper Service
+    System Update
+    TxPwrAdmin
+    uceShimService
+    Usable Power Mode
+    vendor.qti.imsdatachannel
+    vendor.qti.imsrcs
+    vendor.qti.iwlan
+    Wfd Service
+    XR Wifi Service
+    XRCB
+    XRVD
+
+  34 rows only in AFTER. Real, launchable, user-facing apps that Android 11 package
+  visibility had been hiding from this app:
+    爱思助手
+    AsrApp
+    Beats
+    BuilderAPP
+    BunnyTales
+    Camera
+    Chirpy
+    Clips
+    CrazyForPhon
+    EchoFrame
+    EchoMovie
+    EchoWords
+    EyesOnWords
+    FurnitureShowcase
+    Gallery
+    GuessIt
+    Helper Sample
+    MasterVoice
+    MiniSong
+    QuinPrintTest
+    RapTap
+    Riddles
+    SayHi!
+    ShinyWord
+    SkillTest
+    Snapdragon Camera
+    SSS Club
+    StoryPod
+    Toonzy
+    UnityDebug
+    WakeWordTest
+    Web Control Test
+    WoodBlock
+    ZnPocketTest
+
+  So before the fix the picker listed 79 entries of which 15 were apps a user could
+  launch, and 34 installed apps could not be picked at all.
+
+  Cross-check against the platform: the device has 50 packages with a MAIN/LAUNCHER
+  activity (cmd package query-activities, run from adb, which is not filtered); 49 of
+  them survive the picker's own com.android.* / com.google.android.* / android /
+  com.htc blocklist. The picker shows exactly those 49.
+
+  End to end on the fixed build: tapping AsrApp -- one of the 34 that did not exist
+  for this app before -- lands on the encode screen showing
+  market://details?id=com.dm.ai.asrapp.
+
+== 2. resolveActivity in launchProductQuery, zxing_api36 emulator ==
+
+DN-ENG41 has no browser at all: nothing on it answers VIEW https, so the special case
+in launchProductQuery cannot be exercised there either way. The API 36 emulator has
+com.android.chrome, which is one of the two packages that code names.
+
+dumpsys package queries, the block listing what this app can see through its intent
+queries, same two APKs:
+
+  without <queries>: 0 packages
+  with <queries>:    21 packages, com.android.chrome among them:
+    com.android.camera2
+    com.android.chrome
+    com.google.android.apps.accessibility.voiceaccess
+    com.google.android.apps.docs
+    com.google.android.apps.maps
+    com.google.android.apps.messaging
+    com.google.android.apps.photos
+    com.google.android.apps.safetyhub
+    com.google.android.apps.youtube.music
+    com.google.android.calendar
+    com.google.android.cellbroadcastreceiver
+    com.google.android.contacts
+    com.google.android.deskclock
+    com.google.android.dialer
+    com.google.android.documentsui
+    com.google.android.gm
+    com.google.android.googlequicksearchbox
+    com.google.android.inputmethod.latin
+    com.google.android.projection.gearhead
+    com.google.android.youtube
+    queryable via interaction:
+
+That set is what resolveActivity reads, so the special case can match again.
+
+NOT verified: the product-search flow running end to end. It needs a product barcode
+scanned after a PRODUCT_SEARCH_LINK or zxing:// launch, and the virtual-scene camera
+could not be aimed at the poster from the command line -- adb emu offers
+virtualscene-image but no macro command, and the scene's default view does not face
+the wall.
