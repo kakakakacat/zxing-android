@@ -1,0 +1,53 @@
+# Phase 6 spike: CameraX's camera-validator retry, on an AVD that has no front camera.
+#
+# Emulator timings are inadmissible as a result (BENCHMARKS.md §10.7). This file is kept
+# for the *ratio* and for the logcat extract below, which name the cause: CameraX checks
+# that both lens facings exist and retries initialisation for ~5 s when one is missing.
+# AVD zxing_api36 is configured hw.camera.front=none, and 'dumpsys media.camera' on it
+# reports 'Number of camera devices: 1'.
+
+## default (no limiter)
+device: sdk_gphone64_arm64, sdk 36
+fingerprint: google/sdk_gphone64_arm64/emu64a:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+package: io.github.kakakakacat.zxing.spike.camerax, runs: 3
+
+run 1: backend=camerax processToFirstFrameMs=5987 createToFirstFrameMs=5979 openToFirstFrameMs=5975 frame=1280x960 rowStride=1280 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camerax decodeMs=2 region=800x600 found=true
+run 2: backend=camerax processToFirstFrameMs=5866 createToFirstFrameMs=5846 openToFirstFrameMs=5843 frame=1280x960 rowStride=1280 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camerax decodeMs=9 region=800x600 found=true
+run 3: backend=camerax processToFirstFrameMs=6057 createToFirstFrameMs=6042 openToFirstFrameMs=6037 frame=1280x960 rowStride=1280 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camerax decodeMs=2 region=800x600 found=true
+
+runs with a result: 3
+                             min  median     max       n
+processToFirstFrameMs       5866    5987    6057       3
+createToFirstFrameMs        5846    5979    6042       3
+openToFirstFrameMs          5843    5975    6037       3
+
+## with setAvailableCamerasLimiter(DEFAULT_BACK_CAMERA)
+device: sdk_gphone64_arm64, sdk 36
+fingerprint: google/sdk_gphone64_arm64/emu64a:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+option: backCameraOnly
+package: io.github.kakakakacat.zxing.spike.camerax, runs: 3
+
+run 1: backend=camerax processToFirstFrameMs=117 createToFirstFrameMs=108 openToFirstFrameMs=102 frame=1280x960 rowStride=1280 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camerax decodeMs=2 region=800x600 found=true
+run 2: backend=camerax processToFirstFrameMs=114 createToFirstFrameMs=102 openToFirstFrameMs=93 frame=1280x960 rowStride=1280 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camerax decodeMs=2 region=800x600 found=true
+run 3: backend=camerax processToFirstFrameMs=102 createToFirstFrameMs=90 openToFirstFrameMs=84 frame=1280x960 rowStride=1280 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camerax decodeMs=1 region=800x600 found=true
+
+runs with a result: 3
+                             min  median     max       n
+processToFirstFrameMs        102     114     117       3
+createToFirstFrameMs          90     102     108       3
+openToFirstFrameMs            84      93     102       3
+
+## what the default run logs, verbatim
+11-02 14:17:12.482 I/Camera2CameraInfo: Device Level: INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED
+11-02 14:17:12.482 D/CameraValidator: Verifying camera lens facing on emu64a, lensFacingInteger: null
+11-02 14:17:12.482 W/CameraValidator: Camera LENS_FACING_FRONT verification failed
+11-02 14:17:12.482 W/CameraValidator: java.lang.IllegalArgumentException: No available camera can be found
+11-02 14:17:12.482 E/CameraValidator: Camera LensFacing verification failed, existing cameras: [Camera@df8a989[id=10]]
+11-02 14:17:12.482 W/CameraX: Retry init. Start time 14706507 current time 14707029
+11-02 14:17:12.482 W/CameraX: c7: Expected camera missing from device.

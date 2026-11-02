@@ -1,0 +1,16 @@
+                                camera1    camerax       lean  camerax-d     lean-d
+  APK on disk (compressed)      1608303    2166477    1815685    +558174    +207382
+  classes.dex (uncompressed)     265508     841288     643316    +575780    +377808
+  native libs (uncompressed)    3193040    3250700    3250700     +57660     +57660
+  resources (entry count)             0        273          0       +273         +0
+
+AndroidX libraries each flavor ends up carrying (from the .version markers R8 kept)
+  camera1      androidx.annotation_annotation-experimental androidx.arch.core_core-runtime androidx.core_core androidx.interpolator_interpolator androidx.lifecycle_lifecycle-runtime androidx.profileinstaller_profileinstaller androidx.startup_startup-runtime androidx.tracing_tracing androidx.versionedparcelable_versionedparcelable kotlinx_coroutines_android kotlinx_coroutines_core 
+  camerax      androidx.activity_activity androidx.annotation_annotation-experimental androidx.appcompat_appcompat androidx.appcompat_appcompat-resources androidx.arch.core_core-runtime androidx.camera_camera-camera2 androidx.camera_camera-core androidx.camera_camera-lifecycle androidx.camera_camera-video androidx.camera_camera-view androidx.core_core androidx.cursoradapter_cursoradapter androidx.customview_customview androidx.drawerlayout_drawerlayout androidx.exifinterface_exifinterface androidx.fragment_fragment androidx.interpolator_interpolator androidx.lifecycle_lifecycle-livedata androidx.lifecycle_lifecycle-livedata-core androidx.lifecycle_lifecycle-livedata-core-ktx androidx.lifecycle_lifecycle-runtime androidx.lifecycle_lifecycle-viewmodel androidx.loader_loader androidx.profileinstaller_profileinstaller androidx.savedstate_savedstate androidx.startup_startup-runtime androidx.tracing_tracing androidx.tracing_tracing-ktx androidx.vectordrawable_vectordrawable androidx.vectordrawable_vectordrawable-animated androidx.versionedparcelable_versionedparcelable androidx.viewpager_viewpager kotlinx_coroutines_android kotlinx_coroutines_core 
+  cameraxlean  androidx.annotation_annotation-experimental androidx.arch.core_core-runtime androidx.camera_camera-camera2 androidx.camera_camera-core androidx.camera_camera-lifecycle androidx.core_core androidx.exifinterface_exifinterface androidx.interpolator_interpolator androidx.lifecycle_lifecycle-livedata androidx.lifecycle_lifecycle-livedata-core androidx.lifecycle_lifecycle-livedata-core-ktx androidx.lifecycle_lifecycle-runtime androidx.profileinstaller_profileinstaller androidx.startup_startup-runtime androidx.tracing_tracing androidx.tracing_tracing-ktx androidx.versionedparcelable_versionedparcelable kotlinx_coroutines_android kotlinx_coroutines_core 
+
+native libraries CameraX adds
+> lib/arm64-v8a/libimage_processing_util_jni.so
+> lib/arm64-v8a/libsurface_util_jni.so
+> lib/armeabi-v7a/libimage_processing_util_jni.so
+> lib/armeabi-v7a/libsurface_util_jni.so

@@ -83,6 +83,8 @@ Last updated at commit `2038009ba` on branch `maint/android`.
 | `173541d91` | **A-08 fixed**: a scanned network is added by the route the platform allows |
 | `69b3c7062` | **A-12 fixed**: a floor on torch toggles, because the torch moves the sensor |
 | `2038009ba` | **A-16 fixed**, and with it **all of Phase 3** |
+| `a19900119` | Phase 3 closed out in this file |
+| _this commit_ | **Phase 6's decision record**, and the three-flavor spike it is built on |
 
 Nothing is uncommitted. Nothing is released; no tag has been pushed.
 
@@ -137,6 +139,10 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | A-16: the result screen in a portrait window | stacks, and the scanned text is on screen | API 36 emulator, `reports/a16-portrait-result-after.png` |
 | `:scanner:testDebugUnitTest` after A-16 | 84 tests, 0 failures | local |
 | 100× open-close stability loop after A-16 | 0 fatal exceptions | DN-ENG41, `reports/stability-100-a16-DN-ENG41-20261102.log` |
+| Phase 6 spike: cold launch to first decodable frame, 15 runs per flavor | camera1 860 ms, camerax 705 ms, cameraxlean 726 ms (medians, ranges disjoint) | DN-ENG41, `reports/camera-spike-*-DN-ENG41-20261102.log` |
+| Phase 6 spike: release APK, R8 on, two ABIs | 1,608,303 B; CameraX +558,174; without `camera-view` +207,382 | local, `reports/camera-spike-apk-size-20261102.log` |
+| Phase 6 spike: CameraX's one-camera retry | 5,987 ms → 114 ms with the back-camera limiter; no change on the two-camera phone | API 36 emulator + DN-ENG41, `reports/camera-spike-camerax-validator-api36-20261102.log` |
+| `YPlaneLuminanceSource` against a real `ImageProxy` | QR decoded, `rowStride=1920 pixelStride=1`, no copy | API 36 emulator, `reports/camera-spike-decode-api36-20261102.log` |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -295,6 +301,30 @@ latency, first-scan latency, CPU, memory, GC or power.
 ---
 
 ## Start here if you are new to this file
+
+**Phase 6 has a decision record now, and it is the one thing waiting on the user.**
+`docs/maint/decisions/0001-camera-backend.md` compares Camera1, Camera2 and CameraX and
+recommends CameraX — measured on DN-ENG41 rather than argued, through
+`benchmark/camera-spike`, which builds the same application three times over three camera
+stacks so that a delta belongs to the stack and nothing else. CameraX reaches a decodable
+frame 158 ms (20%) sooner than the stack that ships today, with no overlap across 15 cold
+launches each, and costs +558 KB — of which 351 KB is `camera-view` alone and avoidable.
+
+**The open question is not technical: current CameraX requires minSdk 23 and this project
+is at 21.** 1.4.2 is the last line that supports 21 and it was released on 2025-03-26. The
+record lays out both options and takes neither; see its last section.
+
+Three things the spike turned up that are worth knowing whatever is decided:
+
+- **CameraX spends five seconds retrying when a device has only one camera.** It verifies
+  that both lens facings exist. `setAvailableCamerasLimiter(DEFAULT_BACK_CAMERA)` removes it:
+  5,987 ms to 114 ms on a one-camera emulator, and no change at all on the two-camera phone.
+- **`YPlaneLuminanceSource` now has a real `ImageProxy` behind it.** Phase 5 item 8 built it
+  for CameraX and had only ever fed it synthetic planes; it decoded a real QR out of a real
+  camera buffer, no copy, on both CameraX flavors.
+- **DN-ENG41's back camera reports no flash unit and auto-focus OFF only**, from
+  `dumpsys media.camera`. A-12's torch control and `AutoFocusManager` are therefore both
+  unexercised on the only physical device here.
 
 **Phase 3 is closed: all seven carried-forward defects are fixed**, each with its own
 commit and its own before/after on a device or an emulator. See "Phase 3" below; the
@@ -900,6 +930,43 @@ added for the same reason. Evidence, with before/after screenshots:
 
 **Still not covered:** no physical large-screen device exists here. The window sizes and
 the layout are the same thing on a real tablet; the camera on one is not.
+
+### Phase 6 — the camera backend
+
+The decision record is `docs/maint/decisions/0001-camera-backend.md`; the summary and the
+open question are at the top of this file. What is left here:
+
+- **The minSdk question** — 21 with CameraX frozen at a 19-month-old release, or 23 with the
+  current line. The user's call; nothing else in Phase 6 can start until it is answered.
+- **Adoption**, if it is CameraX: `:scanner` grows the dependency, `ScannerView` binds
+  `Preview` + `ImageAnalysis` instead of owning a `CameraManager`, and the frames go to
+  `YPlaneLuminanceSource` rather than `PlanarYUVLuminanceSource`. That finishes Phase 5
+  item 8 at the same time.
+- **Verification**, which the second README tickbox already asks for: preview, ROI, result
+  points and screen-coordinate mapping on a device, plus the 100× stability loop and the 21
+  instrumentation tests, before the Camera1 path stops being the default.
+
+`benchmark/camera-spike` stays in the tree whatever is decided — it is the only thing that
+can re-run any of those numbers. CI assembles all three flavors on every push so it cannot
+rot unnoticed, but CI cannot *run* it: it needs a camera.
+
+Reproducing the measurements:
+
+```
+./gradlew :camera-spike:installCamera1Release :camera-spike:installCameraxRelease \
+          :camera-spike:installCameraxleanRelease
+tools/maint/camera-spike-run.sh camera1 15 <serial>
+BACK_CAMERA_ONLY=1 tools/maint/camera-spike-run.sh cameraxlean 15 <serial>
+tools/maint/camera-spike-size.sh
+```
+
+**One trap in the harness itself, and it is the kind this file keeps collecting.** The runner
+*streams* logcat to a file for the duration of each launch rather than reading the buffer
+back afterwards. On DN-ENG41 the main buffer is busy enough that a line is gone within a few
+seconds, and the first version of the script — which polled `logcat -d` — found the result
+line and lost the decode line on every single run. That looked exactly like a decode that
+never happened, and the first reading of it was that `YPlaneLuminanceSource` had thrown
+against a real `ImageProxy`. It had not; the reader was too late.
 
 ### Release and distribution
 

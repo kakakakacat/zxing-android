@@ -1,0 +1,40 @@
+device: DN-ENG41, sdk 34
+fingerprint: GigglePal/GigglePal_Companion/GigglePal_Companion:14/DN_ENG41_V1.3.8_20260309/T3501:userdebug/test-keys
+package: io.github.kakakakacat.zxing.spike.camera1, runs: 15
+
+run 1: backend=camera1 processToFirstFrameMs=911 createToFirstFrameMs=857 openToFirstFrameMs=806 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=11 region=1200x675 found=false
+run 2: backend=camera1 processToFirstFrameMs=860 createToFirstFrameMs=810 openToFirstFrameMs=759 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=14 region=1200x675 found=false
+run 3: backend=camera1 processToFirstFrameMs=908 createToFirstFrameMs=856 openToFirstFrameMs=799 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=12 region=1200x675 found=false
+run 4: backend=camera1 processToFirstFrameMs=882 createToFirstFrameMs=831 openToFirstFrameMs=776 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=13 region=1200x675 found=false
+run 5: backend=camera1 processToFirstFrameMs=865 createToFirstFrameMs=814 openToFirstFrameMs=759 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=19 region=1200x675 found=false
+run 6: backend=camera1 processToFirstFrameMs=839 createToFirstFrameMs=788 openToFirstFrameMs=738 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=22 region=1200x675 found=false
+run 7: backend=camera1 processToFirstFrameMs=880 createToFirstFrameMs=830 openToFirstFrameMs=780 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=13 region=1200x675 found=false
+run 8: backend=camera1 processToFirstFrameMs=862 createToFirstFrameMs=812 openToFirstFrameMs=764 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=11 region=1200x675 found=false
+run 9: backend=camera1 processToFirstFrameMs=853 createToFirstFrameMs=802 openToFirstFrameMs=745 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=12 region=1200x675 found=false
+run 10: backend=camera1 processToFirstFrameMs=852 createToFirstFrameMs=802 openToFirstFrameMs=749 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=12 region=1200x675 found=false
+run 11: backend=camera1 processToFirstFrameMs=856 createToFirstFrameMs=804 openToFirstFrameMs=755 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=11 region=1200x675 found=false
+run 12: backend=camera1 processToFirstFrameMs=853 createToFirstFrameMs=802 openToFirstFrameMs=747 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=12 region=1200x675 found=false
+run 13: backend=camera1 processToFirstFrameMs=840 createToFirstFrameMs=789 openToFirstFrameMs=741 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=14 region=1200x675 found=false
+run 14: backend=camera1 processToFirstFrameMs=872 createToFirstFrameMs=821 openToFirstFrameMs=773 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=17 region=1200x675 found=false
+run 15: backend=camera1 processToFirstFrameMs=858 createToFirstFrameMs=806 openToFirstFrameMs=757 frame=1920x1080 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=10 region=1200x675 found=false
+
+runs with a result: 15
+                             min  median     max       n
+processToFirstFrameMs        839     860     911      15
+createToFirstFrameMs         788     810     857      15
+openToFirstFrameMs           738     759     806      15

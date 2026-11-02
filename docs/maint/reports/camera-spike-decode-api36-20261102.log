@@ -1,0 +1,43 @@
+# Phase 6 spike, DECODE CHECK ONLY.
+#
+# Emulator timings are inadmissible (BENCHMARKS.md §10.7) and the numbers below are not
+# evidence for anything. What this file is evidence for is 'found=true': a real QR code
+# decoded out of a real camera frame through each backend -- and for CameraX that means
+# through YPlaneLuminanceSource reading an ImageProxy's luma plane in place, which until
+# this run had only ever been exercised against synthetic planes in unit tests.
+#
+# Scene: Android 16 emulator, virtual scene, wall poster from tools/maint/make-qr-poster.py.
+# One worth noting all the same: Camera1 reaches its first frame in ~200 ms here and
+# CameraX takes ~6 s -- the opposite order from the physical device. See the decision record.
+
+## camerax
+device: sdk_gphone64_arm64, sdk 36
+fingerprint: google/sdk_gphone64_arm64/emu64a:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+package: io.github.kakakakacat.zxing.spike.camerax, runs: 2
+
+run 1: backend=camerax processToFirstFrameMs=5872 createToFirstFrameMs=5857 openToFirstFrameMs=5853 frame=1280x960 rowStride=1280 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camerax decodeMs=29 region=800x600 found=true
+run 2: backend=camerax processToFirstFrameMs=5908 createToFirstFrameMs=5895 openToFirstFrameMs=5891 frame=1280x960 rowStride=1280 pixelStride=1 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camerax decodeMs=2 region=800x600 found=true
+
+runs with a result: 2
+                             min  median     max       n
+processToFirstFrameMs       5872    5890    5908       2
+createToFirstFrameMs        5857    5876    5895       2
+openToFirstFrameMs          5853    5872    5891       2
+
+## camera1
+device: sdk_gphone64_arm64, sdk 36
+fingerprint: google/sdk_gphone64_arm64/emu64a:16/BE2A.250530.026.F3/13894323:userdebug/dev-keys
+package: io.github.kakakakacat.zxing.spike.camera1, runs: 2
+
+run 1: backend=camera1 processToFirstFrameMs=212 createToFirstFrameMs=203 openToFirstFrameMs=174 frame=1280x720 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=2 region=640x450 found=true
+run 2: backend=camera1 processToFirstFrameMs=209 createToFirstFrameMs=196 openToFirstFrameMs=176 frame=1280x720 decoder=backend=zxing-cpp;abi=arm64-v8a;neon=1;zxingcpp=3.1.1
+        backend=camera1 decodeMs=1 region=640x450 found=true
+
+runs with a result: 2
+                             min  median     max       n
+processToFirstFrameMs        209     210     212       2
+createToFirstFrameMs         196     199     203       2
+openToFirstFrameMs           174     175     176       2

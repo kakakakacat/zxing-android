@@ -81,6 +81,16 @@ jobs:
         # only proves the benchmark still builds against the current frame path.
         run: ./gradlew :benchmark-android:assembleReleaseAndroidTest
 
+      - name: Assemble the camera-backend spike (all three flavors)
+        # Phase 6's evidence lives in this module (docs/maint/decisions/0001-camera-backend.md).
+        # Nothing ships from it and CI cannot run it -- it needs a camera -- but a spike that
+        # stops compiling is a spike nobody can re-run, and the measurements in that record
+        # are only worth what reproducing them is worth.
+        run: |
+          ./gradlew :camera-spike:assembleCamera1Release \
+                    :camera-spike:assembleCameraxRelease \
+                    :camera-spike:assembleCameraxleanRelease
+
       - name: A release would publish a resolvable POM
         # :scanner's POM depends on this project's own :core. Publishing one without the
         # other produces an artifact no consumer can resolve, and that is exactly what

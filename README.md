@@ -226,8 +226,16 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 
 ### Phase 6 — camera backend
 
-- [ ] Decision record comparing Camera1 / Camera2 / CameraX on OS coverage, device
-      compatibility, APK size, startup latency and maintenance cost
+- [x] Decision record comparing Camera1 / Camera2 / CameraX on OS coverage, device
+      compatibility, APK size, startup latency and maintenance cost —
+      [`docs/maint/decisions/0001-camera-backend.md`](docs/maint/decisions/0001-camera-backend.md).
+      Measured, not argued: `benchmark/camera-spike` builds the same app three times over
+      three camera stacks, so a size delta and a startup delta are attributable to the stack
+      and nothing else. CameraX reaches a decodable frame **158 ms (20%) sooner** than the
+      Camera1 stack that ships today, on 15 cold launches each; it costs **+558 KB**, of
+      which **351 KB is `camera-view` alone** and avoidable. One question is open and is the
+      maintainer's to settle: current CameraX needs **minSdk 23** and this project is at 21.
+- [ ] CameraX adopted in `:scanner` (blocked on the minSdk question above)
 - [ ] If adopted: preview, ROI, result points and screen-coordinate mapping verified
 
 ## Namespace and independence
