@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `e8071855d` on branch `maint/android`.
+Last updated at commit `2e9e5ce16` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -87,7 +87,8 @@ Last updated at commit `e8071855d` on branch `maint/android`.
 | `29a5c1e7d` | **Phase 6's decision record**, and the three-flavor spike it is built on |
 | `e8071855d` | **A second physical device**, Android 15 — and the Phase 6 headline it overturned |
 
-Nothing is uncommitted. Nothing is released; no tag has been pushed.
+Nothing is uncommitted. `maint/android` is pushed through `2e9e5ce16` and CI is green on
+it. Nothing is released; no tag has been pushed.
 
 ---
 
@@ -100,7 +101,7 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | L1 at TRY_HARDER, both backends | java 921 correct, zxing-cpp 960 | `reports/l1-49bd3beb3-*-tryharder.json` |
 | L1 device harness against the host run | same five totals through the same decoder | §9.1 |
 | `:scanner:testDebugUnitTest` | 69 tests: 9 coordinate-mapping, 6 hint-construction, 18 luma-plane, 8 decoder-seam, 6 backend-selection, 10 native-rendering, 3 Kotlin class-literal mapping, 9 Java source compatibility | local + CI |
-| `:scanner:connectedDebugAndroidTest` | 21 tests: 35 fixed frames over 16 formats, a live format-switch test, the default-backend checks and the native backend, 0 failures | Android 14 device **and** CI emulators API 21/34/35/36 |
+| `:scanner:connectedDebugAndroidTest` | 21 tests: 35 fixed frames over 16 formats, a live format-switch test, the default-backend checks and the native backend, 0 failures | Android 14 device, Android 15 device, **and** CI emulators API 23/34/35/36 on `2e9e5ce16` (run `41423012347`) |
 | 16 KB page alignment | `0x4000` on both shipped ABIs, enforced by `:scanner:verifyNativeAlignment` | local + CI |
 | App install / launch / preview | works | Android 14 device, API 35 + 36 emulators |
 | CAMERA grant / deny / permanently-denied | works, no request loop | Android 14 device |
@@ -353,6 +354,18 @@ beyond the test APKs under `/data/local/tmp`, and the spike APKs remain installe
 ---
 
 ## Start here if you are new to this file
+
+**CI had not run on any of this until 2026-11-02, and now it has.** The remote sat at
+`de2472846` from 2026-10-30 while 70 commits accumulated locally — the whole benchmark
+toolchain, the native decoder, the Kotlin conversion, all of Phase 3, Phase 6 and the
+minSdk bump. Every "local + CI" in the table below was therefore a claim about a CI run
+that predated the thing it described. They are now true: run `41423012309` (Build) and
+`41423012347` (Instrumentation) are green on `2e9e5ce16`, **first try, nothing broken** —
+API 23/34/35/36 each 21 tests, 0 failures, 0 skipped, the API 23 leg being the new one the
+minSdk bump created.
+
+The lesson is not "it was fine". It is that nobody could have known it was fine, for three
+days of work, and the file said otherwise. **Push before writing "CI" in this table.**
 
 **There is a second physical device now, and it is an Android 15 one.** A Xiaomi
 25010PN30C (`xuanyuan`, API 35, SM8550, five cameras, 4 KB pages) on the user's home LAN,

@@ -153,7 +153,8 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       result screen stacks
 - [ ] Predictive back
 - [x] App launches, previews and survives on API 35 and API 36 emulators
-- [ ] Instrumentation suite run on API 35 and API 36 in CI (workflow written, not yet run)
+- [x] Instrumentation suite runs on API 23 / 34 / 35 / 36 emulators in CI — 21 tests,
+      0 failures on each, green on `2e9e5ce16`
 - [x] Verified on a physical **Android 15** device: the 21 `:scanner` instrumentation tests
       pass on a Xiaomi 25010PN30C (API 35, SM8550), reached through a root agent rather than
       adb — `docs/maint/reports/instrumentation-21-mix5-api35-20261102.log`. Android 16 is
