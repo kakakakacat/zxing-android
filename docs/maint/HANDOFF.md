@@ -435,10 +435,16 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
    | `:app` | Kotlin, 0 Java, 58 files (`8dce7b212` … `efa0a2dea`) |
    | `:core` | **stays Java on purpose** — synced from upstream by `sync-core-from-upstream.sh` |
 
-   The only Java left in the tree is `:core` and eleven test files in `:scanner`. Those
-   are Java **deliberately**: `JavaSourceCompatibilityTest` and its neighbours exist so
-   javac has to accept the Kotlin API, and rewriting them in Kotlin would delete the
-   check. Do not convert them.
+   Java still in the tree, all of it on purpose:
+
+   - `:core`, synced from upstream.
+   - Eleven test files in `:scanner` and one in `:android-integration`.
+     `JavaSourceCompatibilityTest` and its neighbours are Java **deliberately** — they
+     exist so javac has to accept the Kotlin API, and rewriting them in Kotlin would
+     delete the check. Do not convert them.
+   - The benchmark modules (`benchmark/jvm`, `benchmark/corpus`, `benchmark/android`),
+     which item 6 never covered. They are harnesses, not shipped code, and nothing has
+     been decided about converting them.
 
    **`:app` converted package by package**, each commit building, linting, installing and
    being driven by hand: `result` (20 files) → `history` → `book` → `share` → `encode` →
