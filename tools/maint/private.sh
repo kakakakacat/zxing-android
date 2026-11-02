@@ -80,11 +80,18 @@ cmd_decrypt() {
   with_pass enc -d "${CIPHER[@]}" -in "$src"
 }
 
+# Not `local`: the EXIT trap below runs after this function has returned, and under
+# `set -u` a trap that names a dead local aborts the script -- which printed
+# "tmp: unbound variable" after every successful edit, looking exactly like a failure to
+# re-encrypt.
+EDIT_TMP=""
+
 cmd_edit() {
   local src="${1:?usage: private.sh edit <file.md.enc>}"
-  local tmp; tmp="$(mktemp -t zxing-private)"
+  EDIT_TMP="$(mktemp -t zxing-private)"
+  local tmp="$EDIT_TMP"
   chmod 600 "$tmp"
-  trap 'rm -f "$tmp"' EXIT
+  trap 'rm -f "$EDIT_TMP"' EXIT
   if [ -f "$src" ]; then
     with_pass enc -d "${CIPHER[@]}" -in "$src" -out "$tmp"
   fi
