@@ -39,16 +39,20 @@ import android.provider.Browser
 import android.provider.Settings
 import android.util.Log
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.KeyEvent
 import android.view.Menu
 import android.view.MenuItem
 import android.view.Surface
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.view.Window
 import android.view.WindowInsets
 import android.view.WindowManager
+import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import io.github.kakakakacat.zxing.BarcodeFormat
@@ -174,6 +178,7 @@ class CaptureActivity : Activity(), ScannerView.Listener {
     // off screen.
     resultView = findViewById(R.id.result_view)
     statusView = findViewById(R.id.status_view)
+    applyPortraitResultLayout()
 
     lastResult = null
 
@@ -788,6 +793,90 @@ class CaptureActivity : Activity(), ScannerView.Listener {
     statusView.visibility = View.VISIBLE
     scannerView.getViewfinderView().visibility = View.VISIBLE
     lastResult = null
+    waitForViewfinder()
+  }
+
+  /**
+   * Defect A-16. This activity asks for landscape and gets it everywhere except a large
+   * screen on Android 16, which ignores `screenOrientation`. The layout is built for
+   * landscape, so in a portrait window two things come out wrong, and both are fixed
+   * here rather than in a `layout-port` variant — a second copy of this file is how A-18
+   * happened.
+   *
+   * The result row is a thumbnail and its metadata beside the scanned text, which is
+   * right when the window is wide and wrong when it is tall, so it stacks instead.
+   */
+  private fun applyPortraitResultLayout() {
+    val portrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+    val detailView = findViewById<LinearLayout?>(R.id.result_detail_view) ?: return
+    val metadataView = findViewById<LinearLayout?>(R.id.result_metadata_view) ?: return
+    detailView.orientation = if (portrait) LinearLayout.VERTICAL else LinearLayout.HORIZONTAL
+    metadataView.gravity =
+        if (portrait) Gravity.CENTER_HORIZONTAL else Gravity.END or Gravity.CENTER_VERTICAL
+    // The column is `fill_parent` tall, which is what makes it centre itself beside the
+    // text in a row. Leave that in a *column* and it eats the whole height and pushes the
+    // scanned text off the bottom of the screen -- which is exactly what the first
+    // attempt at this did: thumbnail, format, type and time at the top, and the one thing
+    // the user scanned for nowhere to be seen.
+    val params = metadataView.layoutParams
+    params.height =
+        if (portrait) ViewGroup.LayoutParams.WRAP_CONTENT
+        else ViewGroup.LayoutParams.MATCH_PARENT
+    metadataView.layoutParams = params
+  }
+
+  /**
+   * The other half of A-16: the status line is anchored to the bottom of the window,
+   * which on a landscape phone is just under the viewfinder and on a 2560px-tall window
+   * is a thousand pixels away from it, where nobody is looking.
+   *
+   * In a portrait window it goes just below the frame instead. The frame is a camera
+   * property, so it does not exist yet when the layout is inflated or when `onResume`
+   * runs — both ran before the surface was created and the driver opened, which is why
+   * the first attempt at this did nothing at all. Hence [waitForViewfinder]: a pre-draw
+   * listener that keeps trying and removes itself the moment it succeeds.
+   *
+   * @return true when there is nothing left to wait for
+   */
+  private fun placeStatusUnderViewfinder(): Boolean {
+    val params = statusView.layoutParams as? FrameLayout.LayoutParams ?: return true
+    val portrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+    if (!portrait) {
+      if (params.gravity != (Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL) ||
+          params.topMargin != 0) {
+        params.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+        params.topMargin = 0
+        statusView.layoutParams = params
+      }
+      return true
+    }
+    val framingRect = scannerView.getFramingRect() ?: return false
+    val top = framingRect.bottom + resources.getDimensionPixelSize(R.dimen.standard_padding)
+    if (params.gravity != (Gravity.TOP or Gravity.CENTER_HORIZONTAL) || params.topMargin != top) {
+      params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+      params.topMargin = top
+      statusView.layoutParams = params
+    }
+    return true
+  }
+
+  /** Keeps asking until the camera has a framing rect to read, then stops asking. */
+  private fun waitForViewfinder() {
+    if (placeStatusUnderViewfinder()) {
+      return
+    }
+    val observer = scannerView.viewTreeObserver
+    observer.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+      override fun onPreDraw(): Boolean {
+        if (placeStatusUnderViewfinder()) {
+          val live = scannerView.viewTreeObserver
+          if (live.isAlive) {
+            live.removeOnPreDrawListener(this)
+          }
+        }
+        return true
+      }
+    })
   }
 
   fun drawViewfinder() {

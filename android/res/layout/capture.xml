@@ -31,7 +31,13 @@
                 android:visibility="gone"
                 android:baselineAligned="false">
 
+    <!-- Horizontal here, because the activity asks for landscape and gets it everywhere
+         except a large screen on Android 16, where the request is ignored (defect A-16).
+         CaptureActivity turns this row vertical when the window really is portrait; doing
+         it there rather than in a layout-port variant keeps one file to keep correct.
+         layout-ldpi/capture.xml already drifted away from this one once (A-18). -->
     <LinearLayout
+        android:id="@+id/result_detail_view"
         android:orientation="horizontal"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
@@ -40,6 +46,7 @@
         android:padding="@dimen/standard_padding">
 
       <LinearLayout
+          android:id="@+id/result_metadata_view"
           android:orientation="vertical"
           android:layout_width="wrap_content"
           android:layout_height="fill_parent"

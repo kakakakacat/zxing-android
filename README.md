@@ -148,9 +148,9 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       the gesture navigation bar — reproduced and fixed, verified on API 35 and 36
 - [x] **A-13** The decoded region now follows the viewfinder through the display-to-camera
       rotation and front-camera mirroring — 9 unit tests, reproduced on API 36
-- [ ] **A-16** Android 16 ignores `screenOrientation` on large screens, so the
-      landscape-designed capture UI runs portrait. Crop mapping is fixed; the layout and
-      the framing rect shape still assume landscape
+- [x] **A-16** The capture UI works in the portrait window Android 16 gives it on a
+      large screen: the frame turns with the window, the status line follows it and the
+      result screen stacks
 - [ ] Predictive back
 - [x] App launches, previews and survives on API 35 and API 36 emulators
 - [ ] Instrumentation suite run on API 35 and API 36 in CI (workflow written, not yet run)
@@ -259,7 +259,6 @@ years of callers and buy nothing.
 
 | ID | Problem | Where |
 | --- | --- | --- |
-| A-16 | On a large screen, Android 16 forces the landscape-designed capture UI into portrait | app |
 | — | No L3 or L4 numbers exist: nothing is known about camera-ready or first-scan latency | all |
 | — | Only one device has been tested: Android 14, no GMS | all |
 | — | Maven Central publishing is not set up; GitHub Packages and JitPack only | release |

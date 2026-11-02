@@ -12,6 +12,13 @@ API may still change between minor versions.
 ## [Unreleased]
 
 ### Fixed
+- **A-16: the scan screen works on a large screen.** Android 16 ignores
+  `android:screenOrientation` on a large screen, so the landscape-designed capture UI runs
+  in a portrait window. The viewfinder rectangle now turns with the window instead of
+  staying a shallow band across it — at 1600x2560 it covered 26% of the height and now
+  covers 47%, while a landscape window is unchanged — the status line sits under the frame
+  rather than at the bottom of the window, and the result screen stacks the barcode image
+  above its text instead of beside it.
 - **A-12: the automatic front light no longer flaps.** With the front light set to AUTO,
   every light-sensor reading called into the camera, and every reading that crossed a
   threshold changed the flash mode — which tears down and rebuilds the autofocus manager

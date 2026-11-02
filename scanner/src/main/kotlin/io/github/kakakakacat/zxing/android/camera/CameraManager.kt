@@ -234,9 +234,7 @@ class CameraManager(context: Context, options: ScannerOptions?) {
       // Called early, before init even finished
       val screenResolution = configManager.screenResolution ?: return null
 
-      val width = findDesiredDimensionInRange(screenResolution.x, MIN_FRAME_WIDTH, MAX_FRAME_WIDTH)
-      val height =
-          findDesiredDimensionInRange(screenResolution.y, MIN_FRAME_HEIGHT, MAX_FRAME_HEIGHT)
+      val (width, height) = FramingRectSizer.sizeFor(screenResolution.x, screenResolution.y)
 
       val leftOffset = (screenResolution.x - width) / 2
       val topOffset = (screenResolution.y - height) / 2
@@ -327,17 +325,5 @@ class CameraManager(context: Context, options: ScannerOptions?) {
   private companion object {
     private val TAG: String = CameraManager::class.java.simpleName
 
-    private const val MIN_FRAME_WIDTH = 240
-    private const val MIN_FRAME_HEIGHT = 240
-    private const val MAX_FRAME_WIDTH = 1200 // = 5/8 * 1920
-    private const val MAX_FRAME_HEIGHT = 675 // = 5/8 * 1080
-
-    private fun findDesiredDimensionInRange(resolution: Int, hardMin: Int, hardMax: Int): Int {
-      val dim = 5 * resolution / 8 // Target 5/8 of each dimension
-      if (dim < hardMin) {
-        return hardMin
-      }
-      return Math.min(dim, hardMax)
-    }
   }
 }

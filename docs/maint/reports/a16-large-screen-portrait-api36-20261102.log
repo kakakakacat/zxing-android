@@ -1,0 +1,82 @@
+A-16 large-screen portrait capture UI, on the zxing_api36 emulator forced to
+1600x2560 at 240dpi (1066dp wide) -- the size the defect was first reproduced at.
+2026-11-02
+
+  adb shell wm size 1600x2560 && adb shell wm density 240
+  ... and afterwards: adb shell wm size reset && adb shell wm density reset
+
+CaptureActivity asks for sensorLandscape and Android 16 ignores it on a screen this
+size, so the activity runs in a portrait window. That part cannot be fixed; what
+follows is the UI being made to work in the window it is given.
+
+== 1. The viewfinder rectangle ==
+
+The two caps on the frame size, 1200 and 675, are five eighths of 1920 and of 1080:
+the long and short sides of a landscape phone. They were written as a width cap and a
+height cap, which is the same thing right up until the window is portrait.
+
+  1600x2560 before:  1000 x 675  = 62% of the width, 26% of the height
+  1600x2560 after:    675 x 1200 = 42% of the width, 47% of the height
+  1920x1080 (phone):  1200 x 675 = 62% of both, before and after -- unchanged
+
+The caps now follow the window's long and short axes rather than x and y. On any
+landscape window the long axis IS x, so nothing about the case everybody has moves;
+FramingRectSizerTest pins that as well as the portrait case.
+
+  reports/a16-portrait-scan-before.png   a wide shallow band
+  reports/a16-portrait-scan-after.png    a frame the shape of its window
+
+== 2. The status line ==
+
+It is anchored to the bottom of the window. On a landscape phone that is just under
+the frame; on a 2560px-tall window it is a thousand pixels below it. In a portrait
+window it now sits directly under the frame.
+
+  status_view bounds, 1600x2560, after:  [533,1892][1067,1969]
+  the frame's bottom edge:               1880
+  status_view bounds on DN-ENG41 (960x640, landscape): [79,544][881,592]
+    -- the same as before this change; the bottom of a 640px window.
+
+This needed a third attempt to be right and the reason is worth keeping. The frame is
+a camera property: it does not exist when the layout is inflated, nor when onResume
+runs, nor at the layout pass that follows -- the surface has not been created and the
+driver has not been opened yet. The first two versions read a null rectangle and did
+nothing at all, silently. It now retries from a pre-draw listener and removes that
+listener the moment it succeeds.
+
+== 3. The result screen ==
+
+The result row is the thumbnail and its metadata beside the scanned text, which is
+right in a wide window and wrong in a tall one. It stacks when the window is
+portrait. Done in code rather than in a layout-port variant: a second copy of
+capture.xml is exactly how A-18 happened, and layout-ldpi/capture.xml has the two new
+ids added for the same reason.
+
+  reports/a16-portrait-result-after.png
+
+The first version of this stacked the row and lost the scanned text off the bottom of
+the screen: the metadata column is fill_parent tall, which centres it beside the text
+in a row and eats the entire height in a column. Format, type and time were there and
+the URL -- the only thing the user scanned for -- was not. The column is wrap_content
+in portrait now.
+
+== Nothing else moved ==
+
+  :scanner:testDebugUnitTest            84 tests, 0 failures (77 + 7 FramingRectSizer)
+  :scanner:connectedDebugAndroidTest    21 tests, 0 failures on DN-ENG41,
+                                        zxing_api35 and zxing_api36
+  :android-integration:testDebugUnitTest, :app:lintDebug   clean
+  100x open-close stability loop        fatal_exceptions=0
+                                        (reports/stability-100-a16-DN-ENG41-20261102.log)
+  api-diff.sh :scanner                  an access$ bridge disappears with the private
+                                        helper that moved out; FramingRectSizer appears
+                                        as the documented internal-is-public widening
+  DN-ENG41, landscape                   scan screen and result screen unchanged,
+                                        status line in the same place, no fatal
+                                        exceptions
+
+== Still not covered ==
+
+No physical large-screen device exists here, so all of the above is an emulator with
+wm size forced. The window sizes and the layout are the same thing on a real tablet;
+the camera behaviour on one is not.

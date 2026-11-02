@@ -128,6 +128,11 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | `:scanner:testDebugUnitTest` after A-12 | 77 tests, 0 failures; 4 fail with the interval check deleted | local |
 | `:scanner:connectedDebugAndroidTest` after A-12 | 21 tests, 0 failures | DN-ENG41 **and** API 35 + 36 emulators |
 | 100× open-close stability loop after A-12 | 0 fatal exceptions, 0 camera errors | DN-ENG41, `reports/stability-100-a12-DN-ENG41-20261102.log` |
+| A-16: the viewfinder at 1600x2560 | 1000×675 (26% of the height) → 675×1200; 1920×1080 unchanged at 1200×675 | API 36 emulator, `reports/a16-large-screen-portrait-api36-20261102.log` |
+| A-16: the status line in a portrait window | under the frame at y 1892, not at the window's bottom; unchanged on a landscape phone | API 36 emulator **and** DN-ENG41 |
+| A-16: the result screen in a portrait window | stacks, and the scanned text is on screen | API 36 emulator, `reports/a16-portrait-result-after.png` |
+| `:scanner:testDebugUnitTest` after A-16 | 84 tests, 0 failures | local |
+| 100× open-close stability loop after A-16 | 0 fatal exceptions | DN-ENG41, `reports/stability-100-a16-DN-ENG41-20261102.log` |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -682,9 +687,15 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
 
 ### Phase 3 — carried-forward defects (independent; can be picked up any time)
 
-All of these survived the Kotlin conversion untouched, by decision; **A-06, A-07, A-08,
-A-09, A-10 and A-12 have since been fixed**. What is left is **A-16**, the capture
-layout.
+**All of them are now fixed** — A-06, A-07, A-08, A-09, A-10, A-12 and A-16 — each with
+its own commit, its own before/after on a device or an emulator, and its own file in
+`reports/`. They survived the Kotlin conversion untouched by decision and were taken one
+at a time afterwards. Nothing from this phase is open.
+
+Three things generalise past the individual fixes and are written out below: *widen what
+you match, narrow what you emit* (A-09), *a grant that reaches the destination app is not
+the same as a grant that reaches the share sheet* (A-06/A-07), and *the measurement was
+wrong three times before it was right* (A-10). The rest is per defect.
 
 **A-09 is fixed**, and the one-command repro is now the check that it stays fixed:
 
@@ -845,9 +856,42 @@ cannot be restarted, and making it restartable means reasoning about an in-fligh
 `AutoFocusTask` resurrecting a stopped manager. It is now bounded by the rate check, and
 the camera stack is Phase 6's decision.
 
-- **A-16** Android 16 ignores `screenOrientation` on large screens, so the
-  landscape-designed capture UI runs portrait. The crop mapping is fixed; the **layout**
-  and the framing-rect shape still assume landscape.
+
+**A-16 is fixed in the sense that is available.** The orientation cannot be forced back —
+Android 16 ignores `screenOrientation` on a large screen and that is the end of it — so
+the capture UI was made to work in the portrait window it gets. Three parts, each
+measured at 1600x2560 @240dpi on the API 36 emulator:
+
+1. **The viewfinder's size caps follow the window's long and short axes** instead of x and
+   y. The numbers 1200 and 675 are five eighths of 1920 and of 1080, the long and short
+   sides of a landscape phone, and writing them as a *width* cap and a *height* cap is the
+   same thing right up until the window is portrait. There the frame came out 1000x675:
+   62% of the width and **26%** of the height, a shallow band. It is now 675x1200. **A
+   landscape window is bit-for-bit unchanged**, because there the long axis *is* x, and
+   `FramingRectSizerTest` pins that as hard as it pins the portrait case.
+2. **The status line sits under the frame** rather than at the bottom of a 2560px window,
+   a thousand pixels from where the user is looking.
+3. **The result row stacks** instead of putting the thumbnail beside the scanned text.
+
+Two mistakes on the way, both of which returned a plausible-looking screen:
+
+- **The frame is a camera property and does not exist yet** when the layout is inflated,
+  when `onResume` runs, or at the layout pass that follows — the surface has not been
+  created and the driver has not been opened. Two versions of the status-line fix read a
+  null rectangle and did nothing, silently. It retries from a pre-draw listener now and
+  removes the listener as soon as it succeeds.
+- **Stacking the result row lost the scanned text off the bottom of the screen.** The
+  metadata column is `fill_parent` tall, which centres it beside the text in a *row* and
+  eats the whole height in a *column*. Format, type and time were on screen and the URL
+  was not.
+
+Done in `CaptureActivity` rather than a `layout-port/capture.xml`, because a second copy
+of that file is precisely how A-18 happened; `layout-ldpi/capture.xml` has the two new ids
+added for the same reason. Evidence, with before/after screenshots:
+`reports/a16-large-screen-portrait-api36-20261102.log`.
+
+**Still not covered:** no physical large-screen device exists here. The window sizes and
+the layout are the same thing on a real tablet; the camera on one is not.
 
 ### Release and distribution
 

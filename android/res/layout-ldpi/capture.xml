@@ -31,7 +31,11 @@
                 android:visibility="gone"
                 android:baselineAligned="false">
 
+    <!-- Same two ids as layout/capture.xml, so CaptureActivity finds them here too. An
+         ldpi screen is never the large screen that defect A-16 is about, but a variant
+         that silently lacks an id the code looks up is exactly how A-18 happened. -->
     <LinearLayout
+        android:id="@+id/result_detail_view"
         android:orientation="horizontal"
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
@@ -40,6 +44,7 @@
         android:padding="@dimen/standard_padding">
 
       <LinearLayout
+          android:id="@+id/result_metadata_view"
           android:orientation="vertical"
           android:layout_width="wrap_content"
           android:layout_height="fill_parent"
