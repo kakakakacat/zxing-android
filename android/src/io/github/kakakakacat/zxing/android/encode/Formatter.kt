@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 ZXing authors
+ * Copyright (C) 2008 ZXing authors
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,20 +14,19 @@
  * limitations under the License.
  */
 
-package io.github.kakakakacat.zxing.android.encode;
+package io.github.kakakakacat.zxing.android.encode
 
 /**
- * Encapsulates some simple formatting logic, to aid refactoring in {@link ContactEncoder}.
+ * Encapsulates some simple formatting logic, to aid refactoring in [ContactEncoder].
  *
  * @author Sean Owen
  */
-interface Formatter {
+internal fun interface Formatter {
 
   /**
    * @param value value to format
    * @param index index of value in a list of values to be formatted
    * @return formatted value
    */
-  CharSequence format(CharSequence value, int index);
-  
+  fun format(value: CharSequence, index: Int): CharSequence
 }
