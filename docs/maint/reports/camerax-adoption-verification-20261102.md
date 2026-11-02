@@ -60,6 +60,20 @@ Fixed by stepping through `CREATED` first; both loops above are after that fix.
 Worth stating plainly: a single launch, and a hundred of them, are not the same test. This
 one would have shipped.
 
+## One more hole, found by reading rather than running
+
+Not a crash, and nothing observed it — it was found going back over the teardown path after
+the loops were green, and it is recorded because the failure mode is silent.
+
+`stopScanning` tells the backend to stop delivering and then posts `MSG_QUIT` to the decode
+thread. A frame the analyzer had already claimed can be posted *between* those two, landing
+behind `MSG_QUIT` in the queue — and `Looper.quit()` discards it unhandled, taking the
+`ImageProxy` it carries with it. One leaked buffer slot at teardown, with the camera about
+to be released anyway, so nothing would ever have shown it. Fixed both ways: `quitSafely`
+delivers the straggler, and the decode handler now closes any frame that reaches it after
+it has stopped running. Re-ran the 100-cycle loop and the 21 instrumentation tests on
+DN-ENG41 afterwards; both still clean.
+
 ## What is still not verified
 
 - **Android 15**, and this is the gap that matters most: the two devices this project owns

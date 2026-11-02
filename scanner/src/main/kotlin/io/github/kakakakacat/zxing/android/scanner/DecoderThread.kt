@@ -120,6 +120,9 @@ internal class DecoderThread(
 
     override fun handleMessage(message: Message) {
       if (!running) {
+        // Still the owner of anything that arrives late, and on the CameraX backend a
+        // frame nobody closes is a buffer slot the camera never gets back.
+        (message.obj as? ScanFrame)?.close()
         return
       }
       if (message.what == MSG_DECODE) {
@@ -132,7 +135,11 @@ internal class DecoderThread(
         running = false
         // The backend may hold memory the garbage collector will not take.
         decoder.close()
-        Looper.myLooper()?.quit()
+        // quitSafely, not quit: a frame can be posted between the camera being told to
+        // stop and this message being handled, and `quit` would discard it unhandled --
+        // taking the ImageProxy it carries with it. quitSafely delivers it, `running` is
+        // already false, and the branch above hands it back.
+        Looper.myLooper()?.quitSafely()
       }
     }
 
