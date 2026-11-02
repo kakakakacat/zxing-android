@@ -13,8 +13,11 @@ so the thing under test is `ScannerView` on the real backend and not a spike har
   other measurement in this repository comes from.
 - **Android 16 emulator** (`zxing_api36`), virtual-scene camera. Timings from it remain
   inadmissible under BENCHMARKS.md 10.7; nothing here is a timing.
-- **Mix5** (Xiaomi 25010PN30C, Android 15) — **not reached.** Its control channel answered
-  `{"live":false}` all through this session, so Android 15 is unverified for the adoption.
+- **Mix5** (Xiaomi 25010PN30C, Android 15) — **not reached**, and that reading was wrong.
+  Its control channel answered `{"live":false}` all through this session and it was taken
+  to mean the phone was gone; it means the session is idle, and one real request brings it
+  up. Android 15 was verified the next day and found a defect this session could not have:
+  `camerax-android15-mix5-20261103.md`.
 
 ## Results
 
@@ -99,8 +102,8 @@ the absence of that line says nothing about whether the backend ran.
 
 ## What is still not verified
 
-- **Android 15**, and this is the gap that matters most: the two devices this project owns
-  already disagreed once about a Phase 6 result taken on one of them.
+- ~~**Android 15**, and this is the gap that matters most~~ — **closed on 2026-11-03**,
+  `camerax-android15-mix5-20261103.md`.
 - **A decode off real camera hardware.** The emulator proves the frame path end to end; it
   does not prove it against a real sensor's strides and timing. The spike did decode a real
   QR out of a real `ImageProxy` on DN-ENG41 (`camera-spike-decode-api36-20261102.log` is the
@@ -108,4 +111,7 @@ the absence of that line says nothing about whether the backend ran.
   the spike's own binding, not `ScannerView`'s.
 - **The torch and auto-focus on the CameraX path.** DN-ENG41 reports no flash unit and
   auto-focus OFF only, so `setTorch` is a no-op there by construction. Untested anywhere.
+  **Since tested, on the Android 15 device, and the torch was broken**:
+  `FrontLightMode.ON` never reached the CameraX backend at all. Fixed and re-verified —
+  `camerax-android15-mix5-20261103.md`. Auto-focus on the CameraX path is still untested.
 - **Anything non-Qualcomm, low-end-with-a-modern-OS, or 16 KB pages.**

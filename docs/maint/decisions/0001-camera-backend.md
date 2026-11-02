@@ -403,6 +403,42 @@ resolving left the backend's `LifecycleRegistry` at `INITIALIZED`, which cannot 
 to `DESTROYED`. A one-in-a-hundred race that takes the app down, found only because the loop
 is a hundred cycles and not one. Fixed; both loops pass clean afterwards.
 
+---
+
+## Android 15, 2026-11-03
+
+The gap this record called the one that mattered most is closed. The Mix5 was reachable
+after all — `{"live":false}` from its control channel means the session is idle, not that
+the phone is gone — and the whole verification was re-run on **Android 15 / API 35**,
+against the **R8 `benchmark` build** rather than the debug one:
+
+- Preview live, the camera really opened, and the stack that ran was the one asked for
+  (15 CameraX threads; the Camera1 run goes through the HAL's API1 shim instead).
+- **The viewfinder rectangle lands in the same place to the pixel** — laser rows 556–558,
+  x 642–1838 on both — although the two backends asked for different stream sizes,
+  1920x1080 against 2400x1080.
+- Frames reach the decoder: `zxing-decode-1` burns 0.71 s of CPU per 10 s of scanning.
+- 100 open/close cycles on each backend, 0 fatals, 0 camera errors, awake throughout.
+- The 21 `:scanner` instrumentation tests, 21/21, including the 12 native-decoder ones —
+  so zxing-cpp runs on this SM8550 too.
+
+**And it found a defect that would have shipped.** `FrontLightMode.ON` was a silent no-op
+on CameraX: the rule lived in `CameraConfigurationManager`, inside the Camera1 parameter
+configuration. `AUTO` worked, because the ambient-light manager goes through
+`ScannerCamera`. Isolated by running both modes in the same dark room — `ON` left
+`flash.mode=OFF`, `AUTO` set `TORCH` — fixed in `ScannerView`'s open callback where both
+backends pass, and re-verified on both. This record listed the torch as untested
+anywhere; it was untestable on DN-ENG41, which reports no flash unit.
+`reports/camerax-android15-mix5-20261103.md`.
+
+**What this does to the two remaining reasons the default has not moved.** The
+one-phone-and-an-emulator objection is answered: two phones, two Android versions, a
+minified build, and the same result. What is left is the other one — **no decode off real
+camera hardware through `ScannerView`** — and the performance reading, which is unchanged
+and is now the strongest argument on the list.
+
+---
+
 **Why the default has not moved.** Three reasons now, where there were two. The third
 arrived with L4 and is the strongest: **CameraX costs about 60% more CPU to keep scanning**
 on the one device that can measure it, and L3 separately has it 200 ms slower to a frame.
@@ -410,9 +446,15 @@ Neither is fatal — this record never rested on performance — but flipping a 
 *towards* the measurably more expensive frame path, on the strength of one phone, is not a
 step to take quietly.
 
-The other two: the verification is from one phone (API 34) and one emulator (API 36). The Android 15 device was unreachable for the whole of this session, and
-no decode has been driven off real camera hardware through `ScannerView` — DN-ENG41 has no
-barcode in front of it and the emulator is where the decode was proved. This record already
-has one headline that two devices disagreed about; flipping the shipping default on the
-strength of one of them would be the same mistake with higher stakes. The full account is
-`reports/camerax-adoption-verification-20261102.md`.
+**One of the other two is now answered and one is not.** The coverage objection is gone:
+the Android 15 section above re-ran the whole verification on a second phone, a different
+Android version and a minified build, and found the same behaviour — plus the torch
+defect, which is the argument for having done it. What remains is that **no decode has
+been driven off real camera hardware through `ScannerView`**: DN-ENG41 has no barcode in
+front of it, the Mix5 sits face down in a dark room, and the emulator is where the decode
+was proved. The full accounts are `reports/camerax-adoption-verification-20261102.md` and
+`reports/camerax-android15-mix5-20261103.md`.
+
+So the open question is no longer "does it work elsewhere". It is whether to move a
+shipping default towards a frame path measured at ~60% more CPU — and that is a decision,
+not a missing measurement.

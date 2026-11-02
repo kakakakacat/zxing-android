@@ -1,0 +1,21 @@
+# The 21 :scanner instrumentation tests on the CameraX tree, Android 15 hardware.
+#
+# Device: Xiaomi 25010PN30C (mix5), Android 15 / API 35, SM8550, arm64-v8a.
+# Reached over the root-agent control channel, not adb. The test APK was stripped to
+# arm64-v8a and re-signed with the debug key before transfer (14.1 MB -> 8.4 MB).
+#
+#   pm install -t -r -g /data/local/tmp/zxtest.apk
+#   am instrument -w io.github.kakakakacat.zxing.android.scanner.test/\
+#       androidx.test.runner.AndroidJUnitRunner
+#
+# `am instrument` exits 0 on a failed test, so the OK line below is the result, not the
+# exit code.
+
+io.github.kakakakacat.zxing.android.scanner.DefaultBackendTest:.......
+io.github.kakakakacat.zxing.android.scanner.FrameDecodeTest:.
+io.github.kakakakacat.zxing.android.scanner.LiveFormatSwitchTest:.
+io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest:............
+
+Time: 0.614
+
+OK (21 tests)

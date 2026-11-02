@@ -37,6 +37,7 @@ import io.github.kakakakacat.zxing.android.ViewfinderView
 import io.github.kakakakacat.zxing.android.camera.Camera1Backend
 import io.github.kakakakacat.zxing.android.camera.CameraManager
 import io.github.kakakakacat.zxing.android.camera.CameraXBackend
+import io.github.kakakakacat.zxing.android.camera.FrontLightMode
 import io.github.kakakakacat.zxing.android.camera.ScannerCamera
 import io.github.kakakakacat.zxing.android.camera.ScannerCameraBackend
 
@@ -276,6 +277,21 @@ class ScannerView(
       thread.start()
       decoderThread = thread
 
+      // FrontLightMode.ON means the torch is on from the moment the camera opens, and
+      // until this line that rule lived in `CameraConfigurationManager.initializeTorch`
+      // -- inside the Camera1 parameter configuration, which the CameraX backend never
+      // goes through. So ON silently did nothing on CameraX, while OFF and AUTO both
+      // worked, AUTO because `AmbientLightManager` drives it through `ScannerCamera`.
+      // Measured on an Android 15 device: with ON, Camera1 reported `flash.mode=TORCH`
+      // and CameraX `OFF`.
+      //
+      // The rule belongs here, where both backends pass, rather than in a second
+      // backend-specific place. It costs the Camera1 path nothing: `CameraManager`
+      // only acts when the requested state differs from the camera's current one, and
+      // on that path the parameters already carry it.
+      if (options.frontLightMode == FrontLightMode.ON) {
+        camera.setTorch(true)
+      }
       ambientLightManager?.start(camera)
       isScanning = true
       viewfinderView.drawViewfinder()

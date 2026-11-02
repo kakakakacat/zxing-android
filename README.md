@@ -289,10 +289,17 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       hardware and an Android 16 emulator, plus 100× open/close (which found and cost a
       crash) and the 21 instrumentation tests:
       [`docs/maint/reports/camerax-adoption-verification-20261102.md`](docs/maint/reports/camerax-adoption-verification-20261102.md)
-- [ ] **CameraX made the default.** Still `CAMERA1`, deliberately: the Android 15 device
-      was unreachable all session and no decode has been driven off real camera hardware
-      through `ScannerView` yet. The two devices this project owns have already disagreed
-      once about a Phase 6 result taken on one of them
+- [x] Re-verified on **Android 15** hardware against the **minified** build: preview, the
+      viewfinder rectangle landing in the same place to the pixel on both backends, frames
+      reaching the decoder, 100× open/close per backend and 21/21 instrumentation tests.
+      It found a defect — `FrontLightMode.ON` never reached the CameraX backend — now
+      fixed:
+      [`docs/maint/reports/camerax-android15-mix5-20261103.md`](docs/maint/reports/camerax-android15-mix5-20261103.md)
+- [ ] **CameraX made the default.** Still `CAMERA1`, deliberately, and the reason is no
+      longer coverage: two phones and two Android versions now agree. What is left is one
+      missing check — no decode has been driven off real camera hardware through
+      `ScannerView` — and one measurement that argues the other way, L4's **~60% more CPU
+      to keep scanning**
 
 ## Namespace and independence
 
@@ -323,10 +330,11 @@ years of callers and buy nothing.
 
 | ID | Problem | Where |
 | --- | --- | --- |
-| — | No L4 numbers exist: nothing is known about what sustained scanning costs in CPU, memory or heat. L3 now covers launch, camera-open and first-frame, but **not first-scan**, which needs a fixed scene nobody has built | all |
+| — | **First-scan latency is still unmeasured**: L3 covers launch, camera-open and first-frame, and the scan target needs a fixed, photographed scene nobody has built. L4 exists and is baselined; power is unmeasured, because the reference device on charge never moves its battery counters | all |
 | — | Two physical devices, both Qualcomm and both 4 KB pages: Android 14 (no GMS) and Android 15. No real-camera verification on Android 16, nothing non-Qualcomm, nothing low-end with a modern OS, no 16 KB page hardware — and **every L2 number is still from the Android 14 one alone** | all |
 | — | Maven Central publishing is not set up; GitHub Packages and JitPack only | release |
 | — | Decoder types are `io.github.kakakakacat.zxing.*`, so results cannot be passed straight to other ZXing-based libraries | AAR |
+| — | Auto-focus on the CameraX path is untested: the Android 14 device offers auto-focus OFF only, and the Android 15 one has not been driven at a subject | AAR |
 
 ## Documentation
 

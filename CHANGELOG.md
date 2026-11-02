@@ -66,6 +66,21 @@ API may still change between minor versions.
   part of raising a build floor.
 
 ### Fixed
+- **The front light set to ON now comes on under the CameraX backend.** It was implemented
+  inside the Camera1 parameter configuration, which the CameraX backend never goes through,
+  so `FrontLightMode.ON` was silently a no-op there while `OFF` and `AUTO` both behaved —
+  AUTO because the ambient-light manager drives it through `ScannerCamera`. The rule now
+  lives in `ScannerView`'s open callback, which both backends pass through; the Camera1
+  path is unchanged, because `CameraManager.setTorch` only acts when the requested state
+  differs from the camera's current one. Found and fixed on Android 15 hardware, the first
+  device this project has had with a flash unit:
+  `docs/maint/reports/camerax-android15-mix5-20261103.md`.
+- **The app's APK no longer ships unstripped native libraries.** `:app` set no `ndkVersion`,
+  so AGP could not find `llvm-strip` and packaged every `.so` with its debug info —
+  18.6 MB for `arm64-v8a` alone against 1.8 MB stripped, and the whole APK 35.5 MB against
+  4.7 MB. It said so once, at info level, and nothing else noticed. **The published AAR was
+  never affected**: `:scanner` sets `ndkVersion` and its libraries have always been
+  stripped.
 - **A-19: back no longer leaves the app when a scan result is on screen.** Both activities
   handled the back key in `onKeyDown`. From API 33 the back key stops being delivered there
   once an app opts into `OnBackInvokedDispatcher` — and for an app targeting API 36, as this

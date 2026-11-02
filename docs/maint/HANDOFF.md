@@ -170,6 +170,10 @@ submitted. Nothing is released; no tag has been pushed.
 | **L3 baseline**, both backends, 12 cold launches × 2 pairs, one session each | CameraX to the window's first frame **−330 ms**; CameraX to a frame at the decoder **+200 ms**. Both reproduced across pairs | DN-ENG41, `reports/l3-*-DN-ENG41-20261102-run{1,2}.json`, read in `reports/l3-verdict-DN-ENG41-20261102.md` |
 | **A-19**: back with a result on screen | before: leaves the app. After: returns to the preview. Cause isolated by A/B against `enableOnBackInvokedCallback` | API 36 emulator, `reports/a19-predictive-back-api36-20261102.log` |
 | **L4 baseline**, both backends, 12-minute soaks, one session | CPU **74% vs 118%** of one core (camera1 vs camerax); +17 MB PSS, +17 threads; **no leak** in either | DN-ENG41, `reports/l4-*-DN-ENG41-20261102.json`, read in `reports/l4-verdict-DN-ENG41-20261102.md` |
+| **Phase 6 on Android 15**, minified build, both backends | preview live, camera open, viewfinder rectangle **identical to the pixel** (laser rows 556-558, x 642-1838) although the stream sizes differ (1920x1080 vs 2400x1080); decode thread 0.71 s CPU per 10 s | mix5 API 35, `reports/camerax-android15-mix5-20261103.md` |
+| **100x open/close on Android 15**, each backend | 0 fatals, 0 camera errors, awake at both ends | mix5, `reports/stability-100-{camerax,camera1}-mix5-20261103.log` |
+| **21 instrumentation tests on the CameraX tree, Android 15** | 21/21, including the 12 native-decoder ones | mix5, `reports/instrumentation-21-camerax-mix5-20261103.log` |
+| **The torch**, first test anywhere | `FrontLightMode.ON` set `flash.mode=TORCH` on Camera1 and **`OFF` on CameraX**; `AUTO` set `TORCH` on CameraX, which is what isolated the cause. After the fix both read `TORCH`, preview mean luminance 35.2 and 34.4 against 2.0 broken | mix5, `reports/torch-frontlight-on-mix5-20261103.png` |
 
 **All four layers now have numbers, and they are baselines, not claims.** The only
 comparison anyone has drawn from them is the decoder A/B (§10.6c) and the two camera
@@ -227,7 +231,23 @@ again by anyone driving an Android device over a non-adb channel:
    activity stops getting frames; it reads as a backend failure.
 4. **`wm dismiss-keyguard` after `input keyevent KEYCODE_WAKEUP`.** An activity started
    under the lockscreen does not resume.
-5. **The link is slow and drops.** Roughly 24 KB/s on a bad stretch, and one 16 MB transfer
+5. **`{"live":false}` from the control channel is idle, not down.** The client on the
+   router creates a session lazily on the first real request and releases it after a
+   minute so the phone's own web UI can take over. A previous session read that reply as
+   "unreachable" and recorded Android 15 as unverified for a whole day's work. Send a
+   real command before concluding anything.
+6. **`svc power stayon true` does nothing unless the phone is plugged in**, and this one
+   usually is not — `AC powered: false`, battery 100%, discharging. That flag is
+   `STAY_ON_WHILE_PLUGGED_IN` and nothing more. A loop stays awake because its own
+   `input keyevent` resets the idle timer; anything that does not generate input needs
+   `settings put system screen_off_timeout` instead. Check `mWakefulness`, do not assume
+   it — `tools/maint/stability-loop-ondevice.sh` now reports it at both ends, because a
+   run that cycles a stopped activity looks exactly like a clean run.
+7. **`cmd appops set <pkg> CAMERA allow` has to be repeated after every install**, not
+   once per device. A `pm install -r -g` leaves `Uid mode: CAMERA: ignore` and the camera
+   never opens: resumed activity, live process, `Active Camera Clients: []`, nothing in
+   the log.
+8. **The link is slow and drops.** Roughly 24 KB/s on a bad stretch, and one 16 MB transfer
    died halfway. Strip the APK to the device's ABI and re-sign it (`zip -d <apk>
    'lib/x86_64/*' 'lib/armeabi-v7a/*'` then `apksigner sign --ks ~/.android/debug.keystore`)
    — that halved the instrumentation APK from 12 MB to 6.3 MB — keep SSH alive with
@@ -334,7 +354,16 @@ check on every push. The check was watched failing on purpose before it was comm
    Kotlin. A module that compiles Kotlin needs one thing added by hand, a `kotlin { }`
    block setting `jvmTarget` to match `compileOptions`; AGP fails the compile task on a
    mismatch rather than warning, so this is checked rather than assumed.
-8. **Emulator `wm size` changes persist.** The Android 16 large-screen reproduction ran
+8. **A module that packages native code but does not build any still needs
+   `ndkVersion`.** `:app` had none, so AGP could not find `llvm-strip` and packaged every
+   `.so` **unstripped**: `arm64-v8a/libzxingnative.so` at 18.6 MB against 1.8 MB stripped,
+   and the whole APK at 35.5 MB against 4.7 MB. It announces this once, at **info** level
+   — `Unable to strip the following libraries, packaging them as they are` — and nothing
+   fails. Found only because a 35 MB APK will not cross a 20 KB/s link in a reasonable
+   time. The AAR was never affected; `:scanner` sets `ndkVersion`. If an APK is
+   implausibly large, run `./gradlew :<module>:strip<Variant>DebugSymbols --info` and read
+   for "missing strip tool for ABI".
+9. **Emulator `wm size` changes persist.** The Android 16 large-screen reproduction ran
    `wm size 1600x2560 && wm density 240`. Both were reset afterwards, but if an emulator
    behaves oddly, `adb shell wm size reset && adb shell wm density reset`.
 
@@ -1220,10 +1249,24 @@ one thing still open are at the top of this file. What is left here:
 - ~~**Adoption**~~ — done. `CameraXBackend` beside `Camera1Backend`, both behind
   `ScannerCameraBackend`, chosen by `ScannerOptions.cameraBackend`.
 - ~~**Verification**~~ — done on DN-ENG41 and the API 36 emulator,
-  `reports/camerax-adoption-verification-20261102.md`.
-- **Making CameraX the default**, which is the only Phase 6 item still open. It needs the
-  Android 15 device, and a decode driven off real camera hardware through `ScannerView`
-  rather than through the spike.
+  `reports/camerax-adoption-verification-20261102.md`, and **re-done on Android 15** on
+  2026-11-03 against the minified build, `reports/camerax-android15-mix5-20261103.md`.
+- **Making CameraX the default**, still the only Phase 6 item open — but the reason has
+  changed and that matters. It is no longer coverage: two phones, two Android versions
+  and an R8 build now agree, the viewfinder rectangle lands in the same place to the
+  pixel on both backends, and 21/21 instrumentation tests pass on the Android 15 one.
+  What is left is **one missing check and one measurement that argues the other way**: no
+  decode has been driven off real camera hardware through `ScannerView` (neither phone has
+  a barcode in front of it), and L4 has CameraX at ~60% more CPU to keep scanning. The
+  first needs hands; the second is a decision, not a gap.
+
+  **The Android 15 run earned its keep by finding a defect**: `FrontLightMode.ON` was a
+  silent no-op on the CameraX backend, because the rule lived inside the Camera1 parameter
+  configuration. `AUTO` worked, because `AmbientLightManager` goes through `ScannerCamera`.
+  No crash, no log line, nothing to see — and untestable on DN-ENG41, which reports no
+  flash unit. Fixed in `ScannerView`'s open callback, where both backends pass, and
+  re-verified on both. **A setting that silently does nothing is the failure mode a second
+  device exists to catch.**
 
 ### How the two backends fit together
 
@@ -1334,6 +1377,13 @@ against a real `ImageProxy`. It had not; the reader was too late.
   modern OS, and no 16 KB page hardware. **Every L2 number is still from DN-ENG41 alone**,
   at one pinned operating point, in one thermal state — the Mix5 is reached over a link that
   drops and nothing locks its clocks, so it cannot produce an L-layer timing.
+- **No barcode has ever been put in front of either phone.** Every decode this project
+  has driven through `ScannerView` off a camera was on an emulator, with a virtual scene.
+  Both phones exercise the frame path end to end — frames arrive, the decode thread burns
+  CPU on them — and neither has read a symbol. That is the last functional check standing
+  between CameraX and the default, and it needs hands rather than tooling.
+- **Auto-focus on the CameraX path is untested anywhere.** DN-ENG41 offers auto-focus OFF
+  only; the Mix5 can do it but has not been pointed at anything.
 - **The two devices disagreed about the Phase 6 latency result**, which is the clearest
   demonstration in this repository of why a one-device number is not a result. The spike
   numbers also drift between sessions on DN-ENG41 — its camera1 median read 810 ms and

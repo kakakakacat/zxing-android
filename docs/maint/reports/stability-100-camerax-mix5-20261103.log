@@ -1,0 +1,28 @@
+# 100x open/close, CameraX backend, Xiaomi 25010PN30C (mix5), Android 15 / API 35
+# tools/maint/stability-loop-ondevice.sh, run over the root-agent channel (no adb).
+
+    <boolean name="preferences_camerax" value="true" />
+device: 25010PN30C, android 15 (sdk 35)
+fingerprint: Xiaomi/xuanyuan/xuanyuan:15/AQ3A.240912.001/OS2.0.207.0.VOACNXM:user/release-keys
+package: io.github.kakakakacat.zxing.android, cycles: 100
+Failed to write while dumping service power: Broken pipe
+screen_off_timeout: 600000 ms, mWakefulness=Awake at the start
+  ...10
+  ...20
+  ...30
+  ...40
+  ...50
+  ...60
+  ...70
+  ...80
+  ...90
+  ...100
+--- FATAL exceptions
+--- camera errors
+Failed to write while dumping service power: Broken pipe
+--- summary
+  cycles=100
+  wakefulness_before=Awake
+  wakefulness_after=Awake
+  fatal_exceptions=0
+  log_lines=494985
