@@ -86,8 +86,17 @@ class ScannerView(
   private var hasSurface = false
   private var resumed = false
 
-  /** Bumped on every start, so replies from an older session can be identified. */
+  /**
+   * Bumped on every start, so replies from an older session can be identified.
+   *
+   * Doubles as the cookie for [ScannerTrace]'s asynchronous spans, which is why it is
+   * bumped when the camera is asked to open rather than when it reports ready: the
+   * interval between those two is the first thing L3 measures.
+   */
   private var sessionId = 0
+
+  /** The two one-shot L3 spans end once per session; these say whether they have. */
+  private var firstScanTraced = false
 
   var isScanning = false
     private set
@@ -234,6 +243,10 @@ class ScannerView(
     if (camera == null || camera.isOpen) {
       return
     }
+    sessionId++
+    firstScanTraced = false
+    ScannerTrace.begin(ScannerTrace.CAMERA_OPEN, sessionId)
+    ScannerTrace.begin(ScannerTrace.backendSpan(options.cameraBackend), sessionId)
     // Opening can finish later than this call -- it does on CameraX -- so everything that
     // follows a successful open lives in the callback, for both backends alike.
     camera.open(holder, cameraCallback)
@@ -242,13 +255,16 @@ class ScannerView(
   private val cameraCallback = object : ScannerCameraBackend.Callback {
 
     override fun onCameraReady() {
+      ScannerTrace.end(ScannerTrace.CAMERA_OPEN, sessionId)
+      ScannerTrace.end(ScannerTrace.backendSpan(options.cameraBackend), sessionId)
       val camera = backend
       if (!resumed || camera == null) {
         // Paused while the camera was opening. On the CameraX path that is a real race, not
         // a theoretical one: the provider comes up asynchronously.
         return
       }
-      sessionId++
+      ScannerTrace.begin(ScannerTrace.FIRST_FRAME, sessionId)
+      ScannerTrace.begin(ScannerTrace.FIRST_SCAN, sessionId)
       val thread = DecoderThread(
           mainHandler, options, formats,
           object : ResultPointCallback {
@@ -267,6 +283,8 @@ class ScannerView(
     }
 
     override fun onCameraError(error: ScannerError, cause: Exception?) {
+      ScannerTrace.end(ScannerTrace.CAMERA_OPEN, sessionId)
+      ScannerTrace.end(ScannerTrace.backendSpan(options.cameraBackend), sessionId)
       stopScanning()
       reportError(error, cause)
     }
@@ -316,6 +334,10 @@ class ScannerView(
       return
     }
     if (msg.what == MSG_DECODE_SUCCEEDED) {
+      if (!firstScanTraced) {
+        firstScanTraced = true
+        ScannerTrace.end(ScannerTrace.FIRST_SCAN, sessionId)
+      }
       isScanning = false
       listener?.onScanned(msg.obj as ScanOutcome)
     }

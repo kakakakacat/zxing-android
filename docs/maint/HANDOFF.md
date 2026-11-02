@@ -158,6 +158,7 @@ it. Nothing is released; no tag has been pushed.
 | Phase 6 adoption: 21 instrumentation tests on CameraX's tree | 21 tests, 0 failures | DN-ENG41, `reports/instrumentation-21-camerax-DN-ENG41-20261102.xml` |
 | Phase 6 adoption: what CameraX costs `:app` | `res/` **+0 entries**, `classes.dex` +930,544 B, CameraX's own `.so` +65,332 B over two ABIs | local, `reports/camerax-adoption-apk-size-20261102.log` |
 | Phase 6 adoption: the **R8 release** build on CameraX | preview and viewfinder run; CameraX's own threads present in the process, which is the check, because a silent fallback to Camera1 looks identical | DN-ENG41, `reports/camerax-adoption-release-r8-DN-ENG41-20261102.png` |
+| **L3 baseline**, both backends, 12 cold launches × 2 pairs, one session each | CameraX to the window's first frame **−330 ms**; CameraX to a frame at the decoder **+200 ms**. Both reproduced across pairs | DN-ENG41, `reports/l3-*-DN-ENG41-20261102-run{1,2}.json`, read in `reports/l3-verdict-DN-ENG41-20261102.md` |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -542,7 +543,49 @@ Everything else is below.
 
 Ordered as the user asked for it. The README carries the same list as tickboxes.
 
-### Phase 4 — done, except L3 and L4
+### Phase 4 — done, except L4
+
+**L3 is built and baselined.** `benchmark/l3` (Macrobenchmark), `tools/maint/l3-run.sh`,
+`benchmark/tools/l3_report.py` with 18 unit tests, and a two-pair baseline on DN-ENG41 for
+both camera backends. `BENCHMARKS.md` §11 has the whole of it; the reading is
+`reports/l3-verdict-DN-ENG41-20261102.md`. Three things from it are worth knowing without
+opening either file:
+
+- **The shipping Camera1 path blocks the main thread for about 400 ms at startup.**
+  `ScannerView.surfaceCreated` runs on the main thread and `Camera1Backend.open` calls
+  `openDriver` synchronously from it. It shows up as CameraX reaching the window's first
+  frame ~330 ms sooner, reproduced across both pairs with non-overlapping intervals. This
+  is a jank and ANR smell independent of which backend anyone prefers.
+- **L3 disagrees with the Phase 6 spike about CameraX's latency, in the other direction.**
+  The spike has CameraX 273 ms *faster* to a decodable frame on this device; L3 has it
+  ~200 ms *slower* from asking for a camera to a frame at the decoder, and ~330 ms faster
+  to a drawn window. Different intervals, not necessarily contradictory — the spike's
+  single number contains both effects and they have opposite signs. Also 1.4.2 against
+  1.6.2, and a harness activity against the whole app. **Three readings now disagree about
+  this, which is why the camera decision does not rest on latency.**
+- **Launch → first frame end to end is still not measurable**, and the reason is a real
+  constraint rather than an oversight: the camera spans start at `surfaceCreated`, which on
+  Camera1 is before the window's first frame, so they overlap the startup metric by an
+  unknown amount and must not be added. Closing it needs `ScannerView` to tell its host
+  when frames start, which is a published-API decision and is left open.
+
+**What L3 cost to build is itself worth reading**, because every one of its three traps is
+the same shape this file keeps collecting — a harness that reports a number for something
+that did not happen:
+
+- **A run claiming CameraX silently measured Camera1, twice.** AGP's install step
+  uninstalls first and takes the app's `shared_prefs` with it, so a preference written
+  before Gradle is gone by the time the benchmark starts; and `chown` did nothing because
+  `dumpsys package` prints no `userId=` line on DN-ENG41, so the uid parsed out of it was
+  empty. Both were caught only because `ScannerView` emits `zxing.backend.<name>` into the
+  trace and `l3_report.py` **refuses** a result whose trace disagrees with the run. Build
+  that check first, not last.
+- **A run that produced no result came back `BUILD SUCCESSFUL`**, with a failed APK install
+  printed as a stack trace in the middle of the log. `am instrument` has the same habit —
+  it reports a failed test and exits 0. The script now fails when no `benchmarkData.json`
+  exists, whatever any exit code says.
+- **`AndroidBenchmarkRunner` is Microbenchmark's**, and a Macrobenchmark module configured
+  with it starts instrumentation, reports `tests="0"` and succeeds.
 
 L2 is built, baselined and gated. The method, the layers and the gates are in
 `docs/maint/BENCHMARKS.md`; section numbers below point into it.

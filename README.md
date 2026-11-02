@@ -205,7 +205,10 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       with the frame hashes committed as the comparability key
 - [x] Microbenchmark output converted into the common result envelope
       (`benchmark/tools/l2_report.py`)
-- [ ] L3 app/camera benchmark (Macrobenchmark) on a real device
+- [x] L3 app/camera benchmark (Macrobenchmark) on a real device — `benchmark/l3`,
+      `tools/maint/l3-run.sh`, `benchmark/tools/l3_report.py`. Launch, camera open and
+      first frame are measured; the **first-scan** target still needs a fixed, photographed
+      scene and is reported as absent rather than as a zero
 - [ ] L4 sustained-scanning CPU/memory/thermal run
 - [x] Comparison tool with pass / fail / **inconclusive** verdicts and 95% intervals
       (`benchmark/tools/compare.py`) — exits 0 / 1 / 2, and 3 when the two result sets
@@ -214,7 +217,9 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       plus an hd/default slice (`docs/maint/reports/`)
 - [x] Effect floor measured instead of guessed: 3% for cases at or above 100 µs, 10%
       below, from two full-matrix runs of identical code
-- [ ] L3 and L4 baselines (neither harness exists yet)
+- [x] L3 baseline committed: DN-ENG41, both camera backends, 12 cold launches each, both
+      pairs in one session (`docs/maint/reports/l3-*-DN-ENG41-20261102.json`)
+- [ ] L4 baseline (the harness does not exist yet)
 
 ### Phase 5 — Kotlin and native decoding
 
@@ -303,8 +308,8 @@ years of callers and buy nothing.
 
 | ID | Problem | Where |
 | --- | --- | --- |
-| — | No L3 or L4 numbers exist: nothing is known about camera-ready or first-scan latency | all |
-| — | Only one device has been tested: Android 14, no GMS | all |
+| — | No L4 numbers exist: nothing is known about what sustained scanning costs in CPU, memory or heat. L3 now covers launch, camera-open and first-frame, but **not first-scan**, which needs a fixed scene nobody has built | all |
+| — | Two physical devices, both Qualcomm and both 4 KB pages: Android 14 (no GMS) and Android 15. No real-camera verification on Android 16, nothing non-Qualcomm, nothing low-end with a modern OS, no 16 KB page hardware — and **every L2 number is still from the Android 14 one alone** | all |
 | — | Maven Central publishing is not set up; GitHub Packages and JitPack only | release |
 | — | Decoder types are `io.github.kakakakacat.zxing.*`, so results cannot be passed straight to other ZXing-based libraries | AAR |
 

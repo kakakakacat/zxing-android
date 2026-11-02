@@ -55,6 +55,29 @@ android {
       // No production signing config is checked in. `assembleRelease` produces an
       // unsigned APK unless the maintainer supplies one.
     }
+    // L3's target. Release in every respect that affects a timing -- R8, resource
+    // shrinking, not debuggable -- plus `profileable`, so the shell can read a trace out
+    // of it, and the debug signing key, so it can be installed without one being checked
+    // in. BENCHMARKS.md §11.
+    create("benchmark") {
+      initWith(getByName("release"))
+      signingConfig = signingConfigs.getByName("debug")
+      matchingFallbacks += listOf("release")
+      isDebuggable = false
+    }
+  }
+
+  // After buildTypes, not inside the sourceSets block above: the build type has to exist
+  // before its source set does, and `sourceSets` is evaluated where it is written.
+  // Adds <profileable> and nothing else; the legacy layout names its manifest explicitly,
+  // so this one has to as well.
+  sourceSets.getByName("benchmark") {
+    manifest.srcFile("src-benchmark/AndroidManifest.xml")
+    java.setSrcDirs(emptyList<String>())
+    kotlin.setSrcDirs(emptyList<String>())
+    res.setSrcDirs(emptyList<String>())
+    assets.setSrcDirs(emptyList<String>())
+    resources.setSrcDirs(emptyList<String>())
   }
 
   compileOptions {

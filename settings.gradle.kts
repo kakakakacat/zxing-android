@@ -25,6 +25,7 @@ include(":benchmark-corpus")
 include(":benchmark-jvm")
 include(":benchmark-android")
 include(":camera-spike")
+include(":benchmark-l3")
 
 // Upstream keeps these modules at their historical paths.
 project(":core").projectDir = file("core")
@@ -36,3 +37,5 @@ project(":benchmark-jvm").projectDir = file("benchmark/jvm")
 project(":benchmark-android").projectDir = file("benchmark/android")
 // Phase 6 spike, not shipped. See docs/maint/decisions/0001-camera-backend.md.
 project(":camera-spike").projectDir = file("benchmark/camera-spike")
+// L3: launch-to-camera-to-scan, on a real device. See docs/maint/BENCHMARKS.md §11.
+project(":benchmark-l3").projectDir = file("benchmark/l3")

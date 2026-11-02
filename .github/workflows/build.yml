@@ -75,6 +75,7 @@ jobs:
           python3 -I benchmark/tools/test_compare.py
           python3 -I benchmark/tools/test_noise_floor.py
           python3 -I benchmark/tools/test_l1_compare.py
+          python3 -I benchmark/tools/test_l3_report.py
 
       - name: Assemble the L2 benchmark APK
         # Not run here — a shared CI runner cannot produce a timing worth keeping. This
@@ -90,6 +91,13 @@ jobs:
           ./gradlew :camera-spike:assembleCamera1Release \
                     :camera-spike:assembleCameraxRelease \
                     :camera-spike:assembleCameraxleanRelease
+
+      - name: Assemble the L3 macrobenchmark
+        # Not run here either, and for a stronger reason than L2's: L3 measures a camera,
+        # and a CI runner has none. The script refuses an emulator outright. This proves
+        # the harness still builds against the app it drives -- including the `benchmark`
+        # build type and the trace markers in :scanner it reads.
+        run: ./gradlew :benchmark-l3:assembleBenchmark :app:assembleBenchmark
 
       - name: No private note was committed in plaintext
         # docs/maint/private/ carries hostnames and command lines for a device this public

@@ -12,6 +12,11 @@ API may still change between minor versions.
 ## [Unreleased]
 
 ### Added
+- **`ScannerTrace`: three asynchronous trace spans** — `zxing.camera.open`,
+  `zxing.first.frame`, `zxing.first.scan`, plus one naming the camera backend in use.
+  Internal, no new dependency, and no-ops below API 29 and whenever nothing is tracing.
+  They exist because "the camera is ready" and "a frame reached the decoder" are events
+  only this library can see, and the L3 benchmark has to be able to time them.
 - **A CameraX backend for `ScannerView`**, selected with
   `ScannerOptions.setCameraBackend(CameraBackend.CAMERAX)`. Camera1 remains the default
   and remains selectable; which one runs is a per-caller choice, the same shape as

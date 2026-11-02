@@ -118,6 +118,9 @@ internal class DecoderThread(
     private val decoder: FrameDecoder = createDecoder()
     private var running = true
 
+    /** L3's FIRST_FRAME span ends here, where the frame actually arrives, and ends once. */
+    private var firstFrameTraced = false
+
     override fun handleMessage(message: Message) {
       if (!running) {
         // Still the owner of anything that arrives late, and on the CameraX backend a
@@ -151,6 +154,12 @@ internal class DecoderThread(
      * delivery altogether — with no exception to find it by.
      */
     private fun decode(frame: ScanFrame) {
+      if (!firstFrameTraced) {
+        firstFrameTraced = true
+        // Before the decode, not after: the question is when a frame reached the decoder,
+        // and folding the first decode into that would answer a different one.
+        ScannerTrace.end(ScannerTrace.FIRST_FRAME, sessionId)
+      }
       try {
         val source = frame.source
         val rawResult = if (source == null) null else decoder.decode(source)

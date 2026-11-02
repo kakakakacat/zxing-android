@@ -68,7 +68,7 @@ ratio silently sets any pooled average.
 | --- | --- | --- | --- | --- |
 | **L1** | Does the decoder still decode what it used to, and roughly how expensive is a decode? | `:benchmark-jvm`, `zxingbench.L1Runner` | host JVM | **built** |
 | **L2** | How long does one frame take through the real Android frame path, stage by stage? | `:benchmark-android`, AndroidX Microbenchmark | device / emulator | **specified, §10** |
-| **L3** | How long from launch to first successful scan, with a real camera? | Macrobenchmark + a scripted scene | physical device | specified, §11 |
+| **L3** | How long from launch to a camera that is ready, and from there to a frame and to a scan? | Macrobenchmark + trace spans from `ScannerTrace` | physical device, API 29+ | **built**, §11. Every target but the scan is measured; the scan still needs a scene |
 | **L4** | What does sustained scanning cost in CPU, memory, GC and heat? | instrumented soak run | physical device | specified, §12 |
 
 L1 is correctness-first and timing-second. L2 is the one that gates optimisation work.
@@ -833,15 +833,113 @@ Nothing in Phase 5 may claim a speedup until step 1–3 exist.
 
 ## 11. L3 — app and camera, on a real device
 
-Not built. Macrobenchmark, physical device only, because it measures the camera.
+**Built.** `benchmark/l3` (Macrobenchmark), driven by `tools/maint/l3-run.sh`, converted by
+`benchmark/tools/l3_report.py`. Physical device only, because it measures a camera; the
+script refuses an emulator and so does the converter.
 
-Targets: cold-start to preview-visible, preview-visible to camera-ready, and
-camera-ready to first successful scan against a printed barcode in a fixed scene (fixed
-distance, fixed lighting, documented in the result file with a photograph).
+### 11.1 The targets, and which of them need a scene
 
-The scene is the hard part and the reason L3 is behind L2: an unscripted scene makes the
-operator's hand the dominant variable. Until the scene is fixed and documented, L3 numbers
-are not admissible under §2.
+The original specification listed three targets and ruled all three inadmissible until the
+scene was fixed. **That was one rule too many, and this section now separates them**, because
+only one of the three depends on the scene at all:
+
+| Target | Case name | Needs a scene? |
+| --- | --- | --- |
+| Cold launch → the window's first frame | `startup_to_initial_display` | no |
+| Scanner asks for a camera → backend reports ready | `camera_open_to_ready` | no |
+| Camera ready → first frame at the decoder | `ready_to_first_frame` | no |
+| Scanner asks for a camera → first frame at the decoder | `open_to_first_frame` | no |
+| Camera ready → first **successful scan** | `ready_to_first_scan` | **yes** |
+
+A launch, a camera opening and a frame arriving happen whatever the lens is pointed at. A
+*decode* does not. So the first four are admissible under §2 on the usual conditions, and
+`ready_to_first_scan` stays inadmissible until the scene is fixed, photographed and recorded
+with the result — which no run has done yet. The converter emits that case as `null` with a
+`NO_SCENE` warning rather than as a zero, per §8: "nothing was in front of the lens" and
+"the scan took no time" are different claims.
+
+The scene is still the hard part, and it is still the reason the scan target is last.
+
+### 11.2 What the spans mean, and which compare across backends
+
+Three of these are intervals only the library can see, so `ScannerView` emits them into the
+system trace through `ScannerTrace` and the harness reads them back. They are
+**asynchronous** trace sections, which need **API 29**; `l3-run.sh` refuses an older device
+rather than produce a result with the camera spans silently missing.
+
+`startup_to_initial_display` is Macrobenchmark's own `timeToInitialDisplayMs`. §11 used to
+call this "preview visible" and that name flatters it: the window's first frame holds the
+viewfinder and an empty `SurfaceView`, not camera pixels. Camera pixels are
+`ready_to_first_frame`, and on the reference device the two are hundreds of milliseconds
+apart.
+
+**"Ready" does not mean the same thing on both backends** and a comparison must not pretend
+it does: Camera1 reports ready once `startPreview` has returned, CameraX once its use cases
+are bound. Those are different moments in a camera's life. What *is* identical on both is
+"the scanner asked for a camera" and "a frame reached the decoder", so `open_to_first_frame`
+— derived per iteration from the two spans, which are sequential by construction — is the
+camera interval to compare. `camera_open_to_ready` and `ready_to_first_frame` are reported
+because they localise a difference, not because they compare cleanly.
+
+Summing happens **per iteration and then aggregates**, never by adding two medians, which
+would be a statistic of nothing. There is a test for exactly that.
+
+### 11.3 The backend a run measured is read out of the trace, not trusted
+
+The camera backend is chosen by the app's own `preferences_camerax` setting, written before
+the run by `l3-run.sh`. It has to be written from the host: the Macrobenchmark target is the
+`benchmark` build type, which is deliberately **not debuggable**, so neither `run-as` nor the
+instrumentation's own shell can reach the app's `shared_prefs`.
+
+A preference that does not take looks exactly like two backends performing identically. So
+`ScannerView` also emits `zxing.backend.camera1` or `zxing.backend.camerax`, the benchmark
+collects it, and **`l3_report.py` refuses — not warns about — a result whose trace disagrees
+with the backend the run claims.** This is not hypothetical: it fired on the first run that
+worked, twice, for two different reasons (AGP's install wiping the app's data, and a
+`chown` that silently did nothing because `dumpsys package` prints no `userId=` line on the
+reference device).
+
+### 11.4 Running it
+
+```
+tools/maint/l3-run.sh <camera1|camerax> [iterations] [serial]
+python3 -I benchmark/tools/l3_report.py \
+    --input benchmark/l3/build/outputs/l3/zxing-l3/*-benchmarkData.json \
+    --runner-args benchmark/l3/build/outputs/l3/l3-runner-args.json \
+    --commit <sha> --run-id <backend>-<device>-<date> --device-label <device> \
+    --out docs/maint/reports/l3-<backend>-<device>-<date>.json
+```
+
+The script needs root adb, to write that preference. It installs both APKs itself and then
+runs the benchmark with `am instrument` rather than through Gradle, because **AGP's install
+step uninstalls first and takes the app's preferences with it** — anything written before
+Gradle runs is gone by the time the benchmark starts.
+
+Two failure modes it checks for, because both were observed: `am instrument` reports a
+failed test and still exits 0, and AGP's own runner has been seen letting a failed APK
+install through as `BUILD SUCCESSFUL`. A run that produced no `benchmarkData.json` did not
+happen, whatever any exit code says, and the script says so.
+
+**Same-session rule, as everywhere else here**: compare two backends only when they were
+measured back to back on the same device. The committed baselines obey it.
+
+### 11.5 The baseline, and what it cannot answer
+
+`docs/maint/reports/l3-{camera1,camerax}-DN-ENG41-20261102-run{1,2}.json`, with the reading
+in `l3-verdict-DN-ENG41-20261102.md`. Two pairs, 12 cold launches each, clocks locked.
+
+Two findings reproduced across both pairs: CameraX puts the window's first frame on screen
+about **330 ms sooner**, and is about **200 ms slower** from asking for a camera to a frame
+at the decoder. The first has a cause visible in the code — `Camera1Backend.open` calls
+`openDriver` synchronously from `surfaceCreated`, on the main thread, for a measured 400 ms.
+
+**Launch → first frame at the decoder is not derivable from these spans.** `camera_open_to_ready`
+begins at `surfaceCreated`, which on the Camera1 path is *before* the window's first frame,
+so the startup metric and the camera spans overlap by an unknown amount and must not be
+added. `open_to_first_frame` may be summed only because its two halves are sequential by
+construction. Closing that gap means the app calling `reportFullyDrawn()` when the scanner
+goes live, which needs `ScannerView` to tell its host that frames have started — a published
+API decision, left open rather than taken quietly.
 
 ---
 
