@@ -269,6 +269,16 @@ combination most likely to behave differently again.
 stops. Whether CameraX's steady-state frame delivery costs more or less CPU than Camera1's is
 an L4 question and L4 does not exist.
 
+> **Answered, 2026-11-02, after adoption.** L4 exists now, and the answer is **more, by
+> about 60%**: 118% of one core against Camera1's 74% over a 12-minute soak on DN-ENG41,
+> ranges not touching, plus +17 MB PSS and +17 threads at an identical Java heap. Neither
+> backend leaks. `reports/l4-verdict-DN-ENG41-20261102.md`.
+>
+> It does not reverse the recommendation, which never rested on performance — but it is a
+> real cost this record did not price, and it is the third independent measurement pointing
+> the same way about CameraX's frame path on this hardware. The other two are in
+> "What adoption actually did" below and in `reports/l3-verdict-DN-ENG41-20261102.md`.
+
 **Preview appearance on the lean path.** The scale/crop transform `PreviewView` does was
 deliberately not reimplemented in the spike, so its preview may be stretched. Nothing here
 measures what the preview looks like; adopting the lean path means writing that transform.
@@ -382,8 +392,10 @@ default. The shape is `ScannerOptions.CameraBackend`, a per-caller choice exactl
   +377,808 for the lean flavor. Two differences and neither was chased: 1.6.2 against 1.4.2,
   and a whole application for R8 to work on rather than one activity. The resource figure —
   the one the whole `camera-view` argument turned on — held exactly.
-- *Startup latency.* Not re-measured through `ScannerView`. Nothing here supersedes the
-  spike's tables and nothing here is a timing.
+- *Startup latency.* Re-measured through `ScannerView` by L3 afterwards, and it does not
+  agree with the spike: CameraX reaches the window's first frame ~330 ms **sooner** and a
+  frame at the decoder ~200 ms **later**. Different intervals, not necessarily contradictory
+  — the spike timed one interval containing both effects. `reports/l3-verdict-DN-ENG41-20261102.md`.
 
 **And one thing the spike could not have found.** The 100-cycle open/close loop crashed once
 on the emulator, in `onPause`: pausing while `ProcessCameraProvider.getInstance` was still
@@ -391,8 +403,14 @@ resolving left the backend's `LifecycleRegistry` at `INITIALIZED`, which cannot 
 to `DESTROYED`. A one-in-a-hundred race that takes the app down, found only because the loop
 is a hundred cycles and not one. Fixed; both loops pass clean afterwards.
 
-**Why the default has not moved.** The verification is from one phone (API 34) and one
-emulator (API 36). The Android 15 device was unreachable for the whole of this session, and
+**Why the default has not moved.** Three reasons now, where there were two. The third
+arrived with L4 and is the strongest: **CameraX costs about 60% more CPU to keep scanning**
+on the one device that can measure it, and L3 separately has it 200 ms slower to a frame.
+Neither is fatal — this record never rested on performance — but flipping a shipping default
+*towards* the measurably more expensive frame path, on the strength of one phone, is not a
+step to take quietly.
+
+The other two: the verification is from one phone (API 34) and one emulator (API 36). The Android 15 device was unreachable for the whole of this session, and
 no decode has been driven off real camera hardware through `ScannerView` — DN-ENG41 has no
 barcode in front of it and the emulator is where the decode was proved. This record already
 has one headline that two devices disagreed about; flipping the shipping default on the

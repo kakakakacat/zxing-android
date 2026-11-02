@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `e451c13fe` on branch `maint/android`, **which is pushed**.
+Last updated at commit `32e8904b3` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -93,7 +93,8 @@ Last updated at commit `e451c13fe` on branch `maint/android`, **which is pushed*
 | `2d26c1221` | The R8 release build runs CameraX, checked on a device |
 | `f4a01c025` | **L3 built and baselined** — and the Camera1 main-thread block it found |
 | `7d032431b` | **A-19**: predictive back had silently disabled both back handlers |
-| `e451c13fe` | **L4 harness** — soak, leak slope, GC from ART's log. No baseline yet |
+| `e451c13fe` | **L4 harness** — soak, leak slope, GC from ART's log |
+| `32e8904b3` | **L4 baseline**: CameraX costs ~60% more CPU to keep scanning |
 
 Nothing is uncommitted. `maint/android` is pushed through `2e9e5ce16` and CI is green on
 it. Nothing is released; no tag has been pushed.
