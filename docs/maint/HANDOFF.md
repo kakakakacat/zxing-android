@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `2d26c1221` on branch `maint/android`, **which is pushed**.
+Last updated at commit `f4a01c025` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -91,6 +91,7 @@ Last updated at commit `2d26c1221` on branch `maint/android`, **which is pushed*
 | `40b6423ed` | What the adoption verified, and why CameraX is still not the default |
 | `b8aeeeae9` | A frame posted behind `MSG_QUIT` was dropped rather than closed |
 | `2d26c1221` | The R8 release build runs CameraX, checked on a device |
+| `f4a01c025` | **L3 built and baselined** — and the Camera1 main-thread block it found |
 
 Nothing is uncommitted. `maint/android` is pushed through `2e9e5ce16` and CI is green on
 it. Nothing is released; no tag has been pushed.
