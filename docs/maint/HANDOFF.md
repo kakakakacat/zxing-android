@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `2e9e5ce16` on branch `maint/android`, **which is pushed**.
+Last updated at commit `40b6423ed` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -87,7 +87,8 @@ Last updated at commit `2e9e5ce16` on branch `maint/android`, **which is pushed*
 | `29a5c1e7d` | **Phase 6's decision record**, and the three-flavor spike it is built on |
 | `e8071855d` | **A second physical device**, Android 15 — and the Phase 6 headline it overturned |
 | `2e9e5ce16` | `minSdk` 21 → 23, which Phase 6 needed |
-| *(this commit)* | **CameraX adopted in `:scanner`**, behind `ScannerOptions.CameraBackend` |
+| `a90619e9a` | **CameraX adopted in `:scanner`**, behind `ScannerOptions.CameraBackend` |
+| `40b6423ed` | What the adoption verified, and why CameraX is still not the default |
 
 Nothing is uncommitted. `maint/android` is pushed through `2e9e5ce16` and CI is green on
 it. Nothing is released; no tag has been pushed.
