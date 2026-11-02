@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `32e8904b3` on branch `maint/android`, **which is pushed**.
+Last updated at commit `5da9aa797` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -95,9 +95,14 @@ Last updated at commit `32e8904b3` on branch `maint/android`, **which is pushed*
 | `7d032431b` | **A-19**: predictive back had silently disabled both back handlers |
 | `e451c13fe` | **L4 harness** — soak, leak slope, GC from ART's log |
 | `32e8904b3` | **L4 baseline**: CameraX costs ~60% more CPU to keep scanning |
+| `4e33b4263` | The L3 and L4 findings folded back into the camera decision |
+| `5da9aa797` | **The CI comparison step** — CI judges a measured result, it does not take one |
 
-Nothing is uncommitted. `maint/android` is pushed through `2e9e5ce16` and CI is green on
-it. Nothing is released; no tag has been pushed.
+Nothing is uncommitted. `maint/android` is pushed through `5da9aa797`. CI was last
+seen green on `2e9e5ce16` (runs `41423012309` and `41423012347`); everything since is
+documentation, benchmark tooling and the new `l2-compare` workflow, which has not run on
+the remote yet at the time this line was written. Nothing is released; no tag has been
+pushed.
 
 ---
 
@@ -166,10 +171,13 @@ it. Nothing is released; no tag has been pushed.
 | **A-19**: back with a result on screen | before: leaves the app. After: returns to the preview. Cause isolated by A/B against `enableOnBackInvokedCallback` | API 36 emulator, `reports/a19-predictive-back-api36-20261102.log` |
 | **L4 baseline**, both backends, 12-minute soaks, one session | CPU **74% vs 118%** of one core (camera1 vs camerax); +17 MB PSS, +17 threads; **no leak** in either | DN-ENG41, `reports/l4-*-DN-ENG41-20261102.json`, read in `reports/l4-verdict-DN-ENG41-20261102.md` |
 
-**L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
-and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
-an Android result. No L3 or L4 number exists, so nothing is known about camera-ready
-latency, first-scan latency, CPU, memory, GC or power.
+**All four layers now have numbers, and they are baselines, not claims.** The only
+comparison anyone has drawn from them is the decoder A/B (§10.6c) and the two camera
+readings above; nothing has been optimised. L1 timings remain host-JVM diagnostics and
+must never be quoted as an Android result. **First-scan latency is still unmeasured** —
+L3 covers launch, camera open and first frame, and the scan target needs a fixed,
+photographed scene that does not exist. Power is unmeasured too: DN-ENG41 on charge never
+moves its battery counters.
 
 ---
 
