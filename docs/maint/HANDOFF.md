@@ -98,11 +98,11 @@ Last updated at commit `5da9aa797` on branch `maint/android`, **which is pushed*
 | `4e33b4263` | The L3 and L4 findings folded back into the camera decision |
 | `5da9aa797` | **The CI comparison step** — CI judges a measured result, it does not take one |
 
-Nothing is uncommitted. `maint/android` is pushed through `5da9aa797`. CI was last
-seen green on `2e9e5ce16` (runs `41423012309` and `41423012347`); everything since is
-documentation, benchmark tooling and the new `l2-compare` workflow, which has not run on
-the remote yet at the time this line was written. Nothing is released; no tag has been
-pushed.
+Nothing is uncommitted. `maint/android` is pushed through `6d4ab48b1`, and all three
+workflows are green on it: Build `41468529666`, Instrumentation `41468529072`, and the
+new **L2 comparison** `41468529824` — which validated the baseline manifest against the
+real committed files on a clean checkout and reported, correctly, that no candidate was
+submitted. Nothing is released; no tag has been pushed.
 
 ---
 
