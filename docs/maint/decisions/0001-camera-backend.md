@@ -1,7 +1,9 @@
 # 0001 — The camera backend: Camera1, Camera2 or CameraX
 
-**Status:** the minSdk question is **answered — 23**, and the bump landed on 2026-11-02.
-The rest is proposed and not started.
+**Status:** **accepted and adopted**, 2026-11-02. The minSdk question was answered — 23 —
+and the bump landed the same day. `:scanner` now carries both backends; see "What adoption
+actually did" at the end. The one recommendation not yet carried out is making CameraX the
+default, and the reason is stated there.
 **Date:** 2026-11-02, **revised the same day on a second physical device** — the revision
 changed the recommendation's reasoning, not the recommendation. Read "Time to a decodable
 frame" before quoting any latency figure from an earlier reading of this file.
@@ -345,3 +347,54 @@ points and screen-coordinate mapping verified on a device, plus the 100× open/c
 loop and the 21 instrumentation tests, before the Camera1 path stops being the default. Both
 devices are available for that now, and the 21 tests already pass on the Android 15 one —
 `reports/instrumentation-21-mix5-api35-20261102.log`.
+
+---
+
+## What adoption actually did, 2026-11-02
+
+All six recommendations above are implemented, except the part of 5 that makes CameraX the
+default. The shape is `ScannerOptions.CameraBackend`, a per-caller choice exactly like
+`setDecoderBackend`, with `CAMERA1` still the default value.
+
+- `CameraXBackend` binds `Preview` + `ImageAnalysis` and nothing else. `camera-view` is not
+  a dependency: the preview goes into the `SurfaceView` `ScannerView` already owns, and the
+  measured result is **+0 resource entries** in `:app`'s release APK.
+- `setAvailableCamerasLimiter(DEFAULT_BACK_CAMERA)` is applied once per process before
+  anything asks for a provider.
+- Frames reach `YPlaneLuminanceSource` as the luma plane in place. `ScanFrame` is the
+  interface that carries a frame and its ownership to the decode thread, and the decode
+  thread closes it in a `finally` — on this backend a frame nobody closes holds a buffer
+  slot and the camera silently stops.
+- `ScannerView` still checks the CAMERA permission before it opens anything, so CameraX's
+  silent 700 ms retry loop on a revoked permission is never reached.
+- CameraX is **1.6.2** here, the current stable line. The spike stays on 1.4.2 so that every
+  number above keeps matching the code that produced it.
+
+**Three things this record claimed, which adoption either confirmed or has to qualify.**
+
+- *"The lean path means writing the scale/crop transform."* It did not, and the reason is
+  worth recording: the Camera1 path never did that transform either — it stretches the
+  preview over a `MATCH_PARENT` `SurfaceView`, and `PreviewCoordinateMapper` is written
+  against exactly that assumption. So the lean path reproduces what shipped, rather than
+  falling short of `PreviewView`. The viewfinder rectangle lands in the same place on both
+  backends, photographed side by side on DN-ENG41.
+- *The APK figures.* `classes.dex` grew **+930,544 B** in `:app` against the spike's
+  +377,808 for the lean flavor. Two differences and neither was chased: 1.6.2 against 1.4.2,
+  and a whole application for R8 to work on rather than one activity. The resource figure —
+  the one the whole `camera-view` argument turned on — held exactly.
+- *Startup latency.* Not re-measured through `ScannerView`. Nothing here supersedes the
+  spike's tables and nothing here is a timing.
+
+**And one thing the spike could not have found.** The 100-cycle open/close loop crashed once
+on the emulator, in `onPause`: pausing while `ProcessCameraProvider.getInstance` was still
+resolving left the backend's `LifecycleRegistry` at `INITIALIZED`, which cannot go straight
+to `DESTROYED`. A one-in-a-hundred race that takes the app down, found only because the loop
+is a hundred cycles and not one. Fixed; both loops pass clean afterwards.
+
+**Why the default has not moved.** The verification is from one phone (API 34) and one
+emulator (API 36). The Android 15 device was unreachable for the whole of this session, and
+no decode has been driven off real camera hardware through `ScannerView` — DN-ENG41 has no
+barcode in front of it and the emulator is where the decode was proved. This record already
+has one headline that two devices disagreed about; flipping the shipping default on the
+strength of one of them would be the same mistake with higher stakes. The full account is
+`reports/camerax-adoption-verification-20261102.md`.

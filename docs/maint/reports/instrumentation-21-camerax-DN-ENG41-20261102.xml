@@ -1,0 +1,44 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuites tests="21" failures="0" errors="0" skipped="0" time="0.000" timestamp="2026-11-02T10:37:54" hostname="localhost">
+  <testsuite name="io.github.kakakakacat.zxing.android.scanner.DefaultBackendTest" tests="7" failures="0" errors="0" skipped="0" time="0.214" timestamp="2026-11-02T10:37:54" hostname="localhost">
+    <properties>
+      <property name="device" value="T3515NNFBC000055" />
+    </properties>
+    <testcase name="aUpcASymbolStillComesBackAsTwelveDigitUpcA" classname="io.github.kakakakacat.zxing.android.scanner.DefaultBackendTest" time="0.039" />
+    <testcase name="aFinishedSymbolStillCarriesItsCorners" classname="io.github.kakakakacat.zxing.android.scanner.DefaultBackendTest" time="0.094" />
+    <testcase name="aCodabarSymbolStillComesBackWithoutItsGuards" classname="io.github.kakakakacat.zxing.android.scanner.DefaultBackendTest" time="0.014" />
+    <testcase name="theRawNativeBehaviourIsStillReachableForMeasurement" classname="io.github.kakakakacat.zxing.android.scanner.DefaultBackendTest" time="0.006" />
+    <testcase name="aGroupSeparatorArrivesAsItselfRatherThanEscaped" classname="io.github.kakakakacat.zxing.android.scanner.DefaultBackendTest" time="0.039" />
+    <testcase name="aUpcESymbolStillComesBackAsItsEightPrintedDigits" classname="io.github.kakakakacat.zxing.android.scanner.DefaultBackendTest" time="0.007" />
+    <testcase name="bothBackendsReadTheSameUpcAStringNowThatCompatibilityIsOn" classname="io.github.kakakakacat.zxing.android.scanner.DefaultBackendTest" time="0.015" />
+  </testsuite>
+  <testsuite name="io.github.kakakakacat.zxing.android.scanner.FrameDecodeTest" tests="1" failures="0" errors="0" skipped="0" time="1.576" timestamp="2026-11-02T10:37:54" hostname="localhost">
+    <properties>
+      <property name="device" value="T3515NNFBC000055" />
+    </properties>
+    <testcase name="fixedFramesDecodeToTheExpectedContents" classname="io.github.kakakakacat.zxing.android.scanner.FrameDecodeTest" time="1.576" />
+  </testsuite>
+  <testsuite name="io.github.kakakakacat.zxing.android.scanner.LiveFormatSwitchTest" tests="1" failures="0" errors="0" skipped="0" time="0.188" timestamp="2026-11-02T10:37:54" hostname="localhost">
+    <properties>
+      <property name="device" value="T3515NNFBC000055" />
+    </properties>
+    <testcase name="aFormatChangeTakesEffectOnARunningDecodeThread" classname="io.github.kakakakacat.zxing.android.scanner.LiveFormatSwitchTest" time="0.188" />
+  </testsuite>
+  <testsuite name="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" tests="12" failures="0" errors="0" skipped="0" time="0.376" timestamp="2026-11-02T10:37:54" hostname="localhost">
+    <properties>
+      <property name="device" value="T3515NNFBC000055" />
+    </properties>
+    <testcase name="theFormatSetCanBeChangedBetweenFrames" classname="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" time="0.075" />
+    <testcase name="resultNamesSurviveTheSpellingDifference" classname="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" time="0.005" />
+    <testcase name="theBackendNamesItself" classname="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" time="0.003" />
+    <testcase name="anEmptyFrameIsAMissNotAnException" classname="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" time="0.022" />
+    <testcase name="aRestrictedFormatSetIsHonouredByTheNativeReader" classname="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" time="0.049" />
+    <testcase name="everyMappedFormatNameIsAcceptedByZxingCpp" classname="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" time="0.009" />
+    <testcase name="closingTwiceIsSafe" classname="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" time="0.005" />
+    <testcase name="theLibraryWasBuiltWithNeonOnArm" classname="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" time="0.004" />
+    <testcase name="aFormatZxingCppCannotBeAskedForIsRefusedRatherThanWidened" classname="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" time="0.006" />
+    <testcase name="anUnsupportedFormatIsDroppedFromASelectionThatHasOthers" classname="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" time="0.001" />
+    <testcase name="itDecodesAQrCode" classname="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" time="0.035" />
+    <testcase name="itAgreesWithTheJavaBackendOnTheSameFrames" classname="io.github.kakakakacat.zxing.android.scanner.NativeFrameDecoderTest" time="0.162" />
+  </testsuite>
+</testsuites>

@@ -86,6 +86,8 @@ Last updated at commit `2e9e5ce16` on branch `maint/android`, **which is pushed*
 | `a19900119` | Phase 3 closed out in this file |
 | `29a5c1e7d` | **Phase 6's decision record**, and the three-flavor spike it is built on |
 | `e8071855d` | **A second physical device**, Android 15 — and the Phase 6 headline it overturned |
+| `2e9e5ce16` | `minSdk` 21 → 23, which Phase 6 needed |
+| *(this commit)* | **CameraX adopted in `:scanner`**, behind `ScannerOptions.CameraBackend` |
 
 Nothing is uncommitted. `maint/android` is pushed through `2e9e5ce16` and CI is green on
 it. Nothing is released; no tag has been pushed.
@@ -147,6 +149,11 @@ it. Nothing is released; no tag has been pushed.
 | `:scanner:connectedDebugAndroidTest` on **real Android 15** | 21 tests, 0 failures | Mix5 (API 35, SM8550), `reports/instrumentation-21-mix5-api35-20261102.log` |
 | Phase 6 spike on a **second** physical device, 15 runs per flavor, 1920x1080 both sides | `onCreate`→first frame: camera1 742 ms, camerax 741 ms, cameraxlean 745 ms — **no difference** | Mix5, `reports/camera-spike-*-mix5-20261102.log` |
 | Phase 6 spike re-measured on DN-ENG41 with the aspect ratio pinned | camera1 955 ms, camerax 682 ms, cameraxlean 665 ms, one session | DN-ENG41, `reports/camera-spike-*-DN-ENG41-20261102.log` |
+| **Phase 6 adoption**: CameraX in `:scanner`, preview + viewfinder rectangle | drawn, and in the same place as the Camera1 path | DN-ENG41, `reports/camerax-adoption-viewfinder-{camerax,camera1}-DN-ENG41-20261102.png` |
+| Phase 6 adoption: a real decode through `ScannerView` on CameraX | QR_CODE, with thumbnail and result points on the result screen | API 36 emulator, `reports/camerax-adoption-decode-api36-20261102.png` |
+| Phase 6 adoption: 100× open-close on CameraX | 0 fatals, 0 camera errors — **after** the second run; the first found a crash | DN-ENG41 and API 36 emulator, `reports/stability-100-camerax-*-20261102.log` |
+| Phase 6 adoption: 21 instrumentation tests on CameraX's tree | 21 tests, 0 failures | DN-ENG41, `reports/instrumentation-21-camerax-DN-ENG41-20261102.xml` |
+| Phase 6 adoption: what CameraX costs `:app` | `res/` **+0 entries**, `classes.dex` +930,544 B, CameraX's own `.so` +65,332 B over two ABIs | local, `reports/camerax-adoption-apk-size-20261102.log` |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -369,7 +376,11 @@ check on every push. The check was watched failing on purpose before it was comm
     companion's private members. They are unavoidable and they are not API.
   - `tools/maint/api-diff.sh` prints all of this, so the widening is a thing that was
     read and accepted per commit rather than discovered later.
-- **Camera1 stays for now.** A Camera2/CameraX decision record is Phase 6, and must not be
+- **Camera1 is still the default, but it is no longer the only backend.** Phase 6 adopted
+  CameraX alongside it; `ScannerOptions.cameraBackend` chooses. The paragraph below is the
+  original note and the reasoning it records still applies to why the Camera1 code is still
+  here at all.
+- A Camera2/CameraX decision record is Phase 6, and must not be
   presented as a performance improvement on its own.
 
 ---
@@ -400,7 +411,7 @@ hardware**, closing a README item open since Phase 2
 
 The second thing it bought was a correction.
 
-**Phase 6 has a decision record now, and it is the one thing waiting on the user.**
+**Phase 6 has a decision record, and it has been accepted and carried out.**
 `docs/maint/decisions/0001-camera-backend.md` compares Camera1, Camera2 and CameraX and
 recommends CameraX, through `benchmark/camera-spike`, which builds the same application
 three times over three camera stacks so that a delta belongs to the stack and nothing else.
@@ -425,7 +436,31 @@ browser-bookmark button in `ShareActivity`, which Android 6.0 had already made u
 `api-diff.sh :scanner` reports no Java-visible API difference, and the 21 instrumentation
 tests still pass on DN-ENG41.
 
-**So Phase 6 adoption and Phase 5 item 8 are both unblocked and neither is started.**
+**Phase 6 adoption is done, and Phase 5 item 8 with it.** `:scanner` carries both camera
+stacks now: `ScannerOptions.CameraBackend` picks one, the same shape `setDecoderBackend`
+already had, and `CAMERA1` is still the default value. The CameraX path binds
+`Preview` + `ImageAnalysis`, draws into the `SurfaceView` `ScannerView` already owns rather
+than taking `camera-view`, limits CameraX to the back camera before it initialises, and
+feeds `YPlaneLuminanceSource` the luma plane in place — so item 8's "no full-frame copy"
+is finally the path the library actually runs, and not a class with synthetic tests.
+
+Verified on DN-ENG41 and the API 36 emulator: preview, the viewfinder rectangle landing in
+the same place as on Camera1, a real QR decoded with its thumbnail and result points, 100
+open/close cycles and the 21 instrumentation tests. `reports/camerax-adoption-*`.
+
+**The default has not moved, and that is the one thing left in Phase 6.** Two reasons,
+both stated rather than worked around: the Mix5 answered `{"live":false}` for the whole
+session, so Android 15 is unverified; and no decode has been driven off real camera
+hardware *through `ScannerView`* — DN-ENG41 has nothing to point at and the emulator is
+where the decode was proved. This file already records two devices disagreeing about a
+Phase 6 result measured on one of them. Flipping the shipping default on one phone would
+be that mistake again.
+
+**The 100-cycle loop earned its keep.** Its first CameraX run crashed the app in `onPause`:
+pausing while `ProcessCameraProvider.getInstance` was still resolving left the backend's
+`LifecycleRegistry` at `INITIALIZED`, and `LifecycleRegistry` throws rather than go straight
+from there to `DESTROYED`. One cycle in a hundred, a fatal, and a single launch would never
+have shown it. Fixed by stepping through `CREATED`.
 
 Four things the spike turned up that are worth knowing whatever is decided:
 
@@ -1052,16 +1087,56 @@ the layout are the same thing on a real tablet; the camera on one is not.
 ### Phase 6 — the camera backend
 
 The decision record is `docs/maint/decisions/0001-camera-backend.md`; the summary and the
-open question are at the top of this file. What is left here:
+one thing still open are at the top of this file. What is left here:
 
 - ~~**The minSdk question**~~ — **answered: 23**, done.
-- **Adoption**: `:scanner` grows the dependency, `ScannerView` binds
-  `Preview` + `ImageAnalysis` instead of owning a `CameraManager`, and the frames go to
-  `YPlaneLuminanceSource` rather than `PlanarYUVLuminanceSource`. That finishes Phase 5
-  item 8 at the same time.
-- **Verification**, which the second README tickbox already asks for: preview, ROI, result
-  points and screen-coordinate mapping on a device, plus the 100× stability loop and the 21
-  instrumentation tests, before the Camera1 path stops being the default.
+- ~~**Adoption**~~ — done. `CameraXBackend` beside `Camera1Backend`, both behind
+  `ScannerCameraBackend`, chosen by `ScannerOptions.cameraBackend`.
+- ~~**Verification**~~ — done on DN-ENG41 and the API 36 emulator,
+  `reports/camerax-adoption-verification-20261102.md`.
+- **Making CameraX the default**, which is the only Phase 6 item still open. It needs the
+  Android 15 device, and a decode driven off real camera hardware through `ScannerView`
+  rather than through the spike.
+
+### How the two backends fit together
+
+Worth reading before changing either, because the seams were chosen to keep the Camera1
+path literally unchanged rather than to be elegant:
+
+- `ScannerCamera` is public and tiny — framing rectangles and the torch. `ViewfinderView`
+  and `AmbientLightManager` take one, so neither knows which stack is running.
+- `ScannerCameraBackend` is internal and adds open / close / request-a-frame. `open` is
+  **asynchronous for both**: Camera1 opens synchronously and still answers through the
+  callback, because writing one caller against the slower of the two is the only way one
+  caller can drive both.
+- `Camera1Backend` wraps `CameraManager` and owns nothing. `CameraManager` is still the
+  whole Camera1 stack and still public API; what moved into the wrapper is the open-failure
+  classification that used to sit in `ScannerView`, which stopped belonging there the moment
+  there were two stacks to classify failures from.
+- `ScanFrame` carries one frame **and its ownership** to the decode thread. Camera1 hands
+  over a `byte[]` it has finished with and `close()` does nothing; CameraX hands over an
+  `ImageProxy` holding a slot in a fixed-size queue, which `YPlaneLuminanceSource` reads in
+  place. The decode thread closes it in a `finally`. **A frame nobody closes stops the
+  camera, with no exception anywhere** — that failure mode is the reason the interface
+  exists at all rather than the backends posting their own payloads.
+- Frames are **pulled, not pushed**. `requestFrame` arms exactly one delivery; anything the
+  analyzer receives while nothing is waiting is closed on the spot.
+
+### Two traps this adoption walked into
+
+- **The viewfinder drew nothing at first.** `ViewfinderView.onDraw` returns early when the
+  framing rectangle is null, and the laser animation reschedules itself *from inside the
+  draw it never got to do* — so one early return is permanent. Camera1 has geometry the
+  moment `openDriver` returns; CameraX, as first written, had none until the first frame
+  arrived. Fixed by reading `ImageAnalysis.resolutionInfo` straight after
+  `bindToLifecycle`, which settles the resolution and rotation there. Anything else that
+  makes geometry late will reproduce this exactly.
+- **`setFixedSize` on the preview surface is deliberate.** It sizes the surface buffer to
+  what the camera is actually producing; the `SurfaceView` still fills the scanner, so the
+  preview is scaled to the view. That is what the Camera1 path always did, and
+  `PreviewCoordinateMapper` is written against precisely that assumption — which is why the
+  rectangle maps identically on both backends and why `PreviewView`'s scale/crop transform
+  was never needed here.
 
 `benchmark/camera-spike` stays in the tree whatever is decided — it is the only thing that
 can re-run any of those numbers. CI assembles all three flavors on every push so it cannot

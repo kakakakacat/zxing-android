@@ -111,6 +111,9 @@ app-internal classes no longer exist, having been replaced by library equivalent
 | `AutoFocusManager(Context, Camera)` | `AutoFocusManager(Camera, boolean)` |
 | `CameraManager(Context)` | `CameraManager(Context, ScannerOptions)` |
 | `AmbientLightManager(Context)` | `AmbientLightManager(Context, FrontLightMode)` |
+| `AmbientLightManager.start(CameraManager)` | `start(ScannerCamera)` — either camera backend satisfies it |
+| `ViewfinderView.setCameraManager(CameraManager)` | `setCamera(ScannerCamera)`, for the same reason |
+| `CameraManager.requestPreviewFrame` delivering `byte[]` with the size in `arg1`/`arg2` | delivers a cropped frame object; the crop belongs to the backend, and a CameraX frame is not a `byte[]` |
 
 These were package-private or effectively internal upstream; none of them were part of a
 published artifact.

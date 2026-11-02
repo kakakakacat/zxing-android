@@ -11,7 +11,42 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
+### Added
+- **A CameraX backend for `ScannerView`**, selected with
+  `ScannerOptions.setCameraBackend(CameraBackend.CAMERAX)`. Camera1 remains the default
+  and remains selectable; which one runs is a per-caller choice, the same shape as
+  `setDecoderBackend`. The CameraX path binds `Preview` + `ImageAnalysis`, draws into the
+  `SurfaceView` the scanner already owns rather than taking `camera-view`, limits CameraX
+  to the back camera before it initialises, and hands each frame's luma plane to
+  `YPlaneLuminanceSource` where the camera left it — **no copy per frame**, with the
+  `ImageProxy` closed only once the decode has returned. That finishes Phase 5 item 8,
+  which had built `YPlaneLuminanceSource` for CameraX and could never run it against one.
+
+  Not taking `camera-view` is the difference between **+0 and +273 resource entries** and
+  saves the AppCompat tree with it; `classes.dex` grows 931 KB and CameraX's own native
+  libraries 65 KB across the two ABIs the AAR ships
+  (`docs/maint/reports/camerax-adoption-apk-size-20261102.log`).
+
+  Verified on Android 14 hardware and an Android 16 emulator — preview, the viewfinder
+  rectangle in the same place as the Camera1 path, a real decode with its thumbnail and
+  result points, 100 open/close cycles and the 21 instrumentation tests. **Not verified on
+  Android 15**, and no decode has been driven off real camera hardware through
+  `ScannerView` yet, which is why the default has not moved:
+  `docs/maint/reports/camerax-adoption-verification-20261102.md`.
+- `ScannerCamera`, the small interface the viewfinder and the ambient-light manager read an
+  open camera through, implemented by both backends.
+- The Barcode Scanner app has a **"Use CameraX"** setting, off by default, under Camera.
+
 ### Changed
+- **`ViewfinderView.setCameraManager(CameraManager)` is now `setCamera(ScannerCamera)`**,
+  and `ScannerView.getCameraManager()` is joined by `getCamera()`, which answers for either
+  backend. `getCameraManager()` still returns the Camera1 `CameraManager` and now returns
+  null whenever the CameraX backend is in use, because there is no `CameraManager` behind
+  it. Nothing has been released, so no consumer is being moved.
+- `CameraManager.requestPreviewFrame` delivers a cropped frame object instead of the raw
+  `byte[]` with its size in `arg1`/`arg2`. The crop belongs to the backend, which is the
+  only thing that knows the frame geometry, and a CameraX frame is not a `byte[]` and has
+  to be handed back when the decode finishes.
 - **`minSdk` raised from 21 to 23**, dropping Android 5.0 and 5.1. Taken as a decision
   rather than drift: CameraX requires API 23 from 1.5.0 onward, and the last release that
   supported 21 was 1.4.2 on 2025-03-26, so staying at 21 would have meant adopting a camera

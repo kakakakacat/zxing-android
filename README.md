@@ -72,12 +72,28 @@ permission is missing it reports `ScannerError.PERMISSION_DENIED` and leaves the
 conversation with the user to the host app. `CaptureActivity` in `android/` is a worked
 example of doing it, including the "don't ask again" case.
 
-**Feeding frames from CameraX.** `YPlaneLuminanceSource` wraps the luma plane of a
-`YUV_420_888` image where it lies — pass `getPlanes()[0]`'s buffer, its `rowStride` and
+**Choosing the camera stack.** `ScannerView` runs Camera1 by default and CameraX on
+request:
+
+```kotlin
+scannerView.setOptions(
+    ScannerOptions.Builder()
+        .setCameraBackend(ScannerOptions.CameraBackend.CAMERAX)
+        .build())
+```
+
+CameraX is bound without `camera-view`: the preview goes straight into the `SurfaceView`
+the scanner already owns, only the back camera is ever considered, and frames reach the
+decoder as luma planes read in place — no copy per frame. Why there are two backends at
+all, what each costs and what is still unverified about the CameraX one is in
+[the camera-backend decision](docs/maint/decisions/0001-camera-backend.md).
+
+**Feeding frames from your own CameraX.** `YPlaneLuminanceSource` wraps the luma plane of
+a `YUV_420_888` image where it lies — pass `getPlanes()[0]`'s buffer, its `rowStride` and
 `pixelStride`, and the scan rectangle. Row padding and interleaved luma are handled, only
 the scan rectangle is ever copied, and the buffer's position is left alone. The buffer
-must outlive the decode, or call `detach()` first. `ScannerView` itself still drives
-Camera1; this is the input path for a host that already runs CameraX.
+must outlive the decode, or call `detach()` first. This is the input path for a host that
+drives the camera itself and only wants the decoder.
 
 **Narrow the formats.** `setFormats` is the cheapest performance control the library
 has, and it can be changed at any time — including while scanning, which reaches the
@@ -114,7 +130,7 @@ is checked in, and none should be.
 | --- | --- |
 | `minSdk` | 23 (upstream was 19; raised to 21, then to 23 — see [AUDIT.md](docs/maint/AUDIT.md) §2 and [the camera-backend decision](docs/maint/decisions/0001-camera-backend.md)) |
 | `compileSdk` / `targetSdk` | 36 |
-| Camera | Camera1 (`android.hardware.Camera`), as upstream. A Camera2/CameraX backend is under evaluation, not yet decided |
+| Camera | Camera1 (`android.hardware.Camera`) by default; **CameraX available** via `ScannerOptions.setCameraBackend(CAMERAX)` — see [the camera-backend decision](docs/maint/decisions/0001-camera-backend.md) |
 | Google Play Services | Not required. The scan path is fully offline |
 
 Verified on **Android 14 (API 34), DN-ENG41, no GMS**. Other versions are listed as
@@ -212,10 +228,11 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       submodule, CMake building `arm64-v8a` / `armeabi-v7a`, shipped in the same AAR, and
       the default since `ebe1708b4`. NEON is the auto-vectorizer's, not intrinsics —
       zxing-cpp has none; the audit is in `docs/maint/reports/neon-audit-*.log`
-- [ ] Feed `ImageProxy` `YUV_420_888` straight to the decoder: honour `rowStride` /
-      `pixelStride`, crop to the scan region, no full-frame copy. **Half done** —
-      `YPlaneLuminanceSource` exists and is tested, but `ScannerView` still runs Camera1
-      and nothing in the app uses it yet; the rest is Phase 6's decision
+- [x] Feed `ImageProxy` `YUV_420_888` straight to the decoder: honour `rowStride` /
+      `pixelStride`, crop to the scan region, no full-frame copy. Finished by Phase 6's
+      adoption — `ScannerView`'s CameraX backend hands `YPlaneLuminanceSource` the luma
+      plane where the camera left it and closes the `ImageProxy` only once the decode has
+      returned
 - [x] API to enable/disable formats per scan, so the native reader does less work
       (`ScannerView.setFormats`, which had silently done nothing on a running scanner)
 - [x] 16 KB page-size alignment for the native libraries (required by Android 15+),
@@ -243,8 +260,19 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       CameraX costs **+558 KB**, of which **351 KB is `camera-view` alone** and avoidable.
 - [x] **minSdk raised 21 → 23**, the one question the record left open. Current CameraX
       needs 23; staying at 21 would have pinned it to 1.4.2, last released 2025-03-26
-- [ ] CameraX adopted in `:scanner` (unblocked, not started)
-- [ ] If adopted: preview, ROI, result points and screen-coordinate mapping verified
+- [x] **CameraX adopted in `:scanner`**, without `camera-view`, behind
+      `ScannerOptions.CameraBackend`. `ScannerView` binds `Preview` + `ImageAnalysis` and
+      feeds `YPlaneLuminanceSource`; the Camera1 stack is still there and still selectable.
+      `res/` grows by **0 entries** and `classes.dex` by 931 KB —
+      `docs/maint/reports/camerax-adoption-apk-size-20261102.log`
+- [x] Preview, ROI, result points and screen-coordinate mapping verified — on Android 14
+      hardware and an Android 16 emulator, plus 100× open/close (which found and cost a
+      crash) and the 21 instrumentation tests:
+      [`docs/maint/reports/camerax-adoption-verification-20261102.md`](docs/maint/reports/camerax-adoption-verification-20261102.md)
+- [ ] **CameraX made the default.** Still `CAMERA1`, deliberately: the Android 15 device
+      was unreachable all session and no decode has been driven off real camera hardware
+      through `ScannerView` yet. The two devices this project owns have already disagreed
+      once about a Phase 6 result taken on one of them
 
 ## Namespace and independence
 

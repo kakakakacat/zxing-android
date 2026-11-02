@@ -1,0 +1,37 @@
+What adopting CameraX costs :app's release APK, measured 2026-11-02.
+
+Both sides are :app at release, R8 and resource shrinking on, four ABIs, built on this
+machine minutes apart. The baseline is a worktree at dde667cd1, the parent of the adoption
+commit; the other side is that tree plus the CameraX backend, with :scanner depending on
+camera-core / camera-camera2 / camera-lifecycle 1.6.2 and NOT on camera-view.
+
+                              baseline      camerax        delta
+  classes.dex                   752000      1682544      +930544
+  res/ entries                      24           24           +0
+  CameraX's own .so, 4 ABIs          0       164748      +164748
+  CameraX's own .so, 2 ABIs          0        65332       +65332   (arm64-v8a, armeabi-v7a)
+
+  lib/arm64-v8a/libimage_processing_util_jni.so    32528
+  lib/arm64-v8a/libsurface_util_jni.so              4896
+  lib/armeabi-v7a/libimage_processing_util_jni.so  24448
+  lib/armeabi-v7a/libsurface_util_jni.so            3460
+  lib/x86/libimage_processing_util_jni.so          41276
+  lib/x86/libsurface_util_jni.so                    3812
+  lib/x86_64/libimage_processing_util_jni.so       49416
+  lib/x86_64/libsurface_util_jni.so                 4912
+
+**res/ entries: +0.** That is the whole point of refusing camera-view. The spike measured
+camera-view at +273 resource entries and +350,792 bytes, through AppCompat and camera-video;
+none of it is here.
+
+**The APK-on-disk figure is NOT quoted, because it was confounded.** The baseline worktree
+ran `git submodule update --init --recursive`, which initialised third_party/zxing-cpp/zint;
+the main checkout has that nested submodule uninitialised. libzxingnative.so therefore
+differs between the two trees by about 542 KB across the two ABIs, for a reason that has
+nothing to do with the camera stack. The dex and resource rows above are unaffected by it,
+and the CameraX .so rows are read directly out of the APK by name.
+
+**classes.dex is +930,544 here against the spike's +377,808 for the lean flavor.** Two
+differences, neither investigated: the spike is on CameraX 1.4.2 and this is 1.6.2, and the
+spike's application is one activity while :app is the whole Barcode Scanner app, so R8 has a
+different keep surface to work against. Recorded as measured rather than reconciled.
