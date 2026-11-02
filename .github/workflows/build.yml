@@ -91,6 +91,13 @@ jobs:
                     :camera-spike:assembleCameraxRelease \
                     :camera-spike:assembleCameraxleanRelease
 
+      - name: No private note was committed in plaintext
+        # docs/maint/private/ carries hostnames and command lines for a device this public
+        # repository must not name. The plaintext is git-ignored; this is the second line,
+        # because an ignore rule only helps someone who does not pass -f. Watched failing
+        # on purpose before it was committed.
+        run: tools/maint/private.sh check
+
       - name: A release would publish a resolvable POM
         # :scanner's POM depends on this project's own :core. Publishing one without the
         # other produces an artifact no consumer can resolve, and that is exactly what

@@ -17,3 +17,9 @@ __pycache__/
 
 # CMake/NDK build output for the native decoder backend.
 .cxx/
+
+# Decrypted copies of the encrypted maintenance notes. Ciphertext (*.enc) is committed;
+# plaintext never is. See tools/maint/private.sh.
+docs/maint/private/*
+!docs/maint/private/*.enc
+!docs/maint/private/README.md

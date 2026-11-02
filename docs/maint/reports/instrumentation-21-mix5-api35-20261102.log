@@ -2,17 +2,17 @@
 #
 # The README had carried "Verified on a physical Android 15 or 16 device" as an open item
 # since Phase 2, for the honest reason that no such device existed here. One does now: a
-# Xiaomi 25010PN30C (xuanyuan), Android 15 / API 35, SM8550, arm64-v8a, reached through the
-# webcontrol root agent rather than adb -- no ADB listener was opened on this phone.
+# Xiaomi 25010PN30C (xuanyuan), Android 15 / API 35, SM8550, arm64-v8a, reached through a
+# private root-agent control channel rather than adb -- no ADB listener is opened on it.
 #
 # How it was run, so it can be run again:
 #   ./gradlew :scanner:assembleDebugAndroidTest
 #   # strip the ABIs the phone does not have, so the transfer is 6 MB instead of 12:
 #   zip -d <apk> 'lib/x86_64/*' 'lib/armeabi-v7a/*' && apksigner sign --ks ~/.android/debug.keystore ...
 #   # ship it to the phone through the control channel and install:
-#   ctl /push {"path":"/data/local/tmp/zxing-at.apk","data":"<base64>"}
-#   ctl /exec pm install -t -r -g /data/local/tmp/zxing-at.apk
-#   ctl /exec am instrument -w io.github.kakakakacat.zxing.android.scanner.test/androidx.test.runner.AndroidJUnitRunner
+#   <channel> push {"path":"/data/local/tmp/zxing-at.apk","data":"<base64>"}
+#   <channel> exec pm install -t -r -g /data/local/tmp/zxing-at.apk
+#   <channel> exec am instrument -w io.github.kakakakacat.zxing.android.scanner.test/androidx.test.runner.AndroidJUnitRunner
 #
 # One thing this does NOT prove: 16 KB page support. getconf PAGE_SIZE on this device is
 # 4096, so the loader never had to honour the 16 KB alignment the AAR is built with. What it

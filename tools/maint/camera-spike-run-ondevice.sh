@@ -5,8 +5,8 @@
 #
 #   sh /data/local/tmp/spike-run.sh <camera1|camerax|cameraxlean> [runs] [backCameraOnly:0|1]
 #
-# The second physical device this project has access to is reached through the webcontrol
-# root agent (a separate project) rather than adb, and no ADB listener was opened on it. The
+# The second physical device this project has access to is reached through a private
+# root-agent control channel rather than adb, and no ADB listener is opened on it. The
 # protocol is otherwise identical to the adb runner, deliberately: cold start, force-stop,
 # two seconds for the HAL to release, logcat streamed to a file rather than read back
 # afterwards, and the same lines printed, so one aggregator reads both.

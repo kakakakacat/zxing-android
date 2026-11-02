@@ -47,8 +47,8 @@ nothing else.
   genuinely cold each time (force-stop, 2 s for the HAL to release, fresh process), and
   reports the median of the lines the activity prints.
 - `tools/maint/camera-spike-run-ondevice.sh` is the same protocol as a shell script that
-  runs *on* the phone, for the second device, which is reached through the webcontrol root
-  agent rather than adb. No ADB listener was opened on that phone.
+  runs *on* the phone, for the second device, which is reached through a private root-agent
+  control channel rather than adb. No ADB listener is opened on that phone.
 - `tools/maint/camera-spike-size.sh` builds all three at release and prints the size table.
 
 **This is a spike, not a benchmark layer.** It does not lock clocks, does not wait for a

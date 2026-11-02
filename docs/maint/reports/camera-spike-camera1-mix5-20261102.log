@@ -3,8 +3,8 @@
 # Xiaomi 25010PN30C (xuanyuan), Android 15 / API 35, SM8550, arm64-v8a, 5 cameras,
 # 4 KB pages, HyperOS OS2.0.207.0.VOACNXM, rooted with Magisk.
 #
-# Reached through the webcontrol root agent, not adb: no ADB listener was opened on this
-# phone. Same protocol as tools/maint/camera-spike-run.sh -- cold start, force-stop, 2 s
+# Reached through a private root-agent control channel, not adb: no ADB listener is
+# opened on this phone. Same protocol as tools/maint/camera-spike-run.sh -- cold start, force-stop, 2 s
 # for the HAL to release, logcat streamed to a file, 15 runs, median reported. Every flavor
 # in this set was asked for, and got, a 1920x1080 frame.
 #

@@ -175,46 +175,67 @@ latency, first-scan latency, CPU, memory, GC or power.
 ### The second device, and how to reach it
 
 **Xiaomi 25010PN30C (`xuanyuan`), Android 15 / API 35, HyperOS `OS2.0.207.0.VOACNXM`,
-SM8550, arm64-v8a, five cameras, `getconf PAGE_SIZE` = 4096.** The user calls it the mix5.
-It sits on the home LAN at `192.168.100.111` behind an iStoreOS soft router, and it is the
-first Android 15 hardware this project has been able to touch.
+SM8550, arm64-v8a, five cameras, `getconf PAGE_SIZE` = 4096.** The first Android 15
+hardware this project has been able to touch.
 
-**It is not reached over adb and no ADB listener was opened on it.** It runs the webcontrol
-root agent from the user's separate `~/router` project, and the router keeps a `ctl` client
-on `127.0.0.1:17900` that speaks to it over WebRTC. The useful endpoints are `POST /exec`
-(root shell, returns `{"output","exitCode"}`), `POST /push` (`{"path","data"}`, data
-base64, 64 MiB cap) and `POST /pull`.
+**It is not reached over adb, and no ADB listener is opened on it.** It runs a root agent
+that exposes a shell and a file transfer over a private control channel; APKs go in through
+a push endpoint and commands through an exec endpoint. **The hostnames, addresses and exact
+invocation are deliberately not in this file** — this repository is public. They are in
+`docs/maint/private/second-device.md.enc`, encrypted; see "Encrypted notes" below.
 
-```sh
-ssh router                      # ~/.ssh/config: ssh.kakacat.net through cloudflared access
-# on the router, with the APK already copied there:
-openssl base64 -A -in /tmp/at.apk -out /tmp/at.b64          # the router has no base64(1)
-{ printf '{"path":"/data/local/tmp/x.apk","data":"'; cat /tmp/at.b64; printf '"}'; } > /tmp/p.json
-curl -s -m 600 -X POST 127.0.0.1:17900/push -H 'Content-Type: application/json' \
-     --data-binary @/tmp/p.json
-```
+What is worth recording here, because none of it is a secret and all of it will be hit
+again by anyone driving an Android device over a non-adb channel:
 
-Five things that will otherwise be rediscovered the hard way:
-
-1. **Put the command in a file, never inline.** The exec path evaluates the string twice, so
-   a `$f` in a shell loop arrives already expanded to nothing. Write the JSON with a quoted
-   heredoc and `curl --data-binary @file`, and put anything with variables into a script on
-   the phone — which is what `tools/maint/camera-spike-run-ondevice.sh` is for.
+1. **Put the command in a file, never inline.** That exec path evaluates the string twice,
+   so a `$f` in a shell loop arrives already expanded to nothing. Build the request body
+   with a quoted heredoc and `curl --data-binary @file`, and put anything with variables
+   into a script on the phone — which is what `tools/maint/camera-spike-run-ondevice.sh`
+   is for.
 2. **`cmd appops set <pkg> CAMERA allow` as well as `pm grant`.** HyperOS revokes the
    runtime grant again once an app opens the camera without a user-visible prompt, and
-   CameraX's response is a silent 700 ms retry loop forever.
+   **CameraX's response to that is a silent 700 ms retry loop, forever** — no exception, no
+   error callback, just no frames. Fifteen runs reported nothing at all before the logcat
+   line `cannot open camera 0 without camera permission` explained it.
 3. **`svc power stayon true` before any loop.** The screen times out mid-run and a paused
    activity stops getting frames; it reads as a backend failure.
 4. **`wm dismiss-keyguard` after `input keyevent KEYCODE_WAKEUP`.** An activity started
    under the lockscreen does not resume.
-5. **The link is slow and drops.** Roughly 24 KB/s through the cloudflared tunnel on a bad
-   stretch, and one 16 MB transfer died halfway. Strip the APK to `arm64-v8a` and re-sign it
-   (`zip -d <apk> 'lib/x86_64/*' 'lib/armeabi-v7a/*'` then `apksigner sign --ks
-   ~/.android/debug.keystore`) — it halved the instrumentation APK from 12 MB to 6.3 MB —
-   send with `-o ServerAliveInterval=15`, and retry rather than assume a failure is real.
+5. **The link is slow and drops.** Roughly 24 KB/s on a bad stretch, and one 16 MB transfer
+   died halfway. Strip the APK to the device's ABI and re-sign it (`zip -d <apk>
+   'lib/x86_64/*' 'lib/armeabi-v7a/*'` then `apksigner sign --ks ~/.android/debug.keystore`)
+   — that halved the instrumentation APK from 12 MB to 6.3 MB — keep SSH alive with
+   `-o ServerAliveInterval=15`, and retry rather than assume a failure is real.
 
-The agent is the user's own and the phone is the user's own; nothing here was installed
-beyond the test APKs under `/data/local/tmp`, and the spike APKs remain installed.
+Nothing was installed on that phone beyond test APKs; the ADB listener opened during this
+work was closed again and the firewall rules that scoped it were removed.
+
+### Encrypted notes
+
+`docs/maint/private/` holds the few things that must not be public but must still travel
+with the repository: hostnames, private addresses and the exact commands that reach the
+second device. Each file is encrypted at rest and committed as ciphertext.
+
+```sh
+tools/maint/private.sh decrypt docs/maint/private/second-device.md.enc   # prints plaintext
+tools/maint/private.sh edit    docs/maint/private/second-device.md.enc   # decrypt, $EDITOR, re-encrypt
+tools/maint/private.sh check                                             # before committing
+```
+
+**The passphrase is not in this repository and must not be**, including in CI. It is in the
+macOS Keychain under the service name `zxing-android-private`, which the script reads
+automatically; `security find-generic-password -s zxing-android-private -w` prints it, which
+is how it gets onto a second machine. A GitHub Actions secret would not work for this:
+secrets cannot be read back by a person, so a second laptop cloning the repo still could not
+decrypt, and routing plaintext out through a workflow artifact would publish it — artifacts
+of a public repository are downloadable by anyone. **No CI job needs these files.**
+
+Three things stop a mistake, because an ignore rule alone only helps someone who does not
+type `-f`: plaintext under `docs/maint/private/` is git-ignored; `private.sh check` fails on
+a staged plaintext or on a `.enc` that is not actually encrypted; and `build.yml` runs that
+check on every push. The check was watched failing on purpose before it was committed.
+
+`docs/maint/private/README.md` documents the scheme and is public on purpose.
 
 ### Traps, and the runbook for each
 
@@ -368,10 +389,10 @@ The lesson is not "it was fine". It is that nobody could have known it was fine,
 days of work, and the file said otherwise. **Push before writing "CI" in this table.**
 
 **There is a second physical device now, and it is an Android 15 one.** A Xiaomi
-25010PN30C (`xuanyuan`, API 35, SM8550, five cameras, 4 KB pages) on the user's home LAN,
-reached through the `~/router` webcontrol root agent rather than adb — **no ADB listener was
-opened on it**; APKs go over the control channel's `/push` and commands over `/exec`. The
-recipe, and the two traps that device has, are in "The second device" below.
+25010PN30C (`xuanyuan`, API 35, SM8550, five cameras, 4 KB pages), reached through a private
+root-agent control channel rather than adb — **no ADB listener is opened on it**; APKs go in
+through a push endpoint and commands through an exec endpoint. The traps that device has are
+in "The second device" below; how to reach it is in the encrypted notes beside it.
 
 The first thing it bought: **the 21 `:scanner` instrumentation tests pass on real Android 15
 hardware**, closing a README item open since Phase 2
