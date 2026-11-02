@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `efa0a2dea` on branch `maint/android`.
+Last updated at commit `aac6682fb` on branch `maint/android`.
 
 ---
 
@@ -76,6 +76,7 @@ Last updated at commit `efa0a2dea` on branch `maint/android`.
 | `6f6e6010a` | Kotlin: `encode`, with the rendered QR decoded back |
 | `9e0b5ba5a` | Kotlin: the root package except `CaptureActivity` |
 | `efa0a2dea` | **`:app` is Kotlin end to end**, and two classes moved out of `:scanner` |
+| `aac6682fb` | **The release would have published an unresolvable AAR**; fixed and guarded |
 
 Nothing is uncommitted. Nothing is released; no tag has been pushed.
 
