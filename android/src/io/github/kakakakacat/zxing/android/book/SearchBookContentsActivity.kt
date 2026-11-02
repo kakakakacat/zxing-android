@@ -141,13 +141,12 @@ class SearchBookContentsActivity : Activity() {
         // website, we don't use LocaleManager to change the TLD.
         val theQuery = args[0]
         val theIsbn = args[1]
-        // Defect A-09: cleartext http, blocked from targetSdk 28 on. Carried forward.
         val uri = if (LocaleManager.isBookSearchUrl(theIsbn)) {
           val equals = theIsbn.indexOf('=')
           val volumeId = theIsbn.substring(equals + 1)
-          "http://www.google.com/books?id=$volumeId&jscmd=SearchWithinVolume2&q=$theQuery"
+          "https://www.google.com/books?id=$volumeId&jscmd=SearchWithinVolume2&q=$theQuery"
         } else {
-          "http://www.google.com/books?vid=isbn$theIsbn&jscmd=SearchWithinVolume2&q=$theQuery"
+          "https://www.google.com/books?vid=isbn$theIsbn&jscmd=SearchWithinVolume2&q=$theQuery"
         }
         val content = HttpHelper.downloadViaHttp(uri, HttpHelper.ContentType.JSON)
         JSONObject(content.toString())

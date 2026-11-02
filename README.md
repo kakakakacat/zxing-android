@@ -163,8 +163,8 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       scoped storage since Android 10
 - [ ] **A-07** Share-barcode-as-image has the same problem
 - [ ] **A-08** Wi-Fi result handler cannot add networks on Android 10+
-- [ ] **A-09** Book search and several outbound links use cleartext `http://`, blocked
-      from targetSdk 28
+- [x] **A-09** Book search and every outbound link this app builds are https; the
+      book-search URL matcher accepts https too
 - [ ] **A-10** App-share picker and the browser special case are hit by Android 11
       package visibility
 - [ ] **A-12** Ambient-light torch control rebuilds the autofocus manager on every toggle
@@ -259,7 +259,6 @@ years of callers and buy nothing.
 | --- | --- | --- |
 | A-06 / A-07 | History export and image sharing fail on Android 10+ (scoped storage) | app |
 | A-08 | Scanning a `WIFI:` barcode silently does nothing on Android 10+ | app |
-| A-09 | In-app book search fails; cleartext HTTP is blocked | app |
 | A-10 | "Share → App" picker is mostly empty on Android 11+ | app |
 | A-16 | On a large screen, Android 16 forces the landscape-designed capture UI into portrait | app |
 | — | No L3 or L4 numbers exist: nothing is known about camera-ready or first-scan latency | all |

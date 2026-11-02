@@ -43,8 +43,7 @@ internal class BrowseBookListener(
     if (LocaleManager.isBookSearchUrl(isbn) && pageId.isNotEmpty()) {
       val equals = isbn.indexOf('=')
       val volumeId = isbn.substring(equals + 1)
-      // Defect A-09: cleartext http, blocked from targetSdk 28 on. Carried forward.
-      val readBookURI = "http://books.google." +
+      val readBookURI = "https://books.google." +
           LocaleManager.getBookSearchCountryTLD(activity) +
           "/books?id=" + volumeId + "&pg=" + pageId + "&vq=" + query
       val intent = Intent(Intent.ACTION_VIEW, Uri.parse(readBookURI))

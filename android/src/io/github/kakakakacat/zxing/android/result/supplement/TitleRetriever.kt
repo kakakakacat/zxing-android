@@ -37,6 +37,11 @@ internal class TitleRetriever(
 
   private val httpUrl: String = result.getURI()
 
+  // The URL here is scanned data, so it can be cleartext, and cleartext stays off: this
+  // app will not fetch http on a user's behalf just because a barcode asked it to. Such a
+  // fetch fails as an IOException, the title is simply not shown, and the link itself
+  // still opens in the browser, which applies its own policy. Not an oversight -- the
+  // URLs this app *builds* are all https now (defect A-09).
   @Suppress("DEPRECATION") // Html.fromHtml(String)
   override fun retrieveSupplementalInfo() {
     val contents = try {

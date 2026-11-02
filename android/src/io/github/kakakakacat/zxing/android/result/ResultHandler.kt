@@ -328,19 +328,19 @@ abstract class ResultHandler internal constructor(
   }
 
   internal fun getDirections(latitude: Double, longitude: Double) {
-    launchIntent(Intent(Intent.ACTION_VIEW, Uri.parse("http://maps.google." +
+    launchIntent(Intent(Intent.ACTION_VIEW, Uri.parse("https://maps.google." +
         LocaleManager.getCountryTLD(activity) + "/maps?f=d&daddr=" + latitude + ',' + longitude)))
   }
 
   // Uses the mobile-specific version of Product Search, which is formatted for small screens.
   internal fun openProductSearch(upc: String) {
-    val uri = Uri.parse("http://www.google." + LocaleManager.getProductSearchCountryTLD(activity) +
+    val uri = Uri.parse("https://www.google." + LocaleManager.getProductSearchCountryTLD(activity) +
         "/m/products?q=" + upc + "&source=zxing")
     launchIntent(Intent(Intent.ACTION_VIEW, uri))
   }
 
   internal fun openBookSearch(isbn: String) {
-    val uri = Uri.parse("http://books.google." + LocaleManager.getBookSearchCountryTLD(activity) +
+    val uri = Uri.parse("https://books.google." + LocaleManager.getBookSearchCountryTLD(activity) +
         "/books?vid=isbn" + isbn)
     launchIntent(Intent(Intent.ACTION_VIEW, uri))
   }

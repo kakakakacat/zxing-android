@@ -11,6 +11,18 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
+### Fixed
+- **A-09: the in-app book search is no longer blocked before it leaves the device, and
+  the book-URL matcher stops missing https.** Every URL the app builds is https now — the Google Books API call, the
+  read-this-page link, the book link under a scanned ISBN, and the maps / product-search /
+  book-search `VIEW` launches — so the request is no longer rejected by Android's
+  cleartext block before it leaves the device. The three `BROWSABLE` deep links accept
+  https as well as http. Separately, `LocaleManager.isBookSearchUrl` tested for `http://`
+  only, so a scanned https Google Books URL was treated as a literal ISBN and the
+  volume-id path was unreachable; it accepts both schemes now. Cleartext stays off: a
+  scanned `http://` URL is still not fetched for supplemental info, and the link opens in
+  the browser under the browser's own policy.
+
 ### Added
 - **`:scanner` AAR** (`io.github.kakakakacat.zxing:zxing-android-scanner`): `ScannerView`
   with the camera, viewfinder and decode pipeline, configured through `ScannerOptions`.

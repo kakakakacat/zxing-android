@@ -111,6 +111,9 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | A camera-to-result scan of a generated QR | decoded, result screen, history row, history replay | API 36 emulator, virtual-scene poster |
 | `EncodeActivity`'s own QR, decoded back with `:core` | `QR_CODE  Kotlin encode check`, and `mailto:` for the email type | DN-ENG41 screenshot |
 | `:scanner` API after the two classes moved out | only `DecodeFormatManager` and `DecodeHintManager` leave; nothing else changes | `tools/maint/api-diff.sh :scanner` |
+| A-09: the book-search request after the https fix | reaches the network; `ConnectException` on :443 instead of okhttp's cleartext rejection | DN-ENG41, `reports/a09-cleartext-ab-DN-ENG41-20261102.log` |
+| A-09: `isBookSearchUrl` on https / http / a bare ISBN | URL branch, URL branch, ISBN branch; the pre-fix build reads the https URL as an ISBN | DN-ENG41, same log |
+| The four `BROWSABLE` deep links after adding https | all four resolve to `CaptureActivity`, and implicit `SCAN` still does | DN-ENG41 |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -665,33 +668,53 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
 
 ### Phase 3 — carried-forward defects (independent; can be picked up any time)
 
-All of these survived the Kotlin conversion untouched, by decision. The five that live in
-`:app` now carry a comment naming their number, so `grep -rn 'Defect A-' android/src`
-lands on the exact lines: A-06 in `HistoryManager.saveHistory`, A-07 in
-`EncodeActivity.share`, A-09 in `BrowseBookListener` and `SearchBookContentsActivity`,
-A-10 in `LoadPackagesAsyncTask`. A-08's `WifiConfigManager` carries the whole deprecated
+All of these survived the Kotlin conversion untouched, by decision; **A-09 has since been
+fixed**. The ones still open in `:app` carry a comment naming their number, so
+`grep -rn 'Defect A-' android/src` lands on the exact lines: A-06 in
+`HistoryManager.saveHistory`, A-07 in `EncodeActivity.share`, A-10 in
+`LoadPackagesAsyncTask`. A-08's `WifiConfigManager` carries the whole deprecated
 `WifiConfiguration` API in a `@Suppress` that names the defect instead. A-12 and A-16 are
 not in `:app` at all — A-12 is `AmbientLightManager` in `:scanner`, A-16 is the capture
 layout — and neither carries a comment yet.
 
-**A-09 is reproducible in one command**, which is the shortest way to see one of these
-fail for real:
+**A-09 is fixed**, and the one-command repro is now the check that it stays fixed:
 
 ```
 adb shell "am start -a com.google.zxing.client.android.SEARCH_BOOK_CONTENTS \
-  -e ISBN 9780596009205 -e QUERY barcode"
+  -e ISBN 9780140328721 -e QUERY fox"
 ```
 
-then press the search button: `java.io.IOException: Cleartext HTTP traffic to
-www.google.com not permitted`, and the UI says "Sorry, the search encountered a problem."
+then press the search button. What used to happen: `java.io.IOException: Cleartext HTTP
+traffic to www.google.com not permitted`, thrown inside okhttp's `CleartextURLFilter`
+before anything left the device. What happens now: a real socket to
+`www.google.com:443`.
+
+**On this network that connection is refused**, so the success path still cannot be seen
+here — DN-ENG41 reaches `223.5.5.5` fine and cannot reach `www.google.com` at all. The
+endpoint itself was checked from the host instead and still answers over https with the
+same JSON the activity parses. So the fix is verified by the failure changing, by an A/B
+on one file at a time on the device, and by the server's own response; it is **not**
+verified by watching results render in the app. Both halves are in
+`reports/a09-cleartext-ab-DN-ENG41-20261102.log`.
+
+The second half of A-09 was not in the audit entry and is the more interesting one:
+`LocaleManager.isBookSearchUrl` tested for `http://` only, so a **scanned** https book
+URL — which is every book URL in the field — was read as a literal ISBN, and the
+volume-id branch in `SearchBookContentsActivity` and `BrowseBookListener` could not be
+reached at all. Matchers that run against scanned data were widened to accept both
+schemes; URLs this app *builds* were switched to https outright. That distinction is the
+rule to keep: **widen what you match, narrow what you emit.**
+
+Cleartext itself stays off. A scanned `http://` URL is therefore not fetched for
+supplemental info (title, shortener unwrapping); it fails as an ordinary `IOException`,
+the extra line is simply absent, and the link still opens in the browser under the
+browser's own policy. `TitleRetriever` and `URIResultInfoRetriever` say so in place.
 
 - **A-06 / A-07** History CSV export and share-as-image write to the legacy external
   storage root; broken under scoped storage since Android 10. Needs app-specific storage
   plus a `FileProvider`.
 - **A-08** Wi-Fi result handler cannot add networks on Android 10+. Modern path is
   `WifiNetworkSuggestion` or `ACTION_WIFI_ADD_NETWORKS`.
-- **A-09** Book search and several outbound links use cleartext `http://`, blocked from
-  targetSdk 28.
 - **A-10** App-share picker and the browser special case are hit by Android 11 package
   visibility; needs a `<queries>` element.
 - **A-12** Ambient-light torch control rebuilds the autofocus manager on every toggle.

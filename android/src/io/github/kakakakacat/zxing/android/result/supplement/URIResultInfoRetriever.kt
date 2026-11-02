@@ -35,6 +35,8 @@ internal class URIResultInfoRetriever(
 
   private val redirectString: String = context.getString(R.string.msg_redirect)
 
+  // Same as TitleRetriever: a scanned http:// shortener is not unwrapped, because
+  // cleartext stays off. See the note there.
   @Throws(IOException::class)
   override fun retrieveSupplementalInfo() {
     var oldURI = try {

@@ -1,0 +1,45 @@
+A-09 cleartext fix, A/B on DN-ENG41 (Android 14, serial T3515NNFBC000055), 2026-11-02T03:15:43Z
+Same device, same network, same intent:
+  am start -a com.google.zxing.client.android.SEARCH_BOOK_CONTENTS -e ISBN 9780140328721 -e QUERY fox
+
+This network cannot reach google.com at all (ping www.google.com: 100% loss; 223.5.5.5: 0% loss),
+so the success path cannot be observed here. What the A/B shows is which failure happens.
+
+--- BEFORE (http://www.google.com/books?...), build with SearchBookContentsActivity.kt at 787f24b51
+11-02 11:15:21.661 29645 29674 W SearchBookContentsActivity: Error accessing book search
+11-02 11:15:21.661 29645 29674 W SearchBookContentsActivity: java.io.IOException: Cleartext HTTP traffic to www.google.com not permitted
+11-02 11:15:21.661 29645 29674 W SearchBookContentsActivity: 	at com.android.okhttp.HttpHandler$CleartextURLFilter.checkURLPermitted(HttpHandler.java:127)
+
+--- AFTER (https://www.google.com/books?...), the fix
+11-02 11:16:26.846 29783 29807 W SearchBookContentsActivity: Error accessing book search
+11-02 11:16:26.846 29783 29807 W SearchBookContentsActivity: java.net.ConnectException: Failed to connect to www.google.com/104.244.42.197:443
+11-02 11:16:26.846 29783 29807 W SearchBookContentsActivity: 	at com.android.okhttp.internal.io.RealConnection.connectSocket(RealConnection.java:147)
+
+The request now leaves the app and opens a socket to port 443. Before, it never reached
+the network: CleartextURLFilter rejected the URL inside okhttp. That is the whole of what
+this fix claims, and it is what changed.
+
+--- The endpoint itself, checked from the host, which can reach it
+$ curl -sL -A 'ZXing (Android)' \
+    'https://www.google.com/books?vid=isbn9780140328721&jscmd=SearchWithinVolume2&q=the'
+{"number_of_results":3,"search_results":[{"page_id":"PA24","page_number":"24","snippet_text":
+"... The smoke from the three guns floated upward in the night air . Boggis and Bunce and Bean ...
+
+final URL after redirects: https://books.google.com.sg/books?vid=isbn...&redir_esc=y  (200)
+first response: 301 -> books.google.<tld>, which is why HttpHelper now treats 301 like 302.
+
+So the API still exists and still answers over https. What cannot be shown from here is
+the app rendering those results, because this network does not reach google.com at all.
+
+--- LocaleManager.isBookSearchUrl, widened to both schemes (device, fixed build)
+https://books.google.com/books?id=sTDbBAAAQBAJ  -> title "Google Book Search"
+http://books.google.com/books?id=sTDbBAAAQBAJ   -> title "Google Book Search"
+9780140328721                                   -> title "Google Book Search: ISBN 9780140328721"
+
+--- the same https URL on a build with LocaleManager.kt reverted to 787f24b51
+https://books.google.com/books?id=sTDbBAAAQBAJ
+  -> title "Google Book Search: ISBN https://books.google.com/books?id=sTDbBAAAQBAJ"
+
+i.e. the old http-only test read a scanned https book URL as if it were an ISBN, so the
+volume-id branch in SearchBookContentsActivity and BrowseBookListener was unreachable in
+the field. Checked by reverting the one file and running the same intent, not reasoned.

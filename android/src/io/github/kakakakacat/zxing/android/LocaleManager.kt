@@ -132,7 +132,16 @@ object LocaleManager {
    */
   @JvmStatic
   fun isBookSearchUrl(url: String): Boolean =
-      url.startsWith("http://google.com/books") || url.startsWith("http://books.google.")
+      BOOK_SEARCH_URL_PREFIXES.any { url.startsWith(it) }
+
+  /**
+   * Both schemes, because this matches a *scanned* URL rather than one this app builds.
+   * Google Book Search has served https for years, so an http-only test matched almost
+   * nothing in the field and quietly withheld the "search book contents" option.
+   */
+  private val BOOK_SEARCH_URL_PREFIXES = arrayOf(
+      "https://google.com/books", "https://books.google.",
+      "http://google.com/books", "http://books.google.")
 
   private fun getSystemCountry(): String {
     val locale = Locale.getDefault()

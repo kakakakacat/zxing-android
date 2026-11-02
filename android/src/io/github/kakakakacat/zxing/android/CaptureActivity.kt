@@ -237,7 +237,8 @@ class CaptureActivity : Activity(), ScannerView.Listener {
         }
 
       } else if (dataString != null &&
-                 dataString.contains("http://www.google") &&
+                 (dataString.contains("https://www.google") ||
+                  dataString.contains("http://www.google")) &&
                  dataString.contains("/m/products/scan")) {
 
         // Scan only products and send the result to mobile Product Search.

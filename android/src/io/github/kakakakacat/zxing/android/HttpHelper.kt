@@ -83,6 +83,13 @@ object HttpHelper {
       try {
         when (val responseCode = safelyConnect(connection)) {
           HttpURLConnection.HTTP_OK -> return consume(connection, maxChars)
+          // 301 as well as 302: the live Google Books endpoint answers the book-search
+          // request with a permanent redirect to books.google.<tld>. HttpURLConnection
+          // follows that itself as long as the scheme does not change, so this loop is
+          // what covers a redirect that crosses http/https -- which is exactly the case
+          // instanceFollowRedirects refuses, and exactly the case a 301 off a cleartext
+          // URL would have been.
+          HttpURLConnection.HTTP_MOVED_PERM,
           HttpURLConnection.HTTP_MOVED_TEMP -> {
             val location = connection.getHeaderField("Location")
                 ?: throw IOException("No Location")

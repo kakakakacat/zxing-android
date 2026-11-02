@@ -51,11 +51,14 @@
         <action android:name="com.google.zxing.client.android.SCAN"/>
         <category android:name="android.intent.category.DEFAULT"/>
       </intent-filter>
-      <!-- Allow web apps to launch Barcode Scanner by linking to http://zxing.appspot.com/scan. -->
+      <!-- Allow web apps to launch Barcode Scanner by linking to zxing.appspot.com/scan.
+           https as well as http: a browser on any current Android upgrades or refuses the
+           cleartext link, so an http-only filter is one the link can no longer arrive through. -->
       <intent-filter>
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="https" android:host="zxing.appspot.com" android:path="/scan"/>
         <data android:scheme="http" android:host="zxing.appspot.com" android:path="/scan"/>
       </intent-filter>
       <!-- We also support a Google Product Search URL. -->
@@ -63,6 +66,7 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="https" android:host="www.google.com" android:path="/m/products/scan"/>
         <data android:scheme="http" android:host="www.google.com" android:path="/m/products/scan"/>
       </intent-filter>
       <!-- And the UK version. -->
@@ -70,6 +74,7 @@
         <action android:name="android.intent.action.VIEW"/>
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="https" android:host="www.google.co.uk" android:path="/m/products/scan"/>
         <data android:scheme="http" android:host="www.google.co.uk" android:path="/m/products/scan"/>
       </intent-filter>
       <!-- Support zxing://scan/?... like iPhone app -->

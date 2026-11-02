@@ -86,7 +86,7 @@ internal class BookResultInfoRetriever(
     maybeAddTextSeries(authors, newTexts)
     maybeAddText(if (pages.isNullOrEmpty()) null else pages + "pp.", newTexts)
 
-    val baseBookUri = "http://www.google." + LocaleManager.getBookSearchCountryTLD(context) +
+    val baseBookUri = "https://www.google." + LocaleManager.getBookSearchCountryTLD(context) +
         "/search?tbm=bks&source=zxing&q="
 
     append(isbn, source, newTexts.toTypedArray(), baseBookUri + isbn)
