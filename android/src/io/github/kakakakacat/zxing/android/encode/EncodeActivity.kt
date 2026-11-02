@@ -23,7 +23,6 @@ import android.graphics.Bitmap
 import android.graphics.Point
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
@@ -32,12 +31,10 @@ import android.widget.ImageView
 import android.widget.TextView
 import io.github.kakakakacat.zxing.WriterException
 import io.github.kakakakacat.zxing.android.Contents
+import io.github.kakakakacat.zxing.android.ExportFiles
 import io.github.kakakakacat.zxing.android.FinishListener
 import io.github.kakakakacat.zxing.android.Intents
 import io.github.kakakakacat.zxing.android.R
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 import java.util.regex.Pattern
 
 /**
@@ -96,10 +93,6 @@ class EncodeActivity : Activity() {
     return false
   }
 
-  // Defect A-07: the barcode PNG goes to the legacy external storage root and is shared as a
-  // file:// Uri. Both have been unusable since Android 10; the fix is app-specific storage plus
-  // a FileProvider. Carried forward. See docs/maint/HANDOFF.md, Phase 3.
-  @Suppress("DEPRECATION") // Environment.getExternalStorageDirectory()
   private fun share() {
     val encoder = qrCodeEncoder
     if (encoder == null) { // Odd
@@ -120,28 +113,23 @@ class EncodeActivity : Activity() {
       return
     } ?: return
 
-    val bsRoot = File(Environment.getExternalStorageDirectory(), "BarcodeScanner")
-    val barcodesRoot = File(bsRoot, "Barcodes")
-    if (!barcodesRoot.exists() && !barcodesRoot.mkdirs()) {
-      Log.w(TAG, "Couldn't make dir $barcodesRoot")
-      showErrorMessage(R.string.msg_unmount_usb)
-      return
+    // Was defect A-07: this wrote the PNG into
+    // Environment.getExternalStorageDirectory()/BarcodeScanner/Barcodes and shared a
+    // file:// URI. Scoped storage has forbidden the first since Android 10 and
+    // FileUriExposedException the second since targetSdk 24.
+    val barcodeUri = ExportFiles.write(
+        this, "barcodes", makeBarcodeFileName(contents) + ".png") { out ->
+      bitmap.compress(Bitmap.CompressFormat.PNG, 0, out)
     }
-    val barcodeFile = File(barcodesRoot, makeBarcodeFileName(contents) + ".png")
-    try {
-      FileOutputStream(barcodeFile).use { fos ->
-        bitmap.compress(Bitmap.CompressFormat.PNG, 0, fos)
-      }
-    } catch (ioe: IOException) {
-      Log.w(TAG, "Couldn't access barcode file", ioe)
-      showErrorMessage(R.string.msg_unmount_usb)
+    if (barcodeUri == null) {
+      showErrorMessage(R.string.msg_export_failed)
       return
     }
 
     val intent = Intent(Intent.ACTION_SEND, Uri.parse("mailto:"))
     intent.putExtra(Intent.EXTRA_SUBJECT, getString(R.string.app_name) + " - " + encoder.getTitle())
     intent.putExtra(Intent.EXTRA_TEXT, contents)
-    intent.putExtra(Intent.EXTRA_STREAM, Uri.parse("file://" + barcodeFile.absolutePath))
+    ExportFiles.grantRead(this, intent, barcodeUri)
     intent.type = "image/png"
     intent.addFlags(Intents.FLAG_NEW_DOC)
     startActivity(Intent.createChooser(intent, null))

@@ -119,6 +119,9 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | A-10: the app picker, before and after | 79 rows → 49; 64 unlabelled vendor services gone, 34 real apps gained, 15 common | DN-ENG41, `reports/a10-package-visibility-DN-ENG41-20261102.log` |
 | A-10: what the app can see through intent queries | 0 packages without `<queries>`, 21 with it, `com.android.chrome` among them | API 36 emulator, same log |
 | `tools/maint/scrape-app-picker.sh` | reproduces both picker runs byte-identically, and was watched failing when the tap misses | DN-ENG41 |
+| A-06: history CSV export | before, "SD card is not accessible"; after, the file is written and the Intent carries the grant | DN-ENG41, `reports/a06-a07-scoped-storage-DN-ENG41-20261102.log` |
+| A-07: share the barcode image | the print service opened the `content://` URI and rendered the QR; the exported PNG decodes to its own contents | DN-ENG41, same log |
+| The export sweep | a file dated a month earlier is deleted, a recent one kept | DN-ENG41, same log |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -673,10 +676,8 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
 
 ### Phase 3 — carried-forward defects (independent; can be picked up any time)
 
-All of these survived the Kotlin conversion untouched, by decision; **A-09 and A-10 have
-since been fixed**. The ones still open in `:app` carry a comment naming their number, so
-`grep -rn 'Defect A-' android/src` lands on the exact lines: A-06 in
-`HistoryManager.saveHistory` and A-07 in `EncodeActivity.share`. A-08's `WifiConfigManager` carries the whole deprecated
+All of these survived the Kotlin conversion untouched, by decision; **A-06, A-07, A-09 and
+A-10 have since been fixed**. A-08's `WifiConfigManager` carries the whole deprecated
 `WifiConfiguration` API in a `@Suppress` that names the defect instead. A-12 and A-16 are
 not in `:app` at all — A-12 is `AmbientLightManager` in `:scanner`, A-16 is the capture
 layout — and neither carries a comment yet.
@@ -749,9 +750,37 @@ end to end: it needs a product barcode scanned after a `PRODUCT_SEARCH_LINK` or
 `zxing://` launch, and the virtual-scene camera cannot be aimed at the poster from the
 command line — `adb emu` has `virtualscene-image` but no macro command.
 
-- **A-06 / A-07** History CSV export and share-as-image write to the legacy external
-  storage root; broken under scoped storage since Android 10. Needs app-specific storage
-  plus a `FileProvider`.
+**A-06 and A-07 are fixed, and they were one fix.** Both wrote into
+`Environment.getExternalStorageDirectory()/BarcodeScanner` and shared a `file://` URI —
+the first forbidden since Android 10, the second since targetSdk 24. `ExportFiles` writes
+to the app's own cache under `exports/` and returns a `content://` URI from a
+`FileProvider` whose `res/xml/file_paths.xml` exposes that one subtree and nothing else.
+Exports are swept after 24 hours, checked by planting a file dated a month earlier and
+watching it go. `msg_unmount_usb` — "Sorry, the SD card is not accessible" — is gone from
+all 34 locales along with the condition it described; `msg_export_failed` replaces it.
+This adds `androidx.core` to `:app`, for `FileProvider`; the published AAR is untouched.
+
+**The A/B found a bug in the first version of the fix, which is the part worth keeping.**
+Setting `EXTRA_STREAM` plus `FLAG_GRANT_READ_URI_PERMISSION` and letting `startActivity`
+build the ClipData is the usual recipe, and the app the user picks can indeed read the
+file — the system print service rendered the QR in its print preview. But the **share
+sheet** could not:
+
+> `Permission Denial: opening provider androidx.core.content.FileProvider from
+> ProcessRecord{com.android.intentresolver}`, and a broken thumbnail.
+
+`Intent.createChooser` copies the target's ClipData and flags **at the moment the chooser
+is built**, and `startActivity` builds that ClipData afterwards, so the chooser is handed
+nothing. `ExportFiles.grantRead` sets the ClipData itself; after that the chooser Intent
+carries `flg=0x1` and the clip, and the denial count over the same run is zero. **A grant
+that reaches the destination app is not the same as a grant that reaches the share
+sheet**, and only one of the two is visible in a screenshot.
+
+**What is not verified:** a mail app actually holding the CSV attachment. DN-ENG41 has no
+app that accepts `text/csv`; the API 36 emulator offers Drive and Gmail with no permission
+denial, but neither has an account on it. The unobserved step is the same provider call
+that A-07's print preview does observe.
+
 - **A-08** Wi-Fi result handler cannot add networks on Android 10+. Modern path is
   `WifiNetworkSuggestion` or `ACTION_WIFI_ADD_NETWORKS`.
 - **A-12** Ambient-light torch control rebuilds the autofocus manager on every toggle.

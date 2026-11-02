@@ -85,7 +85,6 @@
   <string name="msg_share_explanation">Pode compartilhar dados exibindo um código de barras na sua tela e lendo-o com outro celular</string>
   <string name="msg_share_text">Ou digite algum texto e pressione Enter</string>
   <string name="msg_sure">Tem certeza?</string>
-  <string name="msg_unmount_usb">Desculpe, o cartão SD não está disponível.</string>
   <string name="preferences_actions_title">Quando o código de barras é encontrado\u2026</string>
   <string name="preferences_auto_focus_title">Usar foco automático</string>
   <string name="preferences_auto_open_web_title">Abrir páginas da web automaticamente</string>

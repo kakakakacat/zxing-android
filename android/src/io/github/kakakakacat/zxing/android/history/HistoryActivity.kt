@@ -32,6 +32,7 @@ import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.ListView
 import io.github.kakakakacat.zxing.android.CaptureActivity
+import io.github.kakakakacat.zxing.android.ExportFiles
 import io.github.kakakakacat.zxing.android.Intents
 import io.github.kakakakacat.zxing.android.R
 
@@ -107,10 +108,10 @@ class HistoryActivity : ListActivity() {
     val itemId = item.itemId
     if (itemId == R.id.menu_history_send) {
       val history = historyManager.buildHistory()
-      val historyFile = HistoryManager.saveHistory(history.toString())
+      val historyFile = HistoryManager.saveHistory(this, history.toString())
       if (historyFile == null) {
         val builder = AlertDialog.Builder(this)
-        builder.setMessage(R.string.msg_unmount_usb)
+        builder.setMessage(R.string.msg_export_failed)
         builder.setPositiveButton(R.string.button_ok, null)
         builder.show()
       } else {
@@ -119,7 +120,7 @@ class HistoryActivity : ListActivity() {
         val subject = resources.getString(R.string.history_email_title)
         intent.putExtra(Intent.EXTRA_SUBJECT, subject)
         intent.putExtra(Intent.EXTRA_TEXT, subject)
-        intent.putExtra(Intent.EXTRA_STREAM, historyFile)
+        ExportFiles.grantRead(this, intent, historyFile)
         intent.type = "text/csv"
         try {
           startActivity(intent)

@@ -18,21 +18,19 @@ package io.github.kakakakacat.zxing.android.history
 
 import android.app.Activity
 import android.content.ContentValues
+import android.content.Context
 import android.database.CursorIndexOutOfBoundsException
 import android.database.SQLException
 import android.database.sqlite.SQLiteOpenHelper
 import android.net.Uri
-import android.os.Environment
 import android.preference.PreferenceManager
 import android.util.Log
 import io.github.kakakakacat.zxing.BarcodeFormat
 import io.github.kakakakacat.zxing.Result
+import io.github.kakakakacat.zxing.android.ExportFiles
 import io.github.kakakakacat.zxing.android.Intents
 import io.github.kakakakacat.zxing.android.PreferencesActivity
 import io.github.kakakakacat.zxing.android.result.ResultHandler
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
 import java.io.OutputStreamWriter
 import java.nio.charset.StandardCharsets
 import java.text.DateFormat
@@ -300,28 +298,18 @@ class HistoryManager(private val activity: Activity) {
       return HistoryItem(result, display, details)
     }
 
-    // Defect A-06: the legacy external storage root, unwritable under scoped storage since
-    // Android 10. Carried forward unchanged; the fix needs app-specific storage plus a
-    // FileProvider. See docs/maint/HANDOFF.md, Phase 3.
-    @Suppress("DEPRECATION") // Environment.getExternalStorageDirectory()
-    internal fun saveHistory(history: String): Uri? {
-      val bsRoot = File(Environment.getExternalStorageDirectory(), "BarcodeScanner")
-      val historyRoot = File(bsRoot, "History")
-      if (!historyRoot.mkdirs() && !historyRoot.isDirectory) {
-        Log.w(TAG, "Couldn't make dir $historyRoot")
-        return null
-      }
-      val historyFile = File(historyRoot, "history-" + System.currentTimeMillis() + ".csv")
-      return try {
-        OutputStreamWriter(FileOutputStream(historyFile), StandardCharsets.UTF_8).use { out ->
-          out.write(history)
+    /**
+     * Writes the history as CSV and returns a URI the mail app can read, or null if it
+     * could not be written. Was defect A-06: this wrote into
+     * `Environment.getExternalStorageDirectory()/BarcodeScanner/History` and returned a
+     * `file://` URI, neither of which an app has been allowed to do since Android 10.
+     */
+    internal fun saveHistory(context: Context, history: String): Uri? =
+        ExportFiles.write(context, "history", "history-${System.currentTimeMillis()}.csv") { out ->
+          OutputStreamWriter(out, StandardCharsets.UTF_8).use { writer ->
+            writer.write(history)
+          }
         }
-        Uri.parse("file://" + historyFile.absolutePath)
-      } catch (ioe: IOException) {
-        Log.w(TAG, "Couldn't access file $historyFile due to $ioe")
-        null
-      }
-    }
 
     private fun massageHistoryField(value: String?): String =
         if (value == null) "" else DOUBLE_QUOTE.matcher(value).replaceAll("\"\"")

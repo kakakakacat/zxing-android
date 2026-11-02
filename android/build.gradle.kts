@@ -83,6 +83,9 @@ kotlin {
 dependencies {
   // :scanner brings :core along as an api dependency.
   implementation(project(":scanner"))
+  // FileProvider, for handing an exported file to another app as a content:// URI that
+  // carries a read grant. App-only: the published AAR gains nothing from this.
+  implementation(libs.androidx.core)
   coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
   testImplementation(libs.junit)

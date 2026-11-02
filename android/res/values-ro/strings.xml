@@ -85,7 +85,6 @@
   <string name="msg_share_explanation">Poți distribui datele afișând codul pe ecran și scanându-l cu alt aparat</string>
   <string name="msg_share_text">Sau introdu textul și tastează Enter</string>
   <string name="msg_sure">Confirmă</string>
-  <string name="msg_unmount_usb">Card SD inaccesibil</string>
   <string name="preferences_actions_title">Când un cod de bare este găsit\u2026</string>
   <string name="preferences_auto_focus_title">Folosește focalizare automată</string>
   <string name="preferences_auto_open_web_title">Deschide automat paginile web</string>

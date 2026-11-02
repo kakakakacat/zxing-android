@@ -12,6 +12,14 @@ API may still change between minor versions.
 ## [Unreleased]
 
 ### Fixed
+- **A-06 / A-07: exporting the history and sharing a barcode image work again.** Both
+  wrote into the legacy external storage root and shared a `file://` URI; scoped storage
+  has forbidden the first since Android 10 and `FileUriExposedException` the second since
+  targetSdk 24. Exports now go to the app's own cache and are handed over as a
+  `content://` URI from a `FileProvider`, with a read grant set on the Intent's ClipData
+  so the share sheet can draw its preview as well as the receiving app read the file. Old
+  exports are swept after a day. The "Sorry, the SD card is not accessible" message is
+  gone, along with the condition it described.
 - **A-10: the "share an application" picker can see installed apps again.** A `<queries>`
   element declares the two intents this app asks about — MAIN/LAUNCHER for the picker and
   VIEW on http(s) for the product-search browser hand-off — rather than

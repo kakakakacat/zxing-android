@@ -85,7 +85,6 @@
   <string name="msg_share_explanation">می‌توانید با نمایش بارکد در صفحه نمایش خود و اسکن آن با موبایلی دیگر، اطلاعات را به اشتراک بگذارید</string>
   <string name="msg_share_text">یا متنی را تایپ کنید و کلید Enter را بفشارید</string>
   <string name="msg_sure">اطمینان دارید؟</string>
-  <string name="msg_unmount_usb">کارت SD در دسترس نیست</string>
   <string name="preferences_actions_title">زمانی که بارکد یافت می‌شود\u2026</string>
   <string name="preferences_auto_focus_title">از فوکوس اتوکاتیک استفاده نمایید</string>
   <string name="preferences_auto_open_web_title">باز کردن صفحات وب به طور خودکار</string>

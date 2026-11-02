@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  What the FileProvider is allowed to hand out. One subtree, inside the app's own cache
+  directory: exports are things this app just produced for another app to read once, not
+  documents it keeps. Nothing else in the app's storage is reachable through the provider.
+-->
+<paths>
+  <cache-path name="exports" path="exports/"/>
+</paths>

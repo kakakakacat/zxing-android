@@ -85,7 +85,6 @@
   <string name="msg_share_explanation">يمكنك مشاركة البيانات عن طريق عرض رمز شريطي على الشاشة ومسحه من خلال هاتف آخر.</string>
   <string name="msg_share_text">أو اكتب بعض النص</string>
   <string name="msg_sure">هل أنت متأكد؟</string>
-  <string name="msg_unmount_usb">رجاء إيقاف التخزين على USB للمتابعة.</string>
   <string name="preferences_actions_title">عند العثور على رمز شريطي</string>
   <string name="preferences_auto_focus_title">استخدام التركيز التلقائي</string>
   <string name="preferences_auto_open_web_title">فتح صفحات الويب تلقائيا</string>

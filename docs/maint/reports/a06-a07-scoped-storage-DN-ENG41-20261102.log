@@ -1,0 +1,71 @@
+A-06 / A-07 scoped storage, A/B on DN-ENG41 (Android 14, serial T3515NNFBC000055),
+with the share-sheet half on the zxing_api36 emulator. 2026-11-02
+
+Two APKs from the same tree, differing only in this fix.
+
+== A-06, history CSV export ==
+
+Setup: two rows inserted straight into the app's history database over run-as, because
+the Send button only appears when the history is non-empty and this device's camera
+cannot be aimed at a barcode from the command line.
+
+  BEFORE: dialog "Sorry, the SD card is not accessible."
+    W HistoryManager: Couldn't make dir /storage/emulated/0/BarcodeScanner/History
+
+  AFTER: no dialog; the file is written and the Intent is built.
+    cache/exports/history/history-1793592610913.csv, 195 bytes:
+      "https://example.com/a06","https://example.com/a06","QR_CODE","1793592215000",...
+      "9780140328721","9780140328721","EAN_13","1793592215000",...
+    Intent: act=android.intent.action.SEND typ=text/csv flg=0x80001
+            clip={text/comma-separated-values hasLabel(0) {U(content)}}
+    flg 0x1 is FLAG_GRANT_READ_URI_PERMISSION, 0x80000 is FLAG_ACTIVITY_NEW_DOCUMENT.
+
+  DN-ENG41 has no app that accepts text/csv, so the send ends in a caught
+  ActivityNotFoundException. On the API 36 emulator the share sheet opens and offers
+  Drive and Gmail with zero permission denials, but neither has an account on that
+  emulator, so a mail composer holding the attachment was never seen. The step that
+  this leaves unobserved -- another app reading the bytes through the provider -- is
+  the same call the A-07 case below does observe.
+
+== A-07, share the barcode as an image ==
+
+  BEFORE: dialog "Sorry, the SD card is not accessible."
+    W EncodeActivity: Couldn't make dir /storage/emulated/0/BarcodeScanner/Barcodes
+
+  AFTER: cache/exports/barcodes/A_07_check.png, 3114 bytes, and the share goes
+  through to a real app. The system print service received it and rendered the QR in
+  its print preview, which means it opened the content:// URI and read the bytes.
+
+  The exported file pulled back off the device and decoded with this fork's :core:
+    QR_CODE  A-07 check
+  (the file itself, not a screenshot:
+   docs/maint/reports/a07-exported-barcode-DN-ENG41-20261102.png)
+
+== The bug this A/B found in the first version of the fix ==
+
+The first attempt set EXTRA_STREAM and FLAG_GRANT_READ_URI_PERMISSION and let
+startActivity build the ClipData, which is what it normally does. The target app
+could read the file -- the print preview above -- but the share sheet could not:
+
+  W ContentProviderHelper: Permission Denial: opening provider
+    androidx.core.content.FileProvider from ProcessRecord{com.android.intentresolver}
+    that is not exported from UID 10198
+  D ImagePreviewImageLoader: java.io.IOException: java.lang.SecurityException: ...
+
+Intent.createChooser copies the target's ClipData and flags at the moment it is
+built, and startActivity builds the ClipData later, so the chooser was handed none
+and had no grant of its own. ExportFiles.grantRead now sets the ClipData itself.
+After that, the chooser Intent carries both:
+
+  START u0 {act=android.intent.action.CHOOSER flg=0x1
+    cmp=com.android.intentresolver/.ChooserActivity
+    clip={image/png hasLabel(0) {U(content)}}}
+
+and the denial count over the same run is 0.
+
+== Stale-export sweep ==
+
+A file dated 2026-10-01 planted in cache/exports/barcodes was gone after the next
+export, and the one written minutes earlier was kept:
+  before: A_07_check.png (12:08), stale-A_07.png (2026-10-01)
+  after:  A_07_again.png (12:09), A_07_check.png (12:08)

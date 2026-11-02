@@ -160,6 +160,17 @@
               android:label="@string/bookmark_picker_name"
               android:stateNotNeeded="true"
               android:exported="false"/>
+    <!-- Hands an exported file to another app as a content:// URI with a read grant
+         (defects A-06 and A-07). Not exported: nothing starts it, callers reach it
+         through the grant on the share Intent. res/xml/file_paths.xml limits it to one
+         subtree of this app's cache. -->
+    <provider android:name="androidx.core.content.FileProvider"
+              android:authorities="${applicationId}.fileprovider"
+              android:exported="false"
+              android:grantUriPermissions="true">
+      <meta-data android:name="android.support.FILE_PROVIDER_PATHS"
+                 android:resource="@xml/file_paths"/>
+    </provider>
     <activity android:name=".share.AppPickerActivity"
               android:label="@string/app_picker_name"
               android:stateNotNeeded="true"

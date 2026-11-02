@@ -159,9 +159,9 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 
 ### Phase 3 — carried-forward defects
 
-- [ ] **A-06** History CSV export writes to the legacy external storage root; broken under
-      scoped storage since Android 10
-- [ ] **A-07** Share-barcode-as-image has the same problem
+- [x] **A-06** History CSV export writes to app-specific storage and is shared through a
+      `FileProvider`
+- [x] **A-07** Share-barcode-as-image, the same way
 - [ ] **A-08** Wi-Fi result handler cannot add networks on Android 10+
 - [x] **A-09** Book search and every outbound link this app builds are https; the
       book-search URL matcher accepts https too
@@ -257,7 +257,6 @@ years of callers and buy nothing.
 
 | ID | Problem | Where |
 | --- | --- | --- |
-| A-06 / A-07 | History export and image sharing fail on Android 10+ (scoped storage) | app |
 | A-08 | Scanning a `WIFI:` barcode silently does nothing on Android 10+ | app |
 | A-16 | On a large screen, Android 16 forces the landscape-designed capture UI into portrait | app |
 | — | No L3 or L4 numbers exist: nothing is known about camera-ready or first-scan latency | all |
