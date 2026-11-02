@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `40b6423ed` on branch `maint/android`, **which is pushed**.
+Last updated at commit `2d26c1221` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -89,6 +89,8 @@ Last updated at commit `40b6423ed` on branch `maint/android`, **which is pushed*
 | `2e9e5ce16` | `minSdk` 21 → 23, which Phase 6 needed |
 | `a90619e9a` | **CameraX adopted in `:scanner`**, behind `ScannerOptions.CameraBackend` |
 | `40b6423ed` | What the adoption verified, and why CameraX is still not the default |
+| `b8aeeeae9` | A frame posted behind `MSG_QUIT` was dropped rather than closed |
+| `2d26c1221` | The R8 release build runs CameraX, checked on a device |
 
 Nothing is uncommitted. `maint/android` is pushed through `2e9e5ce16` and CI is green on
 it. Nothing is released; no tag has been pushed.
