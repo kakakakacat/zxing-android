@@ -155,6 +155,7 @@ it. Nothing is released; no tag has been pushed.
 | Phase 6 adoption: 100× open-close on CameraX | 0 fatals, 0 camera errors — **after** the second run; the first found a crash | DN-ENG41 and API 36 emulator, `reports/stability-100-camerax-*-20261102.log` |
 | Phase 6 adoption: 21 instrumentation tests on CameraX's tree | 21 tests, 0 failures | DN-ENG41, `reports/instrumentation-21-camerax-DN-ENG41-20261102.xml` |
 | Phase 6 adoption: what CameraX costs `:app` | `res/` **+0 entries**, `classes.dex` +930,544 B, CameraX's own `.so` +65,332 B over two ABIs | local, `reports/camerax-adoption-apk-size-20261102.log` |
+| Phase 6 adoption: the **R8 release** build on CameraX | preview and viewfinder run; CameraX's own threads present in the process, which is the check, because a silent fallback to Camera1 looks identical | DN-ENG41, `reports/camerax-adoption-release-r8-DN-ENG41-20261102.png` |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as

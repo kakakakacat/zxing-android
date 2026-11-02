@@ -74,6 +74,29 @@ delivers the straggler, and the decode handler now closes any frame that reaches
 it has stopped running. Re-ran the 100-cycle loop and the 21 instrumentation tests on
 DN-ENG41 afterwards; both still clean.
 
+## The R8 release build, checked separately
+
+Everything above is the debug build. R8 is where a camera library breaks silently — a
+missing keep rule costs a reflective lookup, not a compile error — so the minified release
+APK was installed on DN-ENG41 and driven through the same path. CameraX's consumer rules
+are evidently sufficient: the setting renders, the preview runs, the viewfinder draws, and
+the process carries CameraX's own threads:
+
+```
+$ adb shell "for t in /proc/<pid>/task/*; do cat $t/comm; done" | grep -i camerax
+CameraX-schedul
+CameraX-core_ca
+CXCP-Camera-H
+CameraX-camerax
+```
+
+That thread list is the check that matters, because a silent fallback to Camera1 would have
+produced an identical-looking preview. `camerax-adoption-release-r8-DN-ENG41-20261102.png`.
+
+Worth knowing for the next person: **there is no `CameraXBackend` log line in a release
+build.** `proguard-android-optimize.txt` strips `Log.i` through `assumenosideeffects`, so
+the absence of that line says nothing about whether the backend ran.
+
 ## What is still not verified
 
 - **Android 15**, and this is the gap that matters most: the two devices this project owns
