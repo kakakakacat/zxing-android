@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `2038009ba` on branch `maint/android`.
+Last updated at commit `29a5c1e7d` on branch `maint/android`.
 
 ---
 
@@ -84,7 +84,7 @@ Last updated at commit `2038009ba` on branch `maint/android`.
 | `69b3c7062` | **A-12 fixed**: a floor on torch toggles, because the torch moves the sensor |
 | `2038009ba` | **A-16 fixed**, and with it **all of Phase 3** |
 | `a19900119` | Phase 3 closed out in this file |
-| _this commit_ | **Phase 6's decision record**, and the three-flavor spike it is built on |
+| `29a5c1e7d` | **Phase 6's decision record**, and the three-flavor spike it is built on |
 
 Nothing is uncommitted. Nothing is released; no tag has been pushed.
 
