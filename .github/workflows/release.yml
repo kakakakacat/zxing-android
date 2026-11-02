@@ -64,12 +64,28 @@ jobs:
              dist/barcode-scanner-community-${{ steps.version.outputs.value }}-debug.apk
           cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
 
-      # Only the AAR is published. The in-tree :core is deliberately not: its classes
-      # are com.google.zxing.*, so a second artifact carrying them would collide with
-      # upstream's released core on any consumer's classpath.
-      - name: Publish the AAR to GitHub Packages
+      # Run before anything is pushed: once a version exists in GitHub Packages it
+      # cannot be replaced, so an incomplete set is not something to discover afterwards.
+      - name: The set about to be published is resolvable
         run: |
-          ./gradlew :scanner:publishReleasePublicationToGitHubPackagesRepository \
+          python3 -I tools/maint/check_release_publishes.py \
+            --version "${{ steps.version.outputs.value }}"
+
+      # Both artifacts, in one step, because they are not independent: :scanner declares
+      # `api(project(":core"))`, so its POM carries a compile dependency on
+      # io.github.kakakakacat.zxing:zxing-core at the same version. Publishing the AAR
+      # alone leaves that dependency unresolvable and every consumer's build fails.
+      #
+      # The comment that used to stand here said :core was withheld because its classes
+      # were com.google.zxing.* and would collide with upstream. They have not been since
+      # the 849921bfa rename -- avoiding that collision is why the rename happened -- and
+      # the stale reasoning is what hid the broken POM. PUBLISHING.md has always
+      # documented both artifacts as published.
+      - name: Publish the AAR and the decoder to GitHub Packages
+        run: |
+          ./gradlew \
+            :core:publishMavenPublicationToGitHubPackagesRepository \
+            :scanner:publishReleasePublicationToGitHubPackagesRepository \
             -PscannerVersion=${{ steps.version.outputs.value }}
         env:
           GITHUB_ACTOR: ${{ github.actor }}

@@ -283,8 +283,8 @@ reporting "100 cycles, 0 crashes" while starting nothing at all. It still named
 `am start` failed into `/dev/null`. **A verification tool that is not itself verified is
 worse than no tool** — it was fixed, hardened to fail when the activity does not come
 up, and the fix checked by running it with the old name. Looking for more of the same
-turned up **a release-blocking defect in `release.yml`** — see "Release and
-distribution" below. Treat a clean result from an unexercised script as unproven until
+turned up **a release-blocking defect in `release.yml`**, now fixed and guarded — see
+"Release and distribution" below. Treat a clean result from an unexercised script as unproven until
 you have watched it fail on purpose.
 
 **The native decoder ships by default, and both halves of that decision are now
@@ -700,27 +700,35 @@ www.google.com not permitted`, and the UI says "Sorry, the search encountered a 
 
 ### Release and distribution
 
-- **Tagging `v0.1.0` today would publish an AAR nobody can resolve.** Found on
-  2026-10-31 while checking which tooling had gone stale at the `849921bfa` rename; not
-  fixed, because it was outside the Kotlin work in flight.
+- **Fixed: tagging `v0.1.0` would have published an AAR nobody can resolve.** Found on
+  2026-10-31 at the `849921bfa` rename audit, fixed once the Kotlin work was out of the
+  way.
 
   `:scanner` declares `api(project(":core"))`, so its published POM carries a compile
-  dependency on `io.github.kakakakacat.zxing:zxing-core:<version>` — confirmed by reading
-  the POM that `publishToMavenLocal` produces. `release.yml` publishes **only**
-  `:scanner:publishReleasePublicationToGitHubPackagesRepository`, so that dependency
-  would not exist in GitHub Packages and every consumer's resolution would fail.
+  dependency on `io.github.kakakakacat.zxing:zxing-core:<version>`. `release.yml`
+  published **only** `:scanner`, so that dependency would not exist in GitHub Packages
+  and every consumer's resolution would fail. The step now runs
+  `:core:publishMavenPublicationToGitHubPackagesRepository` alongside it.
 
-  `:core` is already set up to publish (`core/build.gradle.kts` registers a `maven`
-  publication as `zxing-core` with the same group and version), so the fix is to run its
-  publish task in the same step.
+  The comment above that step is what hid this: it said `:core` was deliberately not
+  published because "its classes are `com.google.zxing.*`, so a second artifact carrying
+  them would collide with upstream". They have not been `com.google.zxing.*` since
+  `849921bfa` — avoiding exactly that collision is *why* the rename happened — and
+  `PUBLISHING.md` has documented both artifacts as published the whole time. The comment
+  now says why both have to go together.
 
-  The comment above that step is also wrong and is what hid this: it says `:core` is
-  deliberately not published because "its classes are `com.google.zxing.*`, so a second
-  artifact carrying them would collide with upstream". They have not been
-  `com.google.zxing.*` since `849921bfa` — avoiding exactly that collision is *why* the
-  rename happened, and this file's own evidence table records "Published AAR + jar, zero
-  `com/google` entries". The reasoning was left behind by the rename and the step was
-  never revisited.
+  **Checked both ways, against a real resolver**, because a publish step that is never
+  run until a tag is exactly the kind of tooling this file warns about:
+
+  - With only `:scanner` in `~/.m2`, a throwaway Gradle project asking for
+    `zxing-android-scanner` fails with `Could not find
+    io.github.kakakakacat.zxing:zxing-core`. With `:core` published too, it resolves the
+    AAR, the jar and `kotlin-stdlib`.
+  - `tools/maint/check_release_publishes.py` now guards it structurally: it reads the
+    publish tasks out of `release.yml`, generates exactly those POMs, and fails if any
+    dependency under this project's own group is not itself being published. It was
+    watched failing on purpose — delete the `:core` line and it names the missing
+    artifact — and `build.yml` runs it on every push.
 
 - Nothing has been released. Tagging `v0.1.0` triggers `.github/workflows/release.yml`,
   which builds, checksums, publishes to GitHub Packages and cuts a GitHub Release whose

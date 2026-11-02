@@ -34,6 +34,10 @@ API may still change between minor versions.
 - First Android measurements of any kind: an L2 baseline on DN-ENG41 with clocks locked —
   the full 135-case matrix twice and an hd/default slice, in `docs/maint/reports/`. A
   baseline, not a claim: nothing has been optimised and nothing compared.
+- `tools/maint/check_release_publishes.py`, run in CI: it reads the publish tasks out
+  of `release.yml` and fails if a published POM depends on an artifact of this
+  project's own that the release does not publish. It caught `:core` being left out
+  of the release, which would have made the AAR unresolvable.
 - `benchmark/tools/noise_floor.py` and the measured effect floor it produced: 3% for
   cases at or above 100 µs, 10% below, from two runs of identical code. The 5%
   placeholder in BENCHMARKS.md §10.6 is gone.

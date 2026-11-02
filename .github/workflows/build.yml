@@ -81,6 +81,13 @@ jobs:
         # only proves the benchmark still builds against the current frame path.
         run: ./gradlew :benchmark-android:assembleReleaseAndroidTest
 
+      - name: A release would publish a resolvable POM
+        # :scanner's POM depends on this project's own :core. Publishing one without the
+        # other produces an artifact no consumer can resolve, and that is exactly what
+        # release.yml did for as long as nobody read the POM. Checked here because it
+        # costs a POM generation, and because the alternative is finding out at a tag.
+        run: python3 -I tools/maint/check_release_publishes.py
+
       - name: Lint
         run: ./gradlew :scanner:lintRelease :app:lintDebug
 
