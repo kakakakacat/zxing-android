@@ -163,6 +163,7 @@ it. Nothing is released; no tag has been pushed.
 | Phase 6 adoption: the **R8 release** build on CameraX | preview and viewfinder run; CameraX's own threads present in the process, which is the check, because a silent fallback to Camera1 looks identical | DN-ENG41, `reports/camerax-adoption-release-r8-DN-ENG41-20261102.png` |
 | **L3 baseline**, both backends, 12 cold launches × 2 pairs, one session each | CameraX to the window's first frame **−330 ms**; CameraX to a frame at the decoder **+200 ms**. Both reproduced across pairs | DN-ENG41, `reports/l3-*-DN-ENG41-20261102-run{1,2}.json`, read in `reports/l3-verdict-DN-ENG41-20261102.md` |
 | **A-19**: back with a result on screen | before: leaves the app. After: returns to the preview. Cause isolated by A/B against `enableOnBackInvokedCallback` | API 36 emulator, `reports/a19-predictive-back-api36-20261102.log` |
+| **L4 baseline**, both backends, 12-minute soaks, one session | CPU **74% vs 118%** of one core (camera1 vs camerax); +17 MB PSS, +17 threads; **no leak** in either | DN-ENG41, `reports/l4-*-DN-ENG41-20261102.json`, read in `reports/l4-verdict-DN-ENG41-20261102.md` |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -547,20 +548,26 @@ Everything else is below.
 
 Ordered as the user asked for it. The README carries the same list as tickboxes.
 
-### Phase 4 — the harnesses all exist; L4 has no baseline
+### Phase 4 — all four layers now exist and are baselined
 
-**L4's harness is built, and that is all.** `tools/maint/l4-soak.sh` + `l4-sample.sh` +
-`benchmark/tools/l4_report.py`, 20 unit tests, `BENCHMARKS.md` §12. **Nothing is committed
-under `reports/` yet**, so there is no L4 number for anything to be compared against. The
-next step is one pair of soaks — `tools/maint/l4-soak.sh camera1 12 <serial>` then the same
-for `camerax`, back to back in one session, then `l4_report.py` for each.
+**L4 is built and baselined**, and its headline is the one the Phase 6 decision record
+explicitly listed as unmeasured: **CameraX costs about 60% more CPU to keep scanning** —
+118% of one core against Camera1's 74%, ranges 103–130 against 64–88, same device, same
+session, same decode path. Also +17 MB PSS, +12 MB native heap and +17 threads, at an
+identical Java heap and slightly *fewer* GCs, so it is not memory pressure and not GC.
+Neither backend leaks over twelve minutes and neither degrades across the run.
 
-Two things about it worth knowing before running one: the reference device sits at thermal
-status 3 permanently, so every L4 number from it is a throttled number and the report says
-so; and with the phone on charge the battery never moves, so battery drain is not measured
-and `BATTERY_PINNED` says that too.
+Read with L3's two findings, the backends are not simply better and worse: **Camera1 is
+cheaper to run and janks the launch by ~400 ms of blocked main thread; CameraX launches
+smoothly and costs more to keep running.** That is now three independent measurements
+pointing the same way about CameraX's frame path on this hardware.
 
-### Phase 4 — done, except L4
+`reports/l4-verdict-DN-ENG41-20261102.md` has the whole of it. Two conditions it records
+rather than hides: this device sits at thermal status 3 permanently, so every L4 number
+from it is a throttled number; and on charge the battery never moves, so drain is not
+measured.
+
+### Phase 4 — L1 and L2
 
 **L3 is built and baselined.** `benchmark/l3` (Macrobenchmark), `tools/maint/l3-run.sh`,
 `benchmark/tools/l3_report.py` with 18 unit tests, and a two-pair baseline on DN-ENG41 for

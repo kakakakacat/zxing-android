@@ -1,0 +1,1172 @@
+{
+  "layer": "L4",
+  "run_id": "camera1-DN-ENG41-20261102",
+  "commit": "1ad0cf5d9",
+  "config": "camera1",
+  "dataset_hash": null,
+  "frames": null,
+  "device": {
+    "api": 34,
+    "emulator": false,
+    "label": "DN-ENG41"
+  },
+  "camera_backend": "camera1",
+  "scene": "miss",
+  "protocol": {
+    "duration_ms": 715810,
+    "samples": 126,
+    "interval_seconds": 5,
+    "clk_tck": 100,
+    "slow_sample_every": 6
+  },
+  "gc": {
+    "collections": 311,
+    "paused_ms_total": 1265.2479999999996,
+    "gc_ms_total": 40946.234999999986
+  },
+  "warnings": [
+    "THERMAL_THROTTLE: thermal status reached 3 during the soak, so these are numbers for a throttled device. They are real numbers; they are not a thermally-unconstrained ceiling.",
+    "BATTERY_PINNED: the battery stayed at 100% for the whole soak, so it was on charge. Battery drain was not measured and must not be read off this run.",
+    "MISS_PATH: nothing was decoded during this soak, so it measures the decode-nothing path. \u00a710 measured that as the most expensive case and it is what live preview does almost every frame, so it is the right default -- but it is not a scan-every-frame workload."
+  ],
+  "cases": [
+    {
+      "name": "cpu_percent_of_one_core",
+      "unit": "percent",
+      "question": "CPU the scanning process used, as a percentage of a single core",
+      "n": 125,
+      "min": 64.18439716312056,
+      "max": 88.48920863309353,
+      "mean": 73.86315382157203,
+      "first": 74.67105263157895,
+      "last": 70.4830053667263,
+      "halves": {
+        "first_half_mean": 71.82524027739706,
+        "second_half_mean": 75.86871953171244
+      }
+    },
+    {
+      "name": "rss_kb",
+      "unit": "kB",
+      "question": "Resident set size over the soak",
+      "n": 126,
+      "min": 140284,
+      "max": 153608,
+      "mean": 150292.50793650793,
+      "first": 140284,
+      "last": 148624,
+      "slope_kb_per_minute": 134.34989951800742,
+      "slope_residual_kb": 1908.6455447416822,
+      "halves": {
+        "first_half_mean": 149874.03174603175,
+        "second_half_mean": 150710.9841269841
+      }
+    },
+    {
+      "name": "java_heap_kb",
+      "unit": "kB",
+      "question": "Java heap, sampled on the slow rows only",
+      "n": 21,
+      "min": 9364,
+      "max": 14844,
+      "mean": 11763.619047619048,
+      "first": 12192,
+      "last": 13016,
+      "halves": {
+        "first_half_mean": 11289.2,
+        "second_half_mean": 12194.90909090909
+      }
+    },
+    {
+      "name": "native_heap_kb",
+      "unit": "kB",
+      "question": "Native heap, sampled on the slow rows only",
+      "n": 21,
+      "min": 7164,
+      "max": 8024,
+      "mean": 7730.857142857143,
+      "first": 7164,
+      "last": 8024,
+      "halves": {
+        "first_half_mean": 7560.8,
+        "second_half_mean": 7885.454545454545
+      }
+    },
+    {
+      "name": "total_pss_kb",
+      "unit": "kB",
+      "question": "Total PSS, sampled on the slow rows only",
+      "n": 21,
+      "min": 54350,
+      "max": 66300,
+      "mean": 61136.04761904762,
+      "first": 54350,
+      "last": 64436,
+      "halves": {
+        "first_half_mean": 59090.5,
+        "second_half_mean": 62995.63636363636
+      }
+    },
+    {
+      "name": "threads",
+      "unit": "count",
+      "question": "Thread count; a soak that grows threads is leaking something else",
+      "n": 126,
+      "min": 25,
+      "max": 27,
+      "mean": 26.634920634920636,
+      "first": 25,
+      "last": 27,
+      "halves": {
+        "first_half_mean": 26.26984126984127,
+        "second_half_mean": 27.0
+      }
+    },
+    {
+      "name": "major_faults",
+      "unit": "count",
+      "question": "Cumulative major page faults",
+      "n": 126,
+      "min": 18,
+      "max": 36,
+      "mean": 32.01587301587302,
+      "first": 18,
+      "last": 36,
+      "halves": null
+    },
+    {
+      "name": "thermal_status",
+      "unit": "PowerManager.THERMAL_STATUS",
+      "question": "Thermal status over the soak; 0 is none, 6 is shutdown",
+      "n": 21,
+      "min": 3,
+      "max": 3,
+      "mean": 3.0,
+      "first": 3,
+      "last": 3,
+      "halves": null
+    },
+    {
+      "name": "battery_level",
+      "unit": "percent",
+      "question": "Battery level over the soak",
+      "n": 21,
+      "min": 100,
+      "max": 100,
+      "mean": 100.0,
+      "first": 100,
+      "last": 100,
+      "halves": null
+    }
+  ],
+  "series": {
+    "cpu_percent_of_one_core": [
+      {
+        "uptime_ms": 17537240,
+        "cpu_percent_of_one_core": 74.67105263157895
+      },
+      {
+        "uptime_ms": 17542580,
+        "cpu_percent_of_one_core": 72.47191011235955
+      },
+      {
+        "uptime_ms": 17547900,
+        "cpu_percent_of_one_core": 72.36842105263158
+      },
+      {
+        "uptime_ms": 17553380,
+        "cpu_percent_of_one_core": 72.44525547445255
+      },
+      {
+        "uptime_ms": 17558780,
+        "cpu_percent_of_one_core": 76.11111111111111
+      },
+      {
+        "uptime_ms": 17564400,
+        "cpu_percent_of_one_core": 74.02135231316726
+      },
+      {
+        "uptime_ms": 17571170,
+        "cpu_percent_of_one_core": 73.70753323485968
+      },
+      {
+        "uptime_ms": 17576780,
+        "cpu_percent_of_one_core": 66.84491978609626
+      },
+      {
+        "uptime_ms": 17582180,
+        "cpu_percent_of_one_core": 69.44444444444444
+      },
+      {
+        "uptime_ms": 17587640,
+        "cpu_percent_of_one_core": 73.99267399267399
+      },
+      {
+        "uptime_ms": 17593220,
+        "cpu_percent_of_one_core": 67.38351254480287
+      },
+      {
+        "uptime_ms": 17598740,
+        "cpu_percent_of_one_core": 72.10144927536231
+      },
+      {
+        "uptime_ms": 17605550,
+        "cpu_percent_of_one_core": 73.568281938326
+      },
+      {
+        "uptime_ms": 17611070,
+        "cpu_percent_of_one_core": 70.65217391304348
+      },
+      {
+        "uptime_ms": 17616480,
+        "cpu_percent_of_one_core": 70.79482439926063
+      },
+      {
+        "uptime_ms": 17622080,
+        "cpu_percent_of_one_core": 71.42857142857143
+      },
+      {
+        "uptime_ms": 17627660,
+        "cpu_percent_of_one_core": 68.45878136200717
+      },
+      {
+        "uptime_ms": 17633150,
+        "cpu_percent_of_one_core": 75.0455373406193
+      },
+      {
+        "uptime_ms": 17639250,
+        "cpu_percent_of_one_core": 68.19672131147541
+      },
+      {
+        "uptime_ms": 17644640,
+        "cpu_percent_of_one_core": 77.36549165120594
+      },
+      {
+        "uptime_ms": 17650270,
+        "cpu_percent_of_one_core": 73.00177619893428
+      },
+      {
+        "uptime_ms": 17655810,
+        "cpu_percent_of_one_core": 72.74368231046931
+      },
+      {
+        "uptime_ms": 17661410,
+        "cpu_percent_of_one_core": 68.21428571428571
+      },
+      {
+        "uptime_ms": 17666980,
+        "cpu_percent_of_one_core": 71.0951526032316
+      },
+      {
+        "uptime_ms": 17673550,
+        "cpu_percent_of_one_core": 70.47184170471841
+      },
+      {
+        "uptime_ms": 17678900,
+        "cpu_percent_of_one_core": 70.09345794392523
+      },
+      {
+        "uptime_ms": 17684330,
+        "cpu_percent_of_one_core": 73.11233885819522
+      },
+      {
+        "uptime_ms": 17690020,
+        "cpu_percent_of_one_core": 72.05623901581723
+      },
+      {
+        "uptime_ms": 17695660,
+        "cpu_percent_of_one_core": 69.50354609929079
+      },
+      {
+        "uptime_ms": 17701210,
+        "cpu_percent_of_one_core": 77.11711711711712
+      },
+      {
+        "uptime_ms": 17708050,
+        "cpu_percent_of_one_core": 69.00584795321637
+      },
+      {
+        "uptime_ms": 17713650,
+        "cpu_percent_of_one_core": 71.25
+      },
+      {
+        "uptime_ms": 17719260,
+        "cpu_percent_of_one_core": 65.77540106951872
+      },
+      {
+        "uptime_ms": 17724900,
+        "cpu_percent_of_one_core": 73.93617021276596
+      },
+      {
+        "uptime_ms": 17730390,
+        "cpu_percent_of_one_core": 74.13479052823315
+      },
+      {
+        "uptime_ms": 17735990,
+        "cpu_percent_of_one_core": 72.67857142857143
+      },
+      {
+        "uptime_ms": 17742870,
+        "cpu_percent_of_one_core": 70.93023255813954
+      },
+      {
+        "uptime_ms": 17748330,
+        "cpu_percent_of_one_core": 75.82417582417582
+      },
+      {
+        "uptime_ms": 17753870,
+        "cpu_percent_of_one_core": 76.71480144404332
+      },
+      {
+        "uptime_ms": 17759400,
+        "cpu_percent_of_one_core": 76.49186256781194
+      },
+      {
+        "uptime_ms": 17764900,
+        "cpu_percent_of_one_core": 74.54545454545455
+      },
+      {
+        "uptime_ms": 17770480,
+        "cpu_percent_of_one_core": 66.66666666666667
+      },
+      {
+        "uptime_ms": 17777380,
+        "cpu_percent_of_one_core": 71.8840579710145
+      },
+      {
+        "uptime_ms": 17782940,
+        "cpu_percent_of_one_core": 71.58273381294964
+      },
+      {
+        "uptime_ms": 17788520,
+        "cpu_percent_of_one_core": 73.47670250896057
+      },
+      {
+        "uptime_ms": 17793910,
+        "cpu_percent_of_one_core": 73.09833024118738
+      },
+      {
+        "uptime_ms": 17799330,
+        "cpu_percent_of_one_core": 74.90774907749078
+      },
+      {
+        "uptime_ms": 17804890,
+        "cpu_percent_of_one_core": 68.88489208633094
+      },
+      {
+        "uptime_ms": 17811590,
+        "cpu_percent_of_one_core": 75.3731343283582
+      },
+      {
+        "uptime_ms": 17817230,
+        "cpu_percent_of_one_core": 64.18439716312056
+      },
+      {
+        "uptime_ms": 17822650,
+        "cpu_percent_of_one_core": 69.37269372693727
+      },
+      {
+        "uptime_ms": 17828150,
+        "cpu_percent_of_one_core": 74.18181818181819
+      },
+      {
+        "uptime_ms": 17833700,
+        "cpu_percent_of_one_core": 68.46846846846847
+      },
+      {
+        "uptime_ms": 17839130,
+        "cpu_percent_of_one_core": 71.4548802946593
+      },
+      {
+        "uptime_ms": 17846050,
+        "cpu_percent_of_one_core": 71.09826589595376
+      },
+      {
+        "uptime_ms": 17851440,
+        "cpu_percent_of_one_core": 76.43784786641929
+      },
+      {
+        "uptime_ms": 17857100,
+        "cpu_percent_of_one_core": 67.6678445229682
+      },
+      {
+        "uptime_ms": 17862690,
+        "cpu_percent_of_one_core": 74.95527728085868
+      },
+      {
+        "uptime_ms": 17868080,
+        "cpu_percent_of_one_core": 69.9443413729128
+      },
+      {
+        "uptime_ms": 17873450,
+        "cpu_percent_of_one_core": 70.94972067039106
+      },
+      {
+        "uptime_ms": 17879750,
+        "cpu_percent_of_one_core": 72.38095238095238
+      },
+      {
+        "uptime_ms": 17885230,
+        "cpu_percent_of_one_core": 66.42335766423358
+      },
+      {
+        "uptime_ms": 17890700,
+        "cpu_percent_of_one_core": 70.93235831809872
+      },
+      {
+        "uptime_ms": 17896100,
+        "cpu_percent_of_one_core": 80.37037037037037
+      },
+      {
+        "uptime_ms": 17901600,
+        "cpu_percent_of_one_core": 73.0909090909091
+      },
+      {
+        "uptime_ms": 17907090,
+        "cpu_percent_of_one_core": 67.21311475409836
+      },
+      {
+        "uptime_ms": 17913770,
+        "cpu_percent_of_one_core": 70.65868263473054
+      },
+      {
+        "uptime_ms": 17919280,
+        "cpu_percent_of_one_core": 77.49546279491832
+      },
+      {
+        "uptime_ms": 17924880,
+        "cpu_percent_of_one_core": 68.39285714285714
+      },
+      {
+        "uptime_ms": 17930410,
+        "cpu_percent_of_one_core": 82.27848101265823
+      },
+      {
+        "uptime_ms": 17935890,
+        "cpu_percent_of_one_core": 77.00729927007299
+      },
+      {
+        "uptime_ms": 17941410,
+        "cpu_percent_of_one_core": 83.51449275362319
+      },
+      {
+        "uptime_ms": 17948080,
+        "cpu_percent_of_one_core": 78.56071964017991
+      },
+      {
+        "uptime_ms": 17953700,
+        "cpu_percent_of_one_core": 68.50533807829181
+      },
+      {
+        "uptime_ms": 17959310,
+        "cpu_percent_of_one_core": 71.4795008912656
+      },
+      {
+        "uptime_ms": 17964990,
+        "cpu_percent_of_one_core": 74.29577464788733
+      },
+      {
+        "uptime_ms": 17970460,
+        "cpu_percent_of_one_core": 72.57769652650822
+      },
+      {
+        "uptime_ms": 17975890,
+        "cpu_percent_of_one_core": 82.32044198895028
+      },
+      {
+        "uptime_ms": 17982390,
+        "cpu_percent_of_one_core": 75.84615384615384
+      },
+      {
+        "uptime_ms": 17987840,
+        "cpu_percent_of_one_core": 82.01834862385321
+      },
+      {
+        "uptime_ms": 17993350,
+        "cpu_percent_of_one_core": 77.49546279491832
+      },
+      {
+        "uptime_ms": 17998910,
+        "cpu_percent_of_one_core": 68.5251798561151
+      },
+      {
+        "uptime_ms": 18004470,
+        "cpu_percent_of_one_core": 70.86330935251799
+      },
+      {
+        "uptime_ms": 18009960,
+        "cpu_percent_of_one_core": 75.0455373406193
+      },
+      {
+        "uptime_ms": 18016850,
+        "cpu_percent_of_one_core": 72.27866473149491
+      },
+      {
+        "uptime_ms": 18022580,
+        "cpu_percent_of_one_core": 73.1239092495637
+      },
+      {
+        "uptime_ms": 18027950,
+        "cpu_percent_of_one_core": 83.61266294227188
+      },
+      {
+        "uptime_ms": 18033470,
+        "cpu_percent_of_one_core": 80.6159420289855
+      },
+      {
+        "uptime_ms": 18039170,
+        "cpu_percent_of_one_core": 74.56140350877193
+      },
+      {
+        "uptime_ms": 18044810,
+        "cpu_percent_of_one_core": 73.04964539007092
+      },
+      {
+        "uptime_ms": 18051870,
+        "cpu_percent_of_one_core": 71.671388101983
+      },
+      {
+        "uptime_ms": 18057380,
+        "cpu_percent_of_one_core": 77.31397459165154
+      },
+      {
+        "uptime_ms": 18063030,
+        "cpu_percent_of_one_core": 82.47787610619469
+      },
+      {
+        "uptime_ms": 18068760,
+        "cpu_percent_of_one_core": 76.26527050610821
+      },
+      {
+        "uptime_ms": 18074440,
+        "cpu_percent_of_one_core": 83.62676056338029
+      },
+      {
+        "uptime_ms": 18080030,
+        "cpu_percent_of_one_core": 76.92307692307692
+      },
+      {
+        "uptime_ms": 18086730,
+        "cpu_percent_of_one_core": 65.22388059701493
+      },
+      {
+        "uptime_ms": 18092220,
+        "cpu_percent_of_one_core": 66.3023679417122
+      },
+      {
+        "uptime_ms": 18097680,
+        "cpu_percent_of_one_core": 74.35897435897436
+      },
+      {
+        "uptime_ms": 18103290,
+        "cpu_percent_of_one_core": 71.65775401069519
+      },
+      {
+        "uptime_ms": 18108780,
+        "cpu_percent_of_one_core": 73.58834244080145
+      },
+      {
+        "uptime_ms": 18114380,
+        "cpu_percent_of_one_core": 73.21428571428571
+      },
+      {
+        "uptime_ms": 18121190,
+        "cpu_percent_of_one_core": 77.5330396475771
+      },
+      {
+        "uptime_ms": 18126690,
+        "cpu_percent_of_one_core": 85.81818181818181
+      },
+      {
+        "uptime_ms": 18132260,
+        "cpu_percent_of_one_core": 79.89228007181329
+      },
+      {
+        "uptime_ms": 18137790,
+        "cpu_percent_of_one_core": 81.19349005424955
+      },
+      {
+        "uptime_ms": 18143270,
+        "cpu_percent_of_one_core": 74.63503649635037
+      },
+      {
+        "uptime_ms": 18148810,
+        "cpu_percent_of_one_core": 85.1985559566787
+      },
+      {
+        "uptime_ms": 18155010,
+        "cpu_percent_of_one_core": 79.83870967741936
+      },
+      {
+        "uptime_ms": 18160620,
+        "cpu_percent_of_one_core": 78.25311942959001
+      },
+      {
+        "uptime_ms": 18166100,
+        "cpu_percent_of_one_core": 80.2919708029197
+      },
+      {
+        "uptime_ms": 18171700,
+        "cpu_percent_of_one_core": 81.25
+      },
+      {
+        "uptime_ms": 18177170,
+        "cpu_percent_of_one_core": 82.44972577696527
+      },
+      {
+        "uptime_ms": 18182730,
+        "cpu_percent_of_one_core": 88.48920863309353
+      },
+      {
+        "uptime_ms": 18190140,
+        "cpu_percent_of_one_core": 82.45614035087719
+      },
+      {
+        "uptime_ms": 18195620,
+        "cpu_percent_of_one_core": 74.81751824817518
+      },
+      {
+        "uptime_ms": 18201180,
+        "cpu_percent_of_one_core": 71.76258992805755
+      },
+      {
+        "uptime_ms": 18206700,
+        "cpu_percent_of_one_core": 77.17391304347827
+      },
+      {
+        "uptime_ms": 18212340,
+        "cpu_percent_of_one_core": 68.08510638297872
+      },
+      {
+        "uptime_ms": 18217900,
+        "cpu_percent_of_one_core": 72.12230215827338
+      },
+      {
+        "uptime_ms": 18224790,
+        "cpu_percent_of_one_core": 72.5689404934688
+      },
+      {
+        "uptime_ms": 18230270,
+        "cpu_percent_of_one_core": 72.44525547445255
+      },
+      {
+        "uptime_ms": 18235940,
+        "cpu_percent_of_one_core": 75.13227513227513
+      },
+      {
+        "uptime_ms": 18241380,
+        "cpu_percent_of_one_core": 69.48529411764706
+      },
+      {
+        "uptime_ms": 18246970,
+        "cpu_percent_of_one_core": 70.4830053667263
+      }
+    ],
+    "rss_kb": [
+      {
+        "uptime_ms": 17531160,
+        "value": 140284
+      },
+      {
+        "uptime_ms": 17537240,
+        "value": 146932
+      },
+      {
+        "uptime_ms": 17542580,
+        "value": 147096
+      },
+      {
+        "uptime_ms": 17547900,
+        "value": 145736
+      },
+      {
+        "uptime_ms": 17553380,
+        "value": 150132
+      },
+      {
+        "uptime_ms": 17558780,
+        "value": 147676
+      },
+      {
+        "uptime_ms": 17564400,
+        "value": 149496
+      },
+      {
+        "uptime_ms": 17571170,
+        "value": 151836
+      },
+      {
+        "uptime_ms": 17576780,
+        "value": 149892
+      },
+      {
+        "uptime_ms": 17582180,
+        "value": 151828
+      },
+      {
+        "uptime_ms": 17587640,
+        "value": 148660
+      },
+      {
+        "uptime_ms": 17593220,
+        "value": 146896
+      },
+      {
+        "uptime_ms": 17598740,
+        "value": 148664
+      },
+      {
+        "uptime_ms": 17605550,
+        "value": 150980
+      },
+      {
+        "uptime_ms": 17611070,
+        "value": 147008
+      },
+      {
+        "uptime_ms": 17616480,
+        "value": 148800
+      },
+      {
+        "uptime_ms": 17622080,
+        "value": 150564
+      },
+      {
+        "uptime_ms": 17627660,
+        "value": 146952
+      },
+      {
+        "uptime_ms": 17633150,
+        "value": 150596
+      },
+      {
+        "uptime_ms": 17639250,
+        "value": 150892
+      },
+      {
+        "uptime_ms": 17644640,
+        "value": 146992
+      },
+      {
+        "uptime_ms": 17650270,
+        "value": 149080
+      },
+      {
+        "uptime_ms": 17655810,
+        "value": 148960
+      },
+      {
+        "uptime_ms": 17661410,
+        "value": 150740
+      },
+      {
+        "uptime_ms": 17666980,
+        "value": 147284
+      },
+      {
+        "uptime_ms": 17673550,
+        "value": 150876
+      },
+      {
+        "uptime_ms": 17678900,
+        "value": 151120
+      },
+      {
+        "uptime_ms": 17684330,
+        "value": 149396
+      },
+      {
+        "uptime_ms": 17690020,
+        "value": 149244
+      },
+      {
+        "uptime_ms": 17695660,
+        "value": 151288
+      },
+      {
+        "uptime_ms": 17701210,
+        "value": 147728
+      },
+      {
+        "uptime_ms": 17708050,
+        "value": 151324
+      },
+      {
+        "uptime_ms": 17713650,
+        "value": 151188
+      },
+      {
+        "uptime_ms": 17719260,
+        "value": 153176
+      },
+      {
+        "uptime_ms": 17724900,
+        "value": 152780
+      },
+      {
+        "uptime_ms": 17730390,
+        "value": 151312
+      },
+      {
+        "uptime_ms": 17735990,
+        "value": 151388
+      },
+      {
+        "uptime_ms": 17742870,
+        "value": 147540
+      },
+      {
+        "uptime_ms": 17748330,
+        "value": 149504
+      },
+      {
+        "uptime_ms": 17753870,
+        "value": 152936
+      },
+      {
+        "uptime_ms": 17759400,
+        "value": 150844
+      },
+      {
+        "uptime_ms": 17764900,
+        "value": 149456
+      },
+      {
+        "uptime_ms": 17770480,
+        "value": 151576
+      },
+      {
+        "uptime_ms": 17777380,
+        "value": 149352
+      },
+      {
+        "uptime_ms": 17782940,
+        "value": 149688
+      },
+      {
+        "uptime_ms": 17788520,
+        "value": 149660
+      },
+      {
+        "uptime_ms": 17793910,
+        "value": 151304
+      },
+      {
+        "uptime_ms": 17799330,
+        "value": 151620
+      },
+      {
+        "uptime_ms": 17804890,
+        "value": 151444
+      },
+      {
+        "uptime_ms": 17811590,
+        "value": 149528
+      },
+      {
+        "uptime_ms": 17817230,
+        "value": 151968
+      },
+      {
+        "uptime_ms": 17822650,
+        "value": 149496
+      },
+      {
+        "uptime_ms": 17828150,
+        "value": 151612
+      },
+      {
+        "uptime_ms": 17833700,
+        "value": 149972
+      },
+      {
+        "uptime_ms": 17839130,
+        "value": 151484
+      },
+      {
+        "uptime_ms": 17846050,
+        "value": 149724
+      },
+      {
+        "uptime_ms": 17851440,
+        "value": 151500
+      },
+      {
+        "uptime_ms": 17857100,
+        "value": 151156
+      },
+      {
+        "uptime_ms": 17862690,
+        "value": 151772
+      },
+      {
+        "uptime_ms": 17868080,
+        "value": 153608
+      },
+      {
+        "uptime_ms": 17873450,
+        "value": 149696
+      },
+      {
+        "uptime_ms": 17879750,
+        "value": 149440
+      },
+      {
+        "uptime_ms": 17885230,
+        "value": 151388
+      },
+      {
+        "uptime_ms": 17890700,
+        "value": 151384
+      },
+      {
+        "uptime_ms": 17896100,
+        "value": 151460
+      },
+      {
+        "uptime_ms": 17901600,
+        "value": 151844
+      },
+      {
+        "uptime_ms": 17907090,
+        "value": 153384
+      },
+      {
+        "uptime_ms": 17913770,
+        "value": 153572
+      },
+      {
+        "uptime_ms": 17919280,
+        "value": 149512
+      },
+      {
+        "uptime_ms": 17924880,
+        "value": 148972
+      },
+      {
+        "uptime_ms": 17930410,
+        "value": 149804
+      },
+      {
+        "uptime_ms": 17935890,
+        "value": 153516
+      },
+      {
+        "uptime_ms": 17941410,
+        "value": 153208
+      },
+      {
+        "uptime_ms": 17948080,
+        "value": 151708
+      },
+      {
+        "uptime_ms": 17953700,
+        "value": 149792
+      },
+      {
+        "uptime_ms": 17959310,
+        "value": 149888
+      },
+      {
+        "uptime_ms": 17964990,
+        "value": 151452
+      },
+      {
+        "uptime_ms": 17970460,
+        "value": 151456
+      },
+      {
+        "uptime_ms": 17975890,
+        "value": 148128
+      },
+      {
+        "uptime_ms": 17982390,
+        "value": 151836
+      },
+      {
+        "uptime_ms": 17987840,
+        "value": 151496
+      },
+      {
+        "uptime_ms": 17993350,
+        "value": 147920
+      },
+      {
+        "uptime_ms": 17998910,
+        "value": 151792
+      },
+      {
+        "uptime_ms": 18004470,
+        "value": 151596
+      },
+      {
+        "uptime_ms": 18009960,
+        "value": 153264
+      },
+      {
+        "uptime_ms": 18016850,
+        "value": 151872
+      },
+      {
+        "uptime_ms": 18022580,
+        "value": 151660
+      },
+      {
+        "uptime_ms": 18027950,
+        "value": 151832
+      },
+      {
+        "uptime_ms": 18033470,
+        "value": 151832
+      },
+      {
+        "uptime_ms": 18039170,
+        "value": 151084
+      },
+      {
+        "uptime_ms": 18044810,
+        "value": 151792
+      },
+      {
+        "uptime_ms": 18051870,
+        "value": 152068
+      },
+      {
+        "uptime_ms": 18057380,
+        "value": 151796
+      },
+      {
+        "uptime_ms": 18063030,
+        "value": 150016
+      },
+      {
+        "uptime_ms": 18068760,
+        "value": 147880
+      },
+      {
+        "uptime_ms": 18074440,
+        "value": 149596
+      },
+      {
+        "uptime_ms": 18080030,
+        "value": 150196
+      },
+      {
+        "uptime_ms": 18086730,
+        "value": 151808
+      },
+      {
+        "uptime_ms": 18092220,
+        "value": 151728
+      },
+      {
+        "uptime_ms": 18097680,
+        "value": 151520
+      },
+      {
+        "uptime_ms": 18103290,
+        "value": 151380
+      },
+      {
+        "uptime_ms": 18108780,
+        "value": 149776
+      },
+      {
+        "uptime_ms": 18114380,
+        "value": 151616
+      },
+      {
+        "uptime_ms": 18121190,
+        "value": 151900
+      },
+      {
+        "uptime_ms": 18126690,
+        "value": 150024
+      },
+      {
+        "uptime_ms": 18132260,
+        "value": 151944
+      },
+      {
+        "uptime_ms": 18137790,
+        "value": 149892
+      },
+      {
+        "uptime_ms": 18143270,
+        "value": 151732
+      },
+      {
+        "uptime_ms": 18148810,
+        "value": 149464
+      },
+      {
+        "uptime_ms": 18155010,
+        "value": 151184
+      },
+      {
+        "uptime_ms": 18160620,
+        "value": 152844
+      },
+      {
+        "uptime_ms": 18166100,
+        "value": 151152
+      },
+      {
+        "uptime_ms": 18171700,
+        "value": 147452
+      },
+      {
+        "uptime_ms": 18177170,
+        "value": 149176
+      },
+      {
+        "uptime_ms": 18182730,
+        "value": 148988
+      },
+      {
+        "uptime_ms": 18190140,
+        "value": 149936
+      },
+      {
+        "uptime_ms": 18195620,
+        "value": 148808
+      },
+      {
+        "uptime_ms": 18201180,
+        "value": 152332
+      },
+      {
+        "uptime_ms": 18206700,
+        "value": 148572
+      },
+      {
+        "uptime_ms": 18212340,
+        "value": 148480
+      },
+      {
+        "uptime_ms": 18217900,
+        "value": 148192
+      },
+      {
+        "uptime_ms": 18224790,
+        "value": 146440
+      },
+      {
+        "uptime_ms": 18230270,
+        "value": 148508
+      },
+      {
+        "uptime_ms": 18235940,
+        "value": 152272
+      },
+      {
+        "uptime_ms": 18241380,
+        "value": 150440
+      },
+      {
+        "uptime_ms": 18246970,
+        "value": 148624
+      }
+    ]
+  }
+}

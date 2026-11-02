@@ -226,7 +226,9 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       below, from two full-matrix runs of identical code
 - [x] L3 baseline committed: DN-ENG41, both camera backends, 12 cold launches each, both
       pairs in one session (`docs/maint/reports/l3-*-DN-ENG41-20261102.json`)
-- [ ] **L4 baseline** — the harness exists, no soak is committed yet
+- [x] L4 baseline committed: DN-ENG41, both backends, 12-minute soaks in one session.
+      **CameraX costs ~60% more CPU to keep scanning** (118% of one core against 74%);
+      neither backend leaks (`docs/maint/reports/l4-verdict-DN-ENG41-20261102.md`)
 
 ### Phase 5 — Kotlin and native decoding
 

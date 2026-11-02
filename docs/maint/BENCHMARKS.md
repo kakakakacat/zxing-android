@@ -1007,9 +1007,14 @@ python3 -I benchmark/tools/l4_report.py \
     --device-api <api> --out docs/maint/reports/l4-<backend>-<device>-<date>.json
 ```
 
-**No baseline is committed yet.** The harness is built and tested; the first pair of soaks
-is the next step, and until one is committed under `docs/maint/reports/` there is no L4
-number for anything to be compared against.
+**The baseline**: `docs/maint/reports/l4-{camera1,camerax}-DN-ENG41-20261102.json`, read in
+`l4-verdict-DN-ENG41-20261102.md`. Two 12-minute soaks, one session, miss path.
+
+Its headline is the thing §10 could not reach and the Phase 6 record listed as unmeasured:
+**CameraX costs about 60% more CPU to keep scanning** — 118% of one core against 74%, with
+ranges that do not touch — for +17 MB PSS and +17 threads, at an identical Java heap and
+slightly *fewer* GCs. Neither backend leaks over twelve minutes and neither degrades across
+the run.
 
 Root adb, for the same preference write L3 needs. The script fails if the app dies during
 the soak or is gone at the end — a soak whose process died has flat CPU for the wrong
