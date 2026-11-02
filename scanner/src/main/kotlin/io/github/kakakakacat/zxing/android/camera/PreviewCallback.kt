@@ -19,9 +19,14 @@ package io.github.kakakakacat.zxing.android.camera
 import android.hardware.Camera
 import android.os.Handler
 
+/**
+ * @param buildFrame wraps the delivered buffer and the frame size into the [ScanFrame] the
+ *   decode thread consumes. Supplied by [CameraManager], which owns the crop rectangle.
+ */
 @Suppress("DEPRECATION") // camera APIs
 internal class PreviewCallback(
-    private val configManager: CameraConfigurationManager
+    private val configManager: CameraConfigurationManager,
+    private val buildFrame: (ByteArray?, Int, Int) -> ScanFrame
 ) : Camera.PreviewCallback {
 
   private var previewHandler: Handler? = null
@@ -39,10 +44,15 @@ internal class PreviewCallback(
     val cameraResolution = configManager.cameraResolution
     val thePreviewHandler = previewHandler
     if (cameraResolution != null && thePreviewHandler != null) {
-      val message = thePreviewHandler.obtainMessage(
-          previewMessage, cameraResolution.x, cameraResolution.y, data)
-      message.sendToTarget()
       previewHandler = null
+      val frame = buildFrame(data, cameraResolution.x, cameraResolution.y)
+      val message = thePreviewHandler.obtainMessage(previewMessage, frame)
+      // A decode thread that has already quit will not take the message. Nothing is leaked
+      // on this backend either way, but the contract is that whoever holds a ScanFrame
+      // closes it, and after a failed send that is still this method.
+      if (!thePreviewHandler.sendMessage(message)) {
+        frame.close()
+      }
     }
   }
 }

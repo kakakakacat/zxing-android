@@ -36,7 +36,7 @@ import java.io.IOException
  * @author dswitkin@google.com (Daniel Switkin)
  */
 @Suppress("DEPRECATION") // camera APIs
-class CameraManager(context: Context, options: ScannerOptions?) {
+class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera {
 
   private val options: ScannerOptions = options ?: ScannerOptions.defaults()
   private val configManager: CameraConfigurationManager =
@@ -46,7 +46,10 @@ class CameraManager(context: Context, options: ScannerOptions?) {
    * Preview frames are delivered here, which we pass on to the registered handler. Make sure to
    * clear the handler so it will only receive one message.
    */
-  private val previewCallback: PreviewCallback = PreviewCallback(configManager)
+  private val previewCallback: PreviewCallback =
+      PreviewCallback(configManager) { data, width, height ->
+        Camera1ScanFrame(buildLuminanceSource(data, width, height))
+      }
 
   private var camera: OpenCamera? = null
   private var autoFocusManager: AutoFocusManager? = null
@@ -117,7 +120,7 @@ class CameraManager(context: Context, options: ScannerOptions?) {
   }
 
   @get:Synchronized
-  val isOpen: Boolean
+  override val isOpen: Boolean
     get() = camera != null
 
   /**
@@ -184,7 +187,7 @@ class CameraManager(context: Context, options: ScannerOptions?) {
    * @param newSetting if `true`, light should be turned on if currently off. And vice versa.
    */
   @Synchronized
-  fun setTorch(newSetting: Boolean) {
+  override fun setTorch(newSetting: Boolean) {
     val theCamera = camera
     if (theCamera != null && newSetting != configManager.getTorchState(theCamera.camera)) {
       val wasAutoFocusManager = autoFocusManager != null
@@ -202,9 +205,14 @@ class CameraManager(context: Context, options: ScannerOptions?) {
   }
 
   /**
-   * A single preview frame will be returned to the handler supplied. The data will arrive as
-   * byte[] in the message.obj field, with width and height encoded as message.arg1 and
-   * message.arg2, respectively.
+   * A single preview frame will be returned to the handler supplied, as a [ScanFrame] in the
+   * message's `obj` field — already cropped to the scan rectangle, because the crop is
+   * computed from parameters only this class holds.
+   *
+   * It used to be the raw `byte[]` with the frame size in `arg1`/`arg2`, which left the crop
+   * to the receiver. Phase 6 added a second camera backend whose frames are not a `byte[]`
+   * and have to be handed back when the decode finishes, and [ScanFrame] is what the two
+   * have in common.
    *
    * @param handler The handler to send the message to.
    * @param message The what field of the message to be sent.
@@ -226,7 +234,7 @@ class CameraManager(context: Context, options: ScannerOptions?) {
    * @return The rectangle to draw on screen in window coordinates.
    */
   @Synchronized
-  fun getFramingRect(): Rect? {
+  override fun getFramingRect(): Rect? {
     if (framingRect == null) {
       if (camera == null) {
         return null
@@ -249,7 +257,7 @@ class CameraManager(context: Context, options: ScannerOptions?) {
    * @return [Rect] expressing barcode scan area in terms of the preview size
    */
   @Synchronized
-  fun getFramingRectInPreview(): Rect? {
+  override fun getFramingRectInPreview(): Rect? {
     if (framingRectInPreview == null) {
       val rect = getFramingRect() ?: return null
       // Called early, before init even finished

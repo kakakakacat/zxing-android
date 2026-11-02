@@ -24,8 +24,11 @@ import android.os.Message
 import android.util.Log
 import io.github.kakakakacat.zxing.BarcodeFormat
 import io.github.kakakakacat.zxing.DecodeHintType
+import io.github.kakakakacat.zxing.LuminanceSource
 import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource
 import io.github.kakakakacat.zxing.ResultPointCallback
+import io.github.kakakakacat.zxing.android.camera.ScanFrame
+import io.github.kakakakacat.zxing.android.camera.YPlaneLuminanceSource
 import java.util.EnumMap
 import java.util.concurrent.CountDownLatch
 
@@ -35,7 +38,6 @@ import java.util.concurrent.CountDownLatch
  * buffer handed over by the camera is never shared with a second decode.
  */
 internal class DecoderThread(
-    private val frameSource: FrameSource,
     private val replyTo: Handler,
     options: ScannerOptions,
     private val initialFormats: Collection<@JvmSuppressWildcards BarcodeFormat>?,
@@ -53,11 +55,6 @@ internal class DecoderThread(
 
   @Volatile
   private var handler: Handler? = null
-
-  /** Lets the decode thread ask for the crop rectangle without knowing about the camera. */
-  interface FrameSource {
-    fun buildLuminanceSource(data: ByteArray?, width: Int, height: Int): PlanarYUVLuminanceSource?
-  }
 
   /**
    * The decoder this thread will use.
@@ -126,7 +123,7 @@ internal class DecoderThread(
         return
       }
       if (message.what == MSG_DECODE) {
-        decode(message.obj as ByteArray?, message.arg1, message.arg2)
+        decode(message.obj as ScanFrame)
       } else if (message.what == MSG_SET_FORMATS) {
         @Suppress("UNCHECKED_CAST")
         val formats = message.obj as Collection<BarcodeFormat>?
@@ -139,34 +136,62 @@ internal class DecoderThread(
       }
     }
 
-    private fun decode(data: ByteArray?, width: Int, height: Int) {
-      val source = frameSource.buildLuminanceSource(data, width, height)
-      val rawResult = if (source == null) null else decoder.decode(source)
+    /**
+     * Decodes one frame and gives it back.
+     *
+     * The frame is closed in a `finally` and nowhere else. On the CameraX backend it holds a
+     * slot in the camera's buffer queue, and a slot that is never returned stops frame
+     * delivery altogether — with no exception to find it by.
+     */
+    private fun decode(frame: ScanFrame) {
+      try {
+        val source = frame.source
+        val rawResult = if (source == null) null else decoder.decode(source)
 
-      if (rawResult == null) {
-        // arg1 carries the session id so a reply from a torn-down session can be dropped.
-        replyTo.obtainMessage(ScannerView.MSG_DECODE_FAILED, sessionId, 0).sendToTarget()
-        return
-      }
+        if (rawResult == null) {
+          // arg1 carries the session id so a reply from a torn-down session can be dropped.
+          replyTo.obtainMessage(ScannerView.MSG_DECODE_FAILED, sessionId, 0).sendToTarget()
+          return
+        }
 
-      var thumbnail: Bitmap? = null
-      var scaleFactor = 1.0f
-      if (thumbnails && source != null) {
-        val pixels = source.renderThumbnail()
-        val tw = source.thumbnailWidth
-        val th = source.thumbnailHeight
-        // Mutable, so callers can draw result points straight onto it. Upstream JPEG
-        // compressed this to cross a thread boundary inside one process and then made a
-        // second copy to get a mutable bitmap back; both threads are here, so neither
-        // step is needed.
-        thumbnail = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888)
-        thumbnail.setPixels(pixels, 0, tw, 0, 0, tw, th)
-        scaleFactor = tw.toFloat() / source.width
+        var thumbnail: Bitmap? = null
+        var scaleFactor = 1.0f
+        val planar = if (thumbnails && source != null) thumbnailSource(source) else null
+        if (planar != null) {
+          val pixels = planar.renderThumbnail()
+          val tw = planar.thumbnailWidth
+          val th = planar.thumbnailHeight
+          // Mutable, so callers can draw result points straight onto it. Upstream JPEG
+          // compressed this to cross a thread boundary inside one process and then made a
+          // second copy to get a mutable bitmap back; both threads are here, so neither
+          // step is needed.
+          thumbnail = Bitmap.createBitmap(tw, th, Bitmap.Config.ARGB_8888)
+          thumbnail.setPixels(pixels, 0, tw, 0, 0, tw, th)
+          scaleFactor = tw.toFloat() / planar.width
+        }
+        val reply = replyTo.obtainMessage(ScannerView.MSG_DECODE_SUCCEEDED, sessionId, 0,
+            ScanOutcome.of(rawResult, thumbnail, scaleFactor))
+        reply.sendToTarget()
+      } finally {
+        frame.close()
       }
-      val reply = replyTo.obtainMessage(ScannerView.MSG_DECODE_SUCCEEDED, sessionId, 0,
-          ScanOutcome.of(rawResult, thumbnail, scaleFactor))
-      reply.sendToTarget()
     }
+
+    /**
+     * The thumbnail that goes out with a successful scan, which only
+     * [PlanarYUVLuminanceSource] knows how to render.
+     *
+     * A CameraX frame is a [YPlaneLuminanceSource] reading the camera's buffer in place, so
+     * it has to be copied out before the image is closed — [YPlaneLuminanceSource.detach]
+     * pays one scan-rectangle-sized copy, not a frame. That copy is only made on the one
+     * frame per session that decodes, and only when thumbnails are enabled.
+     */
+    private fun thumbnailSource(source: LuminanceSource): PlanarYUVLuminanceSource? =
+        when (source) {
+          is PlanarYUVLuminanceSource -> source
+          is YPlaneLuminanceSource -> source.detach()
+          else -> null
+        }
   }
 
   companion object {

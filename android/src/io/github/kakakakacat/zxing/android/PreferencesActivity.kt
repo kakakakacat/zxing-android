@@ -61,6 +61,17 @@ class PreferencesActivity : Activity() {
     const val KEY_SEARCH_COUNTRY = "preferences_search_country"
     const val KEY_DISABLE_AUTO_ORIENTATION = "preferences_orientation"
 
+    /**
+     * Scan through CameraX rather than `android.hardware.Camera`.
+     *
+     * Off by default, which is also [ScannerOptions][io.github.kakakakacat.zxing.android.scanner.ScannerOptions]'s
+     * default: Phase 6 adopted CameraX and will not make it the default until the
+     * verification `docs/maint/decisions/0001-camera-backend.md` asks for has been done on
+     * hardware. Until then this is how that verification is driven, and afterwards it is
+     * how a device CameraX handles badly gets its old behaviour back.
+     */
+    const val KEY_CAMERAX = "preferences_camerax"
+
     const val KEY_DISABLE_CONTINUOUS_FOCUS = "preferences_disable_continuous_focus"
     const val KEY_DISABLE_EXPOSURE = "preferences_disable_exposure"
     const val KEY_DISABLE_METERING = "preferences_disable_metering"

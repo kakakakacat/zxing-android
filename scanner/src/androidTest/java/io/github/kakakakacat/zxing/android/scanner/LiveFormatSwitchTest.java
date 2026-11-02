@@ -29,6 +29,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 import io.github.kakakakacat.zxing.BarcodeFormat;
 import io.github.kakakakacat.zxing.MultiFormatWriter;
 import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource;
+import io.github.kakakakacat.zxing.android.camera.Camera1ScanFrame;
 import io.github.kakakakacat.zxing.common.BitMatrix;
 
 import org.junit.After;
@@ -89,15 +90,7 @@ public final class LiveFormatSwitchTest {
       }
     };
 
-    DecoderThread.FrameSource frameSource = new DecoderThread.FrameSource() {
-      @Override
-      public PlanarYUVLuminanceSource buildLuminanceSource(byte[] data, int width, int height) {
-        return new PlanarYUVLuminanceSource(data, width, height, 0, 0, width, height, false);
-      }
-    };
-
-    decoder = new DecoderThread(frameSource, replyTo, ScannerOptions.defaults(),
-                                null, null, false, 1);
+    decoder = new DecoderThread(replyTo, ScannerOptions.defaults(), null, null, false, 1);
     decoder.start();
     decodeHandler = decoder.getHandler();
     assertNotNull("decode looper never came up", decodeHandler);
@@ -115,7 +108,11 @@ public final class LiveFormatSwitchTest {
 
   private int decodeOnce(byte[] frame) throws InterruptedException {
     replies.clear();
-    decodeHandler.obtainMessage(DecoderThread.MSG_DECODE, SIZE, SIZE, frame).sendToTarget();
+    // The decode thread takes a ScanFrame now, already cropped: the crop belongs to the
+    // camera backend, which knows the frame geometry, and not to the decoder.
+    Camera1ScanFrame scanFrame = new Camera1ScanFrame(
+        new PlanarYUVLuminanceSource(frame, SIZE, SIZE, 0, 0, SIZE, SIZE, false));
+    decodeHandler.obtainMessage(DecoderThread.MSG_DECODE, scanFrame).sendToTarget();
     Integer what = replies.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
     assertNotNull("the decode thread never answered", what);
     return what;

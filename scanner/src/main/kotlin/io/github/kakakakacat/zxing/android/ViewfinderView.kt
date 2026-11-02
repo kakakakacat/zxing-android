@@ -24,7 +24,7 @@ import android.graphics.Paint
 import android.util.AttributeSet
 import android.view.View
 import io.github.kakakakacat.zxing.ResultPoint
-import io.github.kakakakacat.zxing.android.camera.CameraManager
+import io.github.kakakakacat.zxing.android.camera.ScannerCamera
 import io.github.kakakakacat.zxing.android.scanner.R
 
 /**
@@ -37,7 +37,7 @@ import io.github.kakakakacat.zxing.android.scanner.R
 @Suppress("DEPRECATION")
 class ViewfinderView(context: Context, attrs: AttributeSet?) : View(context, attrs) {
 
-  private var cameraManager: CameraManager? = null
+  private var camera: ScannerCamera? = null
 
   // Initialize these once for performance rather than calling them every time in onDraw().
   private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
@@ -53,14 +53,21 @@ class ViewfinderView(context: Context, attrs: AttributeSet?) : View(context, att
 
   constructor(context: Context) : this(context, null)
 
-  fun setCameraManager(cameraManager: CameraManager?) {
-    this.cameraManager = cameraManager
+  /**
+   * The open camera to read the scan rectangle from, or null to stop drawing one.
+   *
+   * Was `setCameraManager(CameraManager)` until Phase 6 put a second camera stack behind the
+   * scanner; the overlay never needed anything from `CameraManager` that [ScannerCamera]
+   * does not carry.
+   */
+  fun setCamera(camera: ScannerCamera?) {
+    this.camera = camera
   }
 
   @SuppressLint("DrawAllocation")
   override fun onDraw(canvas: Canvas) {
     // not ready yet, early draw before done configuring
-    val manager = cameraManager ?: return
+    val manager = camera ?: return
     val frame = manager.getFramingRect() ?: return
     val previewFrame = manager.getFramingRectInPreview() ?: return
     val width = canvas.width

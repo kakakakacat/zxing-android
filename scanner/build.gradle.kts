@@ -110,6 +110,22 @@ dependencies {
   // moment anything else on their classpath pulled upstream core.
   api(project(":core"))
 
+  // CameraX, Phase 6's adopted camera backend. `implementation`, not `api`: no CameraX
+  // type appears in this library's public API, so a consumer never has to name one.
+  //
+  // `camera-view` is deliberately absent. PreviewView would have dragged AppCompat,
+  // camera-video and 273 resources in for 350,792 bytes, and this project already owns the
+  // one thing it needed from it -- the overlay coordinate mapping, in
+  // PreviewCoordinateMapper. Measured, with the alternative built both ways, in
+  // docs/maint/decisions/0001-camera-backend.md section 2.
+  implementation(libs.camerax.core)
+  implementation(libs.camerax.camera2)
+  implementation(libs.camerax.lifecycle)
+  // CameraX binds to a LifecycleOwner. ScannerView is a plain View with an explicit
+  // resume/pause contract rather than a lifecycle-aware component, so it drives a
+  // LifecycleRegistry of its own; this is the artifact that provides one.
+  implementation(libs.androidx.lifecycle.runtime)
+
   testImplementation(libs.junit)
   androidTestImplementation(libs.junit)
   androidTestImplementation(libs.androidx.test.runner)

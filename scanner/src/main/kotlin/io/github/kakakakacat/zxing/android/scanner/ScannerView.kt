@@ -25,19 +25,20 @@ import android.os.Handler
 import android.os.Looper
 import android.os.Message
 import android.util.AttributeSet
-import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.ViewGroup
 import android.widget.FrameLayout
 import io.github.kakakakacat.zxing.BarcodeFormat
-import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource
 import io.github.kakakakacat.zxing.ResultPoint
 import io.github.kakakakacat.zxing.ResultPointCallback
 import io.github.kakakakacat.zxing.android.AmbientLightManager
 import io.github.kakakakacat.zxing.android.ViewfinderView
+import io.github.kakakakacat.zxing.android.camera.Camera1Backend
 import io.github.kakakakacat.zxing.android.camera.CameraManager
-import java.io.IOException
+import io.github.kakakakacat.zxing.android.camera.CameraXBackend
+import io.github.kakakakacat.zxing.android.camera.ScannerCamera
+import io.github.kakakakacat.zxing.android.camera.ScannerCameraBackend
 
 /**
  * A drop-in scanning surface: add it to a layout, give it a [Listener], call [resume] and
@@ -79,7 +80,7 @@ class ScannerView(
   private var listener: Listener? = null
   private var thumbnailsEnabled = true
 
-  private var cameraManager: CameraManager? = null
+  private var backend: ScannerCameraBackend? = null
   private var ambientLightManager: AmbientLightManager? = null
   private var decoderThread: DecoderThread? = null
   private var hasSurface = false
@@ -147,7 +148,18 @@ class ScannerView(
   fun getViewfinderView(): ViewfinderView = viewfinderView
 
   /** Null until the camera is open. */
-  fun getCameraManager(): CameraManager? = cameraManager
+  fun getCamera(): ScannerCamera? = backend
+
+  /**
+   * The Camera1 stack, or null — including whenever
+   * [ScannerOptions.CameraBackend.CAMERAX] is the backend in use, which has no
+   * `CameraManager` behind it at all.
+   *
+   * Prefer [getCamera], which answers for either backend. This remains for callers that
+   * reach into the Camera1 parameter handling directly, and it is the one thing the CameraX
+   * path cannot offer them.
+   */
+  fun getCameraManager(): CameraManager? = (backend as? Camera1Backend)?.cameraManager
 
   /** Call from the host's onResume. Opens the camera and starts decoding. */
   fun resume() {
@@ -160,9 +172,10 @@ class ScannerView(
       reportError(ScannerError.PERMISSION_DENIED, null)
       return
     }
-    cameraManager = CameraManager(context.applicationContext, options)
+    val opened = createBackend()
+    backend = opened
     ambientLightManager = AmbientLightManager(context, options.frontLightMode)
-    viewfinderView.setCameraManager(cameraManager)
+    viewfinderView.setCamera(opened)
     val holder = surfaceView.holder
     if (hasSurface) {
       openCamera(holder)
@@ -180,8 +193,9 @@ class ScannerView(
     stopScanning()
     ambientLightManager?.stop()
     ambientLightManager = null
-    cameraManager?.closeDriver()
-    cameraManager = null
+    backend?.close()
+    backend = null
+    viewfinderView.setCamera(null)
     if (!hasSurface) {
       surfaceView.holder.removeCallback(this)
     }
@@ -189,7 +203,7 @@ class ScannerView(
 
   /** After a result has been shown, ask for the next frame. */
   fun resumeScanning() {
-    if (!resumed || cameraManager == null || decoderThread == null || isScanning) {
+    if (!resumed || backend == null || decoderThread == null || isScanning) {
       return
     }
     isScanning = true
@@ -199,7 +213,7 @@ class ScannerView(
 
   /** Turns the torch on or off. No-op if the camera is not open. */
   fun setTorch(on: Boolean) {
-    cameraManager?.setTorch(on)
+    backend?.setTorch(on)
   }
 
   // No SDK_INT guard: minSdk is 23, so the runtime permission model is the only one
@@ -208,68 +222,62 @@ class ScannerView(
       context.checkSelfPermission(Manifest.permission.CAMERA) ==
           PackageManager.PERMISSION_GRANTED
 
+  private fun createBackend(): ScannerCameraBackend =
+      if (options.cameraBackend == ScannerOptions.CameraBackend.CAMERAX) {
+        CameraXBackend(context, options)
+      } else {
+        Camera1Backend(context, options)
+      }
+
   private fun openCamera(holder: SurfaceHolder) {
-    val manager = cameraManager
-    if (manager == null || manager.isOpen) {
+    val camera = backend
+    if (camera == null || camera.isOpen) {
       return
     }
-    try {
-      manager.openDriver(holder)
-    } catch (ioe: IOException) {
-      // openDriver reports "no camera object from the driver" and a failed
-      // setPreviewDisplay through the same exception type; isOpen tells them apart.
-      Log.w(TAG, "Could not open the camera or attach the preview", ioe)
-      reportError(if (manager.isOpen) ScannerError.PREVIEW_FAILED
-                  else cameraUnavailableOrMissing(manager), ioe)
-      return
-    } catch (re: RuntimeException) {
-      // Camera.open() throws RuntimeException for "no camera", "camera in use" and
-      // "service died" alike; distinguish what we can rather than blaming the device.
-      Log.w(TAG, "Could not open the camera", re)
-      reportError(cameraUnavailableOrMissing(manager), re)
-      return
+    // Opening can finish later than this call -- it does on CameraX -- so everything that
+    // follows a successful open lives in the callback, for both backends alike.
+    camera.open(holder, cameraCallback)
+  }
+
+  private val cameraCallback = object : ScannerCameraBackend.Callback {
+
+    override fun onCameraReady() {
+      val camera = backend
+      if (!resumed || camera == null) {
+        // Paused while the camera was opening. On the CameraX path that is a real race, not
+        // a theoretical one: the provider comes up asynchronously.
+        return
+      }
+      sessionId++
+      val thread = DecoderThread(
+          mainHandler, options, formats,
+          object : ResultPointCallback {
+            override fun foundPossibleResultPoint(point: ResultPoint) {
+              viewfinderView.addPossibleResultPoint(point)
+            }
+          },
+          thumbnailsEnabled, sessionId)
+      thread.start()
+      decoderThread = thread
+
+      ambientLightManager?.start(camera)
+      isScanning = true
+      viewfinderView.drawViewfinder()
+      requestFrame()
     }
 
-    sessionId++
-    val thisSession = sessionId
-    val thread = DecoderThread(
-        object : DecoderThread.FrameSource {
-          override fun buildLuminanceSource(
-              data: ByteArray?,
-              width: Int,
-              height: Int
-          ): PlanarYUVLuminanceSource? = cameraManager?.buildLuminanceSource(data, width, height)
-        },
-        mainHandler, options, formats,
-        object : ResultPointCallback {
-          override fun foundPossibleResultPoint(point: ResultPoint) {
-            viewfinderView.addPossibleResultPoint(point)
-          }
-        },
-        thumbnailsEnabled, thisSession)
-    thread.start()
-    decoderThread = thread
-
-    try {
-      manager.startPreview()
-    } catch (re: RuntimeException) {
-      Log.w(TAG, "Could not start the preview", re)
+    override fun onCameraError(error: ScannerError, cause: Exception?) {
       stopScanning()
-      reportError(ScannerError.PREVIEW_FAILED, re)
-      return
+      reportError(error, cause)
     }
-    ambientLightManager?.start(manager)
-    isScanning = true
-    viewfinderView.drawViewfinder()
-    requestFrame()
   }
 
   private fun requestFrame() {
-    val manager = cameraManager ?: return
+    val camera = backend ?: return
     val thread = decoderThread ?: return
     val decodeHandler = thread.getHandler()
     if (decodeHandler != null) {
-      manager.requestPreviewFrame(decodeHandler, DecoderThread.MSG_DECODE)
+      camera.requestFrame(decodeHandler, DecoderThread.MSG_DECODE)
     }
   }
 
@@ -279,7 +287,9 @@ class ScannerView(
     sessionId++
     val thread = decoderThread
     decoderThread = null
-    cameraManager?.stopPreview()
+    // Cancel the outstanding request before the thread goes away, so no frame is delivered
+    // to a looper that has quit.
+    backend?.stopFrames()
     if (thread != null) {
       thread.getHandler()?.obtainMessage(DecoderThread.MSG_QUIT)?.sendToTarget()
       try {
@@ -330,23 +340,19 @@ class ScannerView(
 
   override fun surfaceDestroyed(holder: SurfaceHolder) {
     hasSurface = false
-    // The camera cannot keep drawing into a surface that is going away.
+    // The camera cannot keep drawing into a surface that is going away. The backend stays,
+    // so surfaceCreated reopens it with the same options.
     if (resumed) {
       stopScanning()
-      cameraManager?.closeDriver()
+      backend?.close()
     }
   }
 
   /** The scan rectangle in view coordinates, or null before the camera is configured. */
-  fun getFramingRect(): Rect? = cameraManager?.getFramingRect()
+  fun getFramingRect(): Rect? = backend?.getFramingRect()
 
   companion object {
     internal const val MSG_DECODE_SUCCEEDED = 10
     internal const val MSG_DECODE_FAILED = 11
-
-    private const val TAG = "ScannerView"
-
-    private fun cameraUnavailableOrMissing(manager: CameraManager): ScannerError =
-        if (manager.hasAnyCamera()) ScannerError.CAMERA_UNAVAILABLE else ScannerError.NO_CAMERA
   }
 }

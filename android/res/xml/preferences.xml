@@ -100,6 +100,11 @@
         android:key="preferences_orientation"
         android:defaultValue="true"
         android:title="@string/preferences_orientation_title"/>
+    <CheckBoxPreference
+        android:key="preferences_camerax"
+        android:defaultValue="false"
+        android:title="@string/preferences_camerax_title"
+        android:summary="@string/preferences_camerax_summary"/>
   </PreferenceCategory>
   <PreferenceCategory android:title="@string/preferences_result_title">
     <EditTextPreference

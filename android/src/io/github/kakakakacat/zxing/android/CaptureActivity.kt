@@ -281,6 +281,12 @@ class CaptureActivity : Activity(), ScannerView.Listener {
    */
   private fun scannerOptionsFromPreferences(prefs: SharedPreferences): ScannerOptions.Builder =
       ScannerOptions.Builder()
+          .setCameraBackend(
+              if (prefs.getBoolean(PreferencesActivity.KEY_CAMERAX, false)) {
+                ScannerOptions.CameraBackend.CAMERAX
+              } else {
+                ScannerOptions.CameraBackend.CAMERA1
+              })
           .setAutoFocus(prefs.getBoolean(PreferencesActivity.KEY_AUTO_FOCUS, true))
           .setContinuousFocusDisabled(
               prefs.getBoolean(PreferencesActivity.KEY_DISABLE_CONTINUOUS_FOCUS, false))

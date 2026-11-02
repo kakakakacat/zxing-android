@@ -21,7 +21,7 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import io.github.kakakakacat.zxing.android.camera.CameraManager
+import io.github.kakakakacat.zxing.android.camera.ScannerCamera
 import io.github.kakakakacat.zxing.android.camera.FrontLightMode
 
 /**
@@ -38,11 +38,11 @@ class AmbientLightManager(
 
   private val frontLightMode: FrontLightMode = frontLightMode ?: FrontLightMode.OFF
   private val torchPolicy = TorchPolicy()
-  private var cameraManager: CameraManager? = null
+  private var camera: ScannerCamera? = null
   private var lightSensor: Sensor? = null
 
-  fun start(cameraManager: CameraManager?) {
-    this.cameraManager = cameraManager
+  fun start(camera: ScannerCamera?) {
+    this.camera = camera
     // A camera that has just been opened has its torch off, whatever the policy last
     // asked for on the previous one.
     torchPolicy.reset()
@@ -60,14 +60,14 @@ class AmbientLightManager(
     if (lightSensor != null) {
       val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
       sensorManager.unregisterListener(this)
-      cameraManager = null
+      camera = null
       lightSensor = null
       torchPolicy.reset()
     }
   }
 
   override fun onSensorChanged(sensorEvent: SensorEvent) {
-    val manager = cameraManager ?: return
+    val manager = camera ?: return
     // Was defect A-12: this called setTorch on every callback, five a second, each one
     // reading the camera's parameters and each change tearing down and rebuilding the
     // AutoFocusManager. TorchPolicy says when a change is actually wanted, and null --

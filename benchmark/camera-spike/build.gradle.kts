@@ -106,9 +106,9 @@ dependencies {
   implementation(libs.androidx.core)
 
   listOf("camerax", "cameraxlean").forEach { flavor ->
-    add("${flavor}Implementation", libs.camerax.core)
-    add("${flavor}Implementation", libs.camerax.camera2)
-    add("${flavor}Implementation", libs.camerax.lifecycle)
+    add("${flavor}Implementation", libs.camerax.spike.core)
+    add("${flavor}Implementation", libs.camerax.spike.camera2)
+    add("${flavor}Implementation", libs.camerax.spike.lifecycle)
     // CameraX binds to a LifecycleOwner and this spike's activity is a plain android.app
     // Activity, so the flavors supply one. Counted as part of CameraX's cost: an app that
     // is not already on AndroidX lifecycle pays it to adopt CameraX.
@@ -116,5 +116,5 @@ dependencies {
   }
   // PreviewView, and with it AppCompat and camera-video. The whole point of the lean
   // flavor is what this line costs.
-  "cameraxImplementation"(libs.camerax.view)
+  "cameraxImplementation"(libs.camerax.spike.view)
 }

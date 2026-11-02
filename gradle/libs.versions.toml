@@ -12,10 +12,14 @@ androidxTestCore = "1.6.1"
 androidxTestExtJunit = "1.2.1"
 androidxBenchmark = "1.5.0"
 androidxLifecycle = "2.8.7"
-# The last CameraX line that still supports minSdk 21, which this project is. 1.5.0 raised
-# the floor to 23. Used only by the Phase 6 spike; see
-# docs/maint/decisions/0001-camera-backend.md.
-camerax = "1.4.2"
+# The CameraX line :scanner ships against, Phase 6's adoption. Current stable; minSdk 23,
+# which is this project's floor since `2e9e5ce16`.
+camerax = "1.6.2"
+# What the Phase 6 spike is built against, and it stays there on purpose: every number in
+# docs/maint/decisions/0001-camera-backend.md was measured on 1.4.2, and a version bump
+# under the spike would quietly detach those numbers from the code that produced them.
+# 1.4.2 is also the last line that supported minSdk 21, which the spike predates.
+cameraxSpike = "1.4.2"
 
 [libraries]
 junit = { module = "junit:junit", version.ref = "junit" }
@@ -28,7 +32,12 @@ androidx-lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime", 
 camerax-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
 camerax-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 camerax-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
-camerax-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+# The spike's three, pinned to the version its recorded measurements were taken on.
+# camera-view exists only there: the shipping library deliberately does not take it.
+camerax-spike-core = { module = "androidx.camera:camera-core", version.ref = "cameraxSpike" }
+camerax-spike-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraxSpike" }
+camerax-spike-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraxSpike" }
+camerax-spike-view = { module = "androidx.camera:camera-view", version.ref = "cameraxSpike" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

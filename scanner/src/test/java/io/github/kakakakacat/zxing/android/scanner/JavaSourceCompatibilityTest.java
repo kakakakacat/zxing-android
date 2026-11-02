@@ -31,6 +31,7 @@ import io.github.kakakakacat.zxing.Result;
 import io.github.kakakakacat.zxing.android.Intents;
 import io.github.kakakakacat.zxing.android.ViewfinderView;
 import io.github.kakakakacat.zxing.android.camera.CameraManager;
+import io.github.kakakakacat.zxing.android.camera.ScannerCamera;
 import io.github.kakakakacat.zxing.android.camera.FrontLightMode;
 import io.github.kakakakacat.zxing.android.camera.PreviewCoordinateMapper;
 import io.github.kakakakacat.zxing.android.camera.YPlaneLuminanceSource;
@@ -121,6 +122,7 @@ public final class JavaSourceCompatibilityTest {
     hints.put(DecodeHintType.TRY_HARDER, Boolean.TRUE);
 
     ScannerOptions options = new ScannerOptions.Builder()
+        .setCameraBackend(ScannerOptions.CameraBackend.CAMERAX)
         .setDecoderBackend(ScannerOptions.DecoderBackend.JAVA)
         .setFormats(formats)
         .setBaseHints(hints)
@@ -136,6 +138,7 @@ public final class JavaSourceCompatibilityTest {
         .setFramingRect(640, 480)
         .build();
 
+    assertSame(ScannerOptions.CameraBackend.CAMERAX, options.getCameraBackend());
     assertSame(ScannerOptions.DecoderBackend.JAVA, options.getDecoderBackend());
     assertEquals(2, options.getFormats().size());
     assertEquals(Boolean.TRUE, options.getBaseHints().get(DecodeHintType.TRY_HARDER));
@@ -153,6 +156,7 @@ public final class JavaSourceCompatibilityTest {
 
     // buildUpon has to preserve every field; a setter left out of it would be silent.
     ScannerOptions copy = options.buildUpon().build();
+    assertSame(options.getCameraBackend(), copy.getCameraBackend());
     assertSame(options.getDecoderBackend(), copy.getDecoderBackend());
     assertEquals(options.getFormats().size(), copy.getFormats().size());
     assertEquals(options.getBaseHints(), copy.getBaseHints());
@@ -246,6 +250,7 @@ public final class JavaSourceCompatibilityTest {
     boolean scanning = view.isScanning();
     ViewfinderView viewfinder = view.getViewfinderView();
     CameraManager manager = view.getCameraManager();
+    ScannerCamera camera = view.getCamera();
     Rect rect = view.getFramingRect();
 
     view.setListener(new ScannerView.Listener() {
@@ -299,7 +304,9 @@ public final class JavaSourceCompatibilityTest {
     decoder.setFormats(formats);
     decoder.close();
 
-    viewfinder.setCameraManager(manager);
+    // Either backend's camera satisfies the overlay; a CameraManager is one.
+    viewfinder.setCamera(manager);
+    viewfinder.setCamera(camera);
     viewfinder.drawViewfinder();
     viewfinder.drawResultBitmap(null);
     viewfinder.addPossibleResultPoint(new io.github.kakakakacat.zxing.ResultPoint(0, 0));

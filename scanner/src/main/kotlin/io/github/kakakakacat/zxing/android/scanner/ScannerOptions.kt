@@ -34,6 +34,8 @@ import java.util.EnumMap
  * Instances are immutable and safe to share across threads.
  */
 class ScannerOptions private constructor(
+    /** Which camera stack delivers frames. [CameraBackend.CAMERA1] by default. */
+    val cameraBackend: CameraBackend,
     /** Which decoder does the work. [DecoderBackend.AUTO] by default. */
     val decoderBackend: DecoderBackend,
     /** Formats to look for, or `null` to let the reader try everything it supports. */
@@ -52,6 +54,34 @@ class ScannerOptions private constructor(
     val framingRectWidth: Int,
     val framingRectHeight: Int
 ) {
+
+  /**
+   * Which camera stack delivers frames.
+   *
+   * Phase 6 adopted CameraX and kept the original `android.hardware.Camera` path reachable
+   * rather than deleting it, so a device CameraX handles badly has somewhere to go. The
+   * comparison that led to that — two physical devices, time to a decodable frame, APK size
+   * and what each stack costs to maintain — is `docs/maint/decisions/0001-camera-backend.md`.
+   */
+  enum class CameraBackend {
+
+    /**
+     * `android.hardware.Camera`, deprecated since API 21, and this fork's 1,285 lines of
+     * quirk handling for it.
+     *
+     * Still the default: CameraX does not become the default until the verification the
+     * decision record asks for has been done on a device, not before.
+     */
+    CAMERA1,
+
+    /**
+     * CameraX, without `camera-view`.
+     *
+     * Frames reach the decoder as `ImageProxy` luma planes read in place, so a frame is not
+     * copied on its way to being decoded. Only the back camera is considered.
+     */
+    CAMERAX
+  }
 
   /** Which decoder does the work. */
   enum class DecoderBackend {
@@ -88,6 +118,7 @@ class ScannerOptions private constructor(
    * bytecode and would have handed callers a second, undocumented way to build a Builder.
    */
   fun buildUpon(): Builder = Builder()
+      .setCameraBackend(cameraBackend)
       .setDecoderBackend(decoderBackend)
       .setFormats(formats)
       .setBaseHints(baseHints)
@@ -104,6 +135,7 @@ class ScannerOptions private constructor(
 
   class Builder {
 
+    private var cameraBackend = CameraBackend.CAMERA1
     private var decoderBackend = DecoderBackend.AUTO
     private var formats: Collection<BarcodeFormat>? = null
     private var baseHints: MutableMap<DecodeHintType, Any> = EnumMap(DecodeHintType::class.java)
@@ -118,6 +150,12 @@ class ScannerOptions private constructor(
     private var frontLightMode = FrontLightMode.OFF
     private var framingRectWidth = 0
     private var framingRectHeight = 0
+
+    /** @param backend null is treated as [CameraBackend.CAMERA1] */
+    fun setCameraBackend(backend: CameraBackend?): Builder {
+      this.cameraBackend = backend ?: CameraBackend.CAMERA1
+      return this
+    }
 
     /** @param backend null is treated as [DecoderBackend.AUTO] */
     fun setDecoderBackend(backend: DecoderBackend?): Builder {
@@ -198,6 +236,7 @@ class ScannerOptions private constructor(
     // -- puts a mangled getter and setter per field into the published API. The API diff
     // showed 28 of them.
     fun build(): ScannerOptions = ScannerOptions(
+        cameraBackend,
         decoderBackend,
         formats?.let { Collections.unmodifiableCollection(it) },
         // unmodifiableMap over the builder's own EnumMap, as before. A LinkedHashMap copy
