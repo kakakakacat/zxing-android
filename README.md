@@ -195,12 +195,12 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
 
 ### Phase 5 — Kotlin and native decoding
 
-- [ ] Convert the maintained Android code to Kotlin, module by module, keeping the Java
-      API source-compatible. **`:android-integration` and `:scanner` are done** — no Java
-      source left in either, with the Java-facing shape checked per commit by
-      `tools/maint/api-diff.sh` and, for the integration API, by a compatibility test
-      written in Java. `:app` is still Java, which is what keeps the check honest.
-      `:core` stays Java: it is synced from upstream
+- [x] Convert the maintained Android code to Kotlin, module by module, keeping the Java
+      API source-compatible. **`:android-integration`, `:scanner` and `:app` are all
+      done** — no Java source left in any of them, with the Java-facing shape checked per
+      commit by `tools/maint/api-diff.sh` and, for the published API, by compatibility
+      tests still written in Java so javac has to accept it. `:core` stays Java: it is
+      synced from upstream
 - [x] **zxing-cpp backend** behind the `FrameDecoder` seam: zxing-cpp v3.1.1 as a
       submodule, CMake building `arm64-v8a` / `armeabi-v7a`, shipped in the same AAR, and
       the default since `ebe1708b4`. NEON is the auto-vectorizer's, not intrinsics —

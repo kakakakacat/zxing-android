@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `8dce7b212` on branch `maint/android`.
+Last updated at commit `efa0a2dea` on branch `maint/android`.
 
 ---
 
@@ -69,6 +69,13 @@ Last updated at commit `8dce7b212` on branch `maint/android`.
 | `fc0cf7323` | Kotlin: the camera stack; **the stability loop was checking nothing** |
 | `39fdc78e0` | **`:scanner` is Kotlin end to end**, with a Java compatibility test |
 | `8dce7b212` | Kotlin: `:app` wired up, first 6 of 58 files |
+| `d38748272` | Kotlin: the `result` package, 20 files |
+| `4555376cc` | Kotlin: `history`, with the screen opened on a device |
+| `edf8051da` | Kotlin: `book`, and A-09 reproduced on the way |
+| `ff25f7d9b` | Kotlin: `share`, driven end to end |
+| `6f6e6010a` | Kotlin: `encode`, with the rendered QR decoded back |
+| `9e0b5ba5a` | Kotlin: the root package except `CaptureActivity` |
+| `efa0a2dea` | **`:app` is Kotlin end to end**, and two classes moved out of `:scanner` |
 
 Nothing is uncommitted. Nothing is released; no tag has been pushed.
 
@@ -99,6 +106,10 @@ Nothing is uncommitted. Nothing is released; no tag has been pushed.
 | L2 full matrix ×2 | 135 cases each, identical protocol | DN-ENG41, 40 min each |
 | L2 backend A/B | 27 cases per backend, java vs zxing-cpp, 19 pass / 8 fail | DN-ENG41, `reports/l2-ab-602d368c4-*` |
 | `FrameIntegrityTest` | 2 tests, 0 failures, golden hashes identical | API 34 device **and** API 35 + 36 emulators |
+| `:app` Kotlin conversion, screen by screen | history, settings, help, share, app picker, encode, book search all driven by hand; 0 fatal exceptions | DN-ENG41 |
+| A camera-to-result scan of a generated QR | decoded, result screen, history row, history replay | API 36 emulator, virtual-scene poster |
+| `EncodeActivity`'s own QR, decoded back with `:core` | `QR_CODE  Kotlin encode check`, and `mailto:` for the email type | DN-ENG41 screenshot |
+| `:scanner` API after the two classes moved out | only `DecodeFormatManager` and `DecodeHintManager` leave; nothing else changes | `tools/maint/api-diff.sh :scanner` |
 
 **L2 numbers now exist. They are a baseline, not a claim** — nothing has been optimised
 and nothing compared. L1 timings remain host-JVM diagnostics and must never be quoted as
@@ -235,7 +246,9 @@ latency, first-scan latency, CPU, memory, GC or power.
   a sustainable operating point and makes the numbers *slower*.
 - **Kotlin has no package-private, and the conversion accepts the widening.** A
   package-private Java class becomes `internal`, which the Kotlin compiler enforces for
-  Kotlin callers and the JVM does not enforce at all: in bytecode it is public. So
+  Kotlin callers and the JVM does not enforce at all: in bytecode it is public. That
+  asymmetry has a sting in it across a module boundary — see rule 9 under item 6, and
+  the two classes it moved out of this module. So
   `JavaFrameDecoder`, `NativeFrameDecoder` and the rest of the module's internals are
   reachable from a consumer's Java code where they were not before. The alternatives were
   worse — leaving them in Java forever, or promoting them to real public API — and the
@@ -256,11 +269,13 @@ latency, first-scan latency, CPU, memory, GC or power.
 
 ## Start here if you are new to this file
 
-**What is in flight: the Kotlin conversion, Phase 5 item 6.**
-`:android-integration` and `:scanner` are finished and have no Java source left;
-`:app` is 6 files in with 52 to go. Item 6 below carries the per-package breakdown, the
-eight rules the conversion settled, and the two open questions about `:app`. Nothing is
-half-converted: every commit builds, tests and runs on the device.
+**The Kotlin conversion is finished, Phase 5 item 6.**
+`:android-integration`, `:scanner` and `:app` have no Java source left; the only Java in
+the tree is `:core` (synced from upstream, stays Java on purpose) and the `:scanner`
+tests that are written in Java deliberately, so javac has to accept the Kotlin API. Item
+6 below carries the eight rules the conversion settled and the one trap that only showed
+up at the very end. Nothing was half-converted: every commit builds, lints and runs on a
+device or an emulator.
 
 **And a warning that generalises past Kotlin.** `tools/maint/stability-loop.sh` had been
 reporting "100 cycles, 0 crashes" while starting nothing at all. It still named
@@ -411,39 +426,65 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
 6. Convert the maintained Android code to Kotlin module by module, keeping the Java API
    source-compatible.
 
-   **In progress. Two of three modules are done.**
+   **Done.** Every maintained module is Kotlin; `:core` stays Java on purpose.
 
    | Module | State |
    | --- | --- |
    | `:android-integration` | Kotlin, 0 Java (`9b79318f9`) |
-   | `:scanner` — the published AAR | Kotlin, 0 Java, 25 files (`39fdc78e0`) |
-   | `:app` | 6 of 58 files; **52 files / 7,292 lines left** |
+   | `:scanner` — the published AAR | Kotlin, 0 Java in `main`, 25 files (`39fdc78e0`) |
+   | `:app` | Kotlin, 0 Java, 58 files (`8dce7b212` … `efa0a2dea`) |
    | `:core` | **stays Java on purpose** — synced from upstream by `sync-core-from-upstream.sh` |
 
-   **What is left, by package** (all of it in `:app`, under
-   `android/src/io/github/kakakakacat/zxing/android/`):
+   The only Java left in the tree is `:core` and eleven test files in `:scanner`. Those
+   are Java **deliberately**: `JavaSourceCompatibilityTest` and its neighbours exist so
+   javac has to accept the Kotlin API, and rewriting them in Kotlin would delete the
+   check. Do not convert them.
 
-   | Package | Files | Lines | The large ones |
-   | --- | --- | --- | --- |
-   | root | 8 | 1701 | `CaptureActivity` 896 |
-   | `result/` | 14 | 1766 | `ResultHandler` 530 |
-   | `result/supplement/` | 5 | 507 | |
-   | `encode/` | 8 | 1136 | `QRCodeEncoder` 372 |
-   | `share/` | 6 | 680 | |
-   | `history/` | 5 | 666 | |
-   | `book/` | 5 | 542 | |
-   | `wifi/` | 1 | 294 | `WifiConfigManager` |
+   **`:app` converted package by package**, each commit building, linting, installing and
+   being driven by hand: `result` (20 files) → `history` → `book` → `share` → `encode` →
+   the root package → `CaptureActivity`. It was a **pure refactor**, decided with the
+   user: none of the six open Phase 3 defects was fixed on the way, and each is now
+   marked with a comment naming it (A-06 in `HistoryManager.saveHistory`, A-07 in
+   `EncodeActivity.share`, A-08 in `WifiConfigManager`, A-09 in `BrowseBookListener` and
+   `SearchBookContentsActivity`, A-10 in `LoadPackagesAsyncTask`). They are still open.
 
-   **Two things make `:app` different from the two finished modules, and they were
-   raised with the user rather than decided here:**
+   **The trap that only showed up on the last file, and the ninth rule.** `internal` is
+   public in bytecode, so Java in *another module* can still call it as long as the
+   package name matches — which is how `:app`'s Java `CaptureActivity` kept calling
+   `:scanner`'s `internal` `DecodeFormatManager` and `DecodeHintManager` for six commits.
+   The moment `CaptureActivity` became Kotlin the compiler enforced the visibility and the
+   build broke. **So the widening note below cuts both ways: `internal` protects nothing
+   from Java and everything from Kotlin.** Of the two ways out — widen the published AAR's
+   API, or move the classes — the user chose the move: nothing in `:scanner` used either
+   class, so both now live in `:app` next to their only caller, and
+   `tools/maint/api-diff.sh :scanner` shows the two classes leaving the AAR and nothing
+   else changing.
 
-   - **`:app` has no tests at all.** `:scanner` was converted against 69 unit tests, 21
-     instrumentation tests and a bytecode API diff. For `:app` the only automated check
-     is that it compiles and lints; history, share, encode and the result handlers have
-     to be driven by hand on the device.
-   - **Six of the remaining files are the open Phase 3 defects** (A-06, A-07, A-08,
-     A-09, A-10, A-12). Converting them without fixing them means editing the same code
-     twice. **Undecided: pure refactor, or fold the fixes in where they land.**
+   **What is not covered by tests, and was checked by hand instead.** `:app` still has no
+   automated tests; the build file points its test source sets at paths that do not exist
+   so the legacy `src/` layout cannot be picked up by accident. What each commit did
+   instead is in its message. The high points:
+
+   - **A real scan, end to end**, on the Android 16 emulator: `-virtualscene-poster` plus
+     the SDK's `Walk_to_image_room` macro put a generated QR code in front of the virtual
+     camera, the app decoded it, and the result screen rendered with its thumbnail,
+     result points, format, type and buttons. History then showed the scan, and tapping
+     that row replayed it through `onActivityResult`. This is the recipe to reuse:
+     `adb emu virtualscene-image wall <png>` swaps the poster on a running emulator, and
+     the macros live in `$ANDROID_HOME/emulator/resources/macros/`.
+   - **The encoder was checked by decoding its own output**: the QR `EncodeActivity` drew
+     was screenshotted and decoded with this fork's `:core`, and read back exactly.
+   - **The regex literals in the vCard and MECARD encoders were compared**, decoded
+     through each language's escape rules, Java against Kotlin, rather than eyeballed. `$`
+     needs escaping in Kotlin and a backslash pair does not change, so these are the
+     easiest place in the whole conversion to introduce a silent bug.
+   - **Settings' one piece of real logic was exercised**: unchecking formats until one is
+     left leaves that row checked and disabled.
+
+   What is still unexercised, and would be the first thing to drive by hand after any
+   change here: the SCAN-intent and `zxing://` link replies through
+   `handleDecodeExternally`, bulk mode, the contact encoders, the Wi-Fi handler (A-08
+   means it cannot work anyway) and the bookmark picker (disabled since Android 6).
 
    ### How to carry on — the rules this conversion settled
 
@@ -468,13 +509,23 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
       `access$` bridges, and package-private widening. Anything else is a finding.
    6. **A Kotlin class literal is not the Java one.** `Boolean::class.java` is
       `boolean.class`; the boxed class needs `javaObjectType`. `DecodeHintValueTypesTest`
-      pins the four that `DecodeHintManager` depends on.
+      pins the four that `DecodeHintManager` depends on. The test stays in `:scanner`
+      although `DecodeHintManager` moved to `:app`: what it actually pins is
+      `DecodeHintType.getValueType()` in `:core`, and `:app` has no test source set to
+      move it into.
    7. **Static `native` methods need `@JvmStatic private external fun` in the
       companion**, and only that combination. Anything else moves the JNI symbol to
       `…$Companion` and nothing binds.
    8. **Nullability on an overridden Java callback follows the Java original.** A
       non-null Kotlin parameter compiles to a null check that throws;
       `Camera.PreviewCallback.onPreviewFrame` has been seen receiving null.
+   9. **`internal` across modules holds only until the caller is Kotlin too.** Java in
+      another module can call an `internal` class whose package name matches, because it
+      is public in bytecode; Kotlin cannot, at all. So a module boundary that compiles
+      today can break on the commit that converts the caller — which is exactly what
+      happened to `DecodeFormatManager` and `DecodeHintManager`. When it happens, decide
+      deliberately between widening the published API and moving the class to its caller,
+      and record which.
 
    ### What guards this now
 
@@ -606,6 +657,26 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
     second one is the more useful lesson in this repository.
 
 ### Phase 3 — carried-forward defects (independent; can be picked up any time)
+
+All of these survived the Kotlin conversion untouched, by decision. The five that live in
+`:app` now carry a comment naming their number, so `grep -rn 'Defect A-' android/src`
+lands on the exact lines: A-06 in `HistoryManager.saveHistory`, A-07 in
+`EncodeActivity.share`, A-09 in `BrowseBookListener` and `SearchBookContentsActivity`,
+A-10 in `LoadPackagesAsyncTask`. A-08's `WifiConfigManager` carries the whole deprecated
+`WifiConfiguration` API in a `@Suppress` that names the defect instead. A-12 and A-16 are
+not in `:app` at all — A-12 is `AmbientLightManager` in `:scanner`, A-16 is the capture
+layout — and neither carries a comment yet.
+
+**A-09 is reproducible in one command**, which is the shortest way to see one of these
+fail for real:
+
+```
+adb shell "am start -a com.google.zxing.client.android.SEARCH_BOOK_CONTENTS \
+  -e ISBN 9780596009205 -e QUERY barcode"
+```
+
+then press the search button: `java.io.IOException: Cleartext HTTP traffic to
+www.google.com not permitted`, and the UI says "Sorry, the search encountered a problem."
 
 - **A-06 / A-07** History CSV export and share-as-image write to the legacy external
   storage root; broken under scoped storage since Android 10. Needs app-specific storage
