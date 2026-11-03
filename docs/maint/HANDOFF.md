@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `0f73b7e0c` on branch `maint/android`, **which is pushed**.
+Last updated at commit `65fc7bf57` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -102,7 +102,7 @@ Last updated at commit `0f73b7e0c` on branch `maint/android`, **which is pushed*
 | `812244527` | Handoff points at its own commit |
 | `9af04bbf0` | What the Android 15 run left on the second device; a `private.sh` trap bug |
 | `1388b3f87` | CodeQL's scan was green and its upload was refused; permissions and triggers fixed |
-| `0f73b7e0c` | **A real barcode read off a screen**, both camera backends; the `ó` was FNC4 |
+| `65fc7bf57` | **A real barcode read off a screen**, both camera backends; the `ó` was FNC4 |
 
 Nothing is uncommitted. All three workflows were green on `6d4ab48b1`: Build
 `41468529666`, Instrumentation `41468529072`, and the new **L2 comparison** `41468529824`
