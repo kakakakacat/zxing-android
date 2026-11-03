@@ -1,0 +1,109 @@
+{
+  "layer": "L3",
+  "run_id": "camerax-DN-ENG41-20261103-async",
+  "commit": "aff9b8105",
+  "config": "camerax",
+  "dataset_hash": null,
+  "frames": null,
+  "device": {
+    "label": "DN-ENG41",
+    "model": "DN-ENG41",
+    "brand": "GigglePal",
+    "device": "GigglePal_Companion",
+    "api": 34,
+    "fingerprint": "GigglePal/GigglePal_Companion/GigglePal_Companion:14/DN_ENG41_V1.3.8_20260309/T3501:userdebug/test-keys",
+    "emulator": false,
+    "cpu_locked": true,
+    "cpu_core_count": 8,
+    "sustained_performance_mode": false
+  },
+  "camera_backend": {
+    "claimed": "camerax",
+    "observed_in_trace": "camerax"
+  },
+  "runner_args": {
+    "l3.backend": "camerax",
+    "l3.iterations": "12",
+    "device_serial_present": "true",
+    "commit": "57893e38b"
+  },
+  "warnings": [
+    "NO_SUSTAINED_PERFORMANCE_MODE: sustained performance mode is off",
+    "TOO_FEW_ITERATIONS: fewer than 10 measured launches in ready_to_first_scan"
+  ],
+  "bootstrap": {
+    "resamples": 10000,
+    "seed": 20261102
+  },
+  "cases": [
+    {
+      "name": "startup_to_initial_display",
+      "stage": "startup_to_initial_display",
+      "question": "Cold launch to the window's first frame. NOT camera pixels: the first frame holds the viewfinder and an empty SurfaceView.",
+      "ms_p50": 1460.872239,
+      "ms_p90": 1499.773489,
+      "ms_ci95_low": 1120.089427,
+      "ms_ci95_high": 1474.117759,
+      "ms_min": 1042.581042,
+      "ms_max": 1563.694062,
+      "iterations": 12,
+      "occurrences": 12
+    },
+    {
+      "name": "camera_open_to_ready",
+      "stage": "camera_open_to_ready",
+      "question": "ScannerView asking its backend to open, to the backend reporting ready.",
+      "ms_p50": 424.685781,
+      "ms_p90": 452.420729,
+      "ms_ci95_low": 387.610208,
+      "ms_ci95_high": 445.717031,
+      "ms_min": 369.943854,
+      "ms_max": 477.80552,
+      "iterations": 12,
+      "occurrences": 12
+    },
+    {
+      "name": "ready_to_first_frame",
+      "stage": "ready_to_first_frame",
+      "question": "Camera ready to the first frame reaching the decode thread.",
+      "ms_p50": 1073.290052,
+      "ms_p90": 1211.786302,
+      "ms_ci95_low": 818.858541,
+      "ms_ci95_high": 1119.584063,
+      "ms_min": 783.868229,
+      "ms_max": 1212.189167,
+      "iterations": 12,
+      "occurrences": 12
+    },
+    {
+      "name": "open_to_first_frame",
+      "stage": "open_to_first_frame",
+      "question": "The scanner asking for a camera to the first frame reaching the decoder. Derived per iteration from the two spans above, and the only camera interval here whose definition is identical on both backends.",
+      "derived_from": [
+        "zxing.camera.open",
+        "zxing.first.frame"
+      ],
+      "ms_p50": 1492.503071,
+      "ms_p90": 1641.753957,
+      "ms_ci95_low": 1236.288958,
+      "ms_ci95_high": 1561.760678,
+      "ms_min": 1192.567083,
+      "ms_max": 1658.175469,
+      "iterations": 12,
+      "occurrences": 12
+    },
+    {
+      "name": "ready_to_first_scan",
+      "stage": "ready_to_first_scan",
+      "question": "Camera ready to the first successful decode. Scene dependent; absent unless a barcode was in front of the lens.",
+      "ms_p50": 3386.876925,
+      "ms_p90": 3523.194946,
+      "ms_ci95_low": 2429.117343,
+      "ms_ci95_high": 3523.194946,
+      "ms_min": 2429.117343,
+      "ms_max": 3523.194946,
+      "iterations": 4,
+      "occurrences": 4
+    }
+  ]
+}

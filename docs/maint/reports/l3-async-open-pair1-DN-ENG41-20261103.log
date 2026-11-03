@@ -1,0 +1,381 @@
+device: DN-ENG41 android 14 (sdk 34)
+backend: camera1, iterations: 12
+Installed on 1 device.
+Performing Streamed Install
+Success
+INSTRUMENTATION_STATUS: class=io.github.kakakakacat.zxing.benchmark.l3.ScanStartupBenchmark
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+io.github.kakakakacat.zxing.benchmark.l3.ScanStartupBenchmark:
+INSTRUMENTATION_STATUS: test=coldStartToCameraReady
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-27-35.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-27-35.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-27-57.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-27-57.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-28-18.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-28-18.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-28-39.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-28-39.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-29-00.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-29-00.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter007_2026-11-03-06-29-44.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter007_2026-11-03-06-29-44.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter009_2026-11-03-06-30-33.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter009_2026-11-03-06-30-33.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter010_2026-11-03-06-31-00.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter010_2026-11-03-06-31-00.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-31-28.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-31-28.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: android.studio.display.benchmark=NOTE: Your device is running a version of ART where method tracing is known to
+affect performance measurement after trace capture, so method tracing is
+off by default.
+
+To use method tracing, either flash this device, use a different device, or
+enable method tracing with MicrobenchmarkConfig / instrumentation argument, and
+only run one test at a time.
+
+For more information, see https://issuetracker.google.com/issues/316174880
+Delay to await runtime image flush
+
+ScanStartupBenchmark_coldStartToCameraReady
+  timeToInitialDisplayMs       [min 1,048.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-29-00.perfetto-trace),   [median 1,117.1](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max 1,556.3](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.backend.camera1Count   [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.backend.camera1SumMs   [min   318.8](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median   507.2](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max   567.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace)
+  zxing.backend.cameraxCount   [min     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.backend.cameraxSumMs   [min     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.camera.openCount       [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.camera.openSumMs       [min   318.8](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median   507.2](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max   567.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace)
+  zxing.first.frameCount       [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.first.frameSumMs       [min   763.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-27-35.perfetto-trace),   [median   895.2](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max 2,141.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace)
+  zxing.first.scanCount        [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.first.scanSumMs        [min 1,819.4](file://ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-27-57.perfetto-trace),   [median 2,109.9](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max 3,489.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace)
+    Traces: Iteration [0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace) [1](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-27-35.perfetto-trace) [2](file://ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-27-57.perfetto-trace) [3](file://ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-28-18.perfetto-trace) [4](file://ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-28-39.perfetto-trace) [5](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-29-00.perfetto-trace) [6](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace) [7](file://ScanStartupBenchmark_coldStartToCameraReady_iter007_2026-11-03-06-29-44.perfetto-trace) [8](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace) [9](file://ScanStartupBenchmark_coldStartToCameraReady_iter009_2026-11-03-06-30-33.perfetto-trace) [10](file://ScanStartupBenchmark_coldStartToCameraReady_iter010_2026-11-03-06-31-00.perfetto-trace) [11](file://ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-31-28.perfetto-trace)
+
+INSTRUMENTATION_STATUS: android.studio.v2display.benchmark=NOTE: Your device is running a version of ART where method tracing is known to
+affect performance measurement after trace capture, so method tracing is
+off by default.
+
+To use method tracing, either flash this device, use a different device, or
+enable method tracing with MicrobenchmarkConfig / instrumentation argument, and
+only run one test at a time.
+
+For more information, see https://issuetracker.google.com/issues/316174880
+Delay to await runtime image flush
+
+ScanStartupBenchmark_coldStartToCameraReady
+  timeToInitialDisplayMs       [min 1,048.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-29-00.perfetto-trace),   [median 1,117.1](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max 1,556.3](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.backend.camera1Count   [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.backend.camera1SumMs   [min   318.8](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median   507.2](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max   567.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace)
+  zxing.backend.cameraxCount   [min     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.backend.cameraxSumMs   [min     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.camera.openCount       [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.camera.openSumMs       [min   318.8](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median   507.2](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max   567.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace)
+  zxing.first.frameCount       [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.first.frameSumMs       [min   763.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-27-35.perfetto-trace),   [median   895.2](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max 2,141.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace)
+  zxing.first.scanCount        [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.first.scanSumMs        [min 1,819.4](file://ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-27-57.perfetto-trace),   [median 2,109.9](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max 3,489.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace)
+    Traces: Iteration [0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace) [1](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-27-35.perfetto-trace) [2](file://ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-27-57.perfetto-trace) [3](file://ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-28-18.perfetto-trace) [4](file://ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-28-39.perfetto-trace) [5](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-29-00.perfetto-trace) [6](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace) [7](file://ScanStartupBenchmark_coldStartToCameraReady_iter007_2026-11-03-06-29-44.perfetto-trace) [8](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace) [9](file://ScanStartupBenchmark_coldStartToCameraReady_iter009_2026-11-03-06-30-33.perfetto-trace) [10](file://ScanStartupBenchmark_coldStartToCameraReady_iter010_2026-11-03-06-31-00.perfetto-trace) [11](file://ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-31-28.perfetto-trace)
+
+INSTRUMENTATION_STATUS: android.studio.v2display.benchmark.outputDirPath=/sdcard/Download/zxing-l3
+INSTRUMENTATION_STATUS: android.studio.v3display.benchmark=NOTE: Your device is running a version of ART where method tracing is known to
+affect performance measurement after trace capture, so method tracing is
+off by default.
+
+To use method tracing, either flash this device, use a different device, or
+enable method tracing with MicrobenchmarkConfig / instrumentation argument, and
+only run one test at a time.
+
+For more information, see https://issuetracker.google.com/issues/316174880
+Delay to await runtime image flush
+
+ScanStartupBenchmark_coldStartToCameraReady
+  timeToInitialDisplayMs       [min 1,048.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-29-00.perfetto-trace),   [median 1,117.1](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max 1,556.3](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.backend.camera1Count   [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.backend.camera1SumMs   [min   318.8](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median   507.2](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max   567.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace)
+  zxing.backend.cameraxCount   [min     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.backend.cameraxSumMs   [min     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.camera.openCount       [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.camera.openSumMs       [min   318.8](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median   507.2](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max   567.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace)
+  zxing.first.frameCount       [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.first.frameSumMs       [min   763.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-27-35.perfetto-trace),   [median   895.2](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max 2,141.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace)
+  zxing.first.scanCount        [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace)
+  zxing.first.scanSumMs        [min 1,819.4](file://ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-27-57.perfetto-trace),   [median 2,109.9](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace),   [max 3,489.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace)
+    Traces: Iteration [0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace) [1](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-27-35.perfetto-trace) [2](file://ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-27-57.perfetto-trace) [3](file://ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-28-18.perfetto-trace) [4](file://ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-28-39.perfetto-trace) [5](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-29-00.perfetto-trace) [6](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace) [7](file://ScanStartupBenchmark_coldStartToCameraReady_iter007_2026-11-03-06-29-44.perfetto-trace) [8](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace) [9](file://ScanStartupBenchmark_coldStartToCameraReady_iter009_2026-11-03-06-30-33.perfetto-trace) [10](file://ScanStartupBenchmark_coldStartToCameraReady_iter010_2026-11-03-06-31-00.perfetto-trace) [11](file://ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-31-28.perfetto-trace)
+
+INSTRUMENTATION_STATUS: android.studio.v3display.benchmark.outputDirPath=/sdcard/Download/zxing-l3
+INSTRUMENTATION_STATUS: time_to_initial_display_millis_max=1556.261614
+INSTRUMENTATION_STATUS: time_to_initial_display_millis_median=1117.05625
+INSTRUMENTATION_STATUS: time_to_initial_display_millis_min=1047.992343
+INSTRUMENTATION_STATUS: time_to_initial_display_millis_stddev=134.7309204443912
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Count_max=1.0
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Count_median=1.0
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Count_min=1.0
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Count_stddev=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Sum_millis_max=567.509791
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Sum_millis_median=507.17195300000003
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Sum_millis_min=318.811145
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Sum_millis_stddev=72.64635317015578
+INSTRUMENTATION_STATUS: zxing.backend.camerax_count_max=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camerax_count_median=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camerax_count_min=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camerax_count_stddev=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camerax_sum_millis_max=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camerax_sum_millis_median=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camerax_sum_millis_min=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camerax_sum_millis_stddev=0.0
+INSTRUMENTATION_STATUS: zxing.camera.open_count_max=1.0
+INSTRUMENTATION_STATUS: zxing.camera.open_count_median=1.0
+INSTRUMENTATION_STATUS: zxing.camera.open_count_min=1.0
+INSTRUMENTATION_STATUS: zxing.camera.open_count_stddev=0.0
+INSTRUMENTATION_STATUS: zxing.camera.open_sum_millis_max=567.531823
+INSTRUMENTATION_STATUS: zxing.camera.open_sum_millis_median=507.195833
+INSTRUMENTATION_STATUS: zxing.camera.open_sum_millis_min=318.83276
+INSTRUMENTATION_STATUS: zxing.camera.open_sum_millis_stddev=72.65624981111283
+INSTRUMENTATION_STATUS: zxing.first.frame_count_max=1.0
+INSTRUMENTATION_STATUS: zxing.first.frame_count_median=1.0
+INSTRUMENTATION_STATUS: zxing.first.frame_count_min=1.0
+INSTRUMENTATION_STATUS: zxing.first.frame_count_stddev=0.0
+INSTRUMENTATION_STATUS: zxing.first.frame_sum_millis_max=2141.719895
+INSTRUMENTATION_STATUS: zxing.first.frame_sum_millis_median=895.233411
+INSTRUMENTATION_STATUS: zxing.first.frame_sum_millis_min=763.657395
+INSTRUMENTATION_STATUS: zxing.first.frame_sum_millis_stddev=372.1559113567732
+INSTRUMENTATION_STATUS: zxing.first.scan_count_max=1.0
+INSTRUMENTATION_STATUS: zxing.first.scan_count_median=1.0
+INSTRUMENTATION_STATUS: zxing.first.scan_count_min=1.0
+INSTRUMENTATION_STATUS: zxing.first.scan_count_stddev=0.0
+INSTRUMENTATION_STATUS: zxing.first.scan_sum_millis_max=3489.689426
+INSTRUMENTATION_STATUS: zxing.first.scan_sum_millis_median=2109.8679935
+INSTRUMENTATION_STATUS: zxing.first.scan_sum_millis_min=1819.375729
+INSTRUMENTATION_STATUS: zxing.first.scan_sum_millis_stddev=434.35086009596375
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: class=io.github.kakakakacat.zxing.benchmark.l3.ScanStartupBenchmark
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=coldStartToCameraReady
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 296.102
+
+OK (1 test)
+
+
+INSTRUMENTATION_CODE: -1
+--- outputs
+  benchmark/l3/build/outputs/l3/instrument.log
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-29-00.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-30-09.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-27-57.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter007_2026-11-03-06-29-44.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter010_2026-11-03-06-31-00.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/io.github.kakakakacat.zxing.benchmark.l3-benchmarkData.json
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-27-14.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-28-18.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-29-22.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter009_2026-11-03-06-30-33.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-31-28.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-27-35.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-28-39.perfetto-trace
+  benchmark/l3/build/outputs/l3/l3-runner-args.json
+######## SWITCHING BACKEND ########
+device: DN-ENG41 android 14 (sdk 34)
+backend: camerax, iterations: 12
+Installed on 1 device.
+Performing Streamed Install
+Success
+INSTRUMENTATION_STATUS: class=io.github.kakakakacat.zxing.benchmark.l3.ScanStartupBenchmark
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+io.github.kakakakacat.zxing.benchmark.l3.ScanStartupBenchmark:
+INSTRUMENTATION_STATUS: test=coldStartToCameraReady
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-33-05.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-33-05.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-33-30.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-33-30.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-33-58.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-33-58.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-34-24.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-34-24.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-34-51.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-34-51.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter007_2026-11-03-06-35-51.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter007_2026-11-03-06-35-51.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-36-17.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-36-17.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter009_2026-11-03-06-36-47.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter009_2026-11-03-06-36-47.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter010_2026-11-03-06-37-14.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter010_2026-11-03-06-37-14.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: additionalTestOutputFile_ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-37-43.perfetto-trace=/sdcard/Download/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-37-43.perfetto-trace
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: android.studio.display.benchmark=NOTE: Your device is running a version of ART where method tracing is known to
+affect performance measurement after trace capture, so method tracing is
+off by default.
+
+To use method tracing, either flash this device, use a different device, or
+enable method tracing with MicrobenchmarkConfig / instrumentation argument, and
+only run one test at a time.
+
+For more information, see https://issuetracker.google.com/issues/316174880
+Delay to await runtime image flush
+
+ScanStartupBenchmark_coldStartToCameraReady
+  timeToInitialDisplayMs       [min 1,062.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-33-30.perfetto-trace),   [median 1,476.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max 1,591.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-33-58.perfetto-trace)
+  zxing.backend.camera1Count   [min     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.backend.camera1SumMs   [min     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.backend.cameraxCount   [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.backend.cameraxSumMs   [min   396.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-34-51.perfetto-trace),   [median   416.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max   489.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-33-05.perfetto-trace)
+  zxing.camera.openCount       [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.camera.openSumMs       [min   396.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-34-51.perfetto-trace),   [median   416.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max   489.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-33-05.perfetto-trace)
+  zxing.first.frameCount       [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.first.frameSumMs       [min   776.1](file://ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-34-24.perfetto-trace),   [median 1,069.3](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max 1,166.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-37-43.perfetto-trace)
+  zxing.first.scanCount        [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.first.scanSumMs        [min 2,398.3](file://ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-34-24.perfetto-trace),   [median 2,951.9](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max 3,607.9](file://ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-37-43.perfetto-trace)
+    Traces: Iteration [0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace) [1](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-33-05.perfetto-trace) [2](file://ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-33-30.perfetto-trace) [3](file://ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-33-58.perfetto-trace) [4](file://ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-34-24.perfetto-trace) [5](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-34-51.perfetto-trace) [6](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace) [7](file://ScanStartupBenchmark_coldStartToCameraReady_iter007_2026-11-03-06-35-51.perfetto-trace) [8](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-36-17.perfetto-trace) [9](file://ScanStartupBenchmark_coldStartToCameraReady_iter009_2026-11-03-06-36-47.perfetto-trace) [10](file://ScanStartupBenchmark_coldStartToCameraReady_iter010_2026-11-03-06-37-14.perfetto-trace) [11](file://ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-37-43.perfetto-trace)
+
+INSTRUMENTATION_STATUS: android.studio.v2display.benchmark=NOTE: Your device is running a version of ART where method tracing is known to
+affect performance measurement after trace capture, so method tracing is
+off by default.
+
+To use method tracing, either flash this device, use a different device, or
+enable method tracing with MicrobenchmarkConfig / instrumentation argument, and
+only run one test at a time.
+
+For more information, see https://issuetracker.google.com/issues/316174880
+Delay to await runtime image flush
+
+ScanStartupBenchmark_coldStartToCameraReady
+  timeToInitialDisplayMs       [min 1,062.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-33-30.perfetto-trace),   [median 1,476.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max 1,591.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-33-58.perfetto-trace)
+  zxing.backend.camera1Count   [min     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.backend.camera1SumMs   [min     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.backend.cameraxCount   [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.backend.cameraxSumMs   [min   396.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-34-51.perfetto-trace),   [median   416.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max   489.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-33-05.perfetto-trace)
+  zxing.camera.openCount       [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.camera.openSumMs       [min   396.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-34-51.perfetto-trace),   [median   416.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max   489.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-33-05.perfetto-trace)
+  zxing.first.frameCount       [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.first.frameSumMs       [min   776.1](file://ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-34-24.perfetto-trace),   [median 1,069.3](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max 1,166.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-37-43.perfetto-trace)
+  zxing.first.scanCount        [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.first.scanSumMs        [min 2,398.3](file://ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-34-24.perfetto-trace),   [median 2,951.9](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max 3,607.9](file://ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-37-43.perfetto-trace)
+    Traces: Iteration [0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace) [1](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-33-05.perfetto-trace) [2](file://ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-33-30.perfetto-trace) [3](file://ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-33-58.perfetto-trace) [4](file://ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-34-24.perfetto-trace) [5](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-34-51.perfetto-trace) [6](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace) [7](file://ScanStartupBenchmark_coldStartToCameraReady_iter007_2026-11-03-06-35-51.perfetto-trace) [8](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-36-17.perfetto-trace) [9](file://ScanStartupBenchmark_coldStartToCameraReady_iter009_2026-11-03-06-36-47.perfetto-trace) [10](file://ScanStartupBenchmark_coldStartToCameraReady_iter010_2026-11-03-06-37-14.perfetto-trace) [11](file://ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-37-43.perfetto-trace)
+
+INSTRUMENTATION_STATUS: android.studio.v2display.benchmark.outputDirPath=/sdcard/Download/zxing-l3
+INSTRUMENTATION_STATUS: android.studio.v3display.benchmark=NOTE: Your device is running a version of ART where method tracing is known to
+affect performance measurement after trace capture, so method tracing is
+off by default.
+
+To use method tracing, either flash this device, use a different device, or
+enable method tracing with MicrobenchmarkConfig / instrumentation argument, and
+only run one test at a time.
+
+For more information, see https://issuetracker.google.com/issues/316174880
+Delay to await runtime image flush
+
+ScanStartupBenchmark_coldStartToCameraReady
+  timeToInitialDisplayMs       [min 1,062.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-33-30.perfetto-trace),   [median 1,476.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max 1,591.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-33-58.perfetto-trace)
+  zxing.backend.camera1Count   [min     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.backend.camera1SumMs   [min     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     0.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.backend.cameraxCount   [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.backend.cameraxSumMs   [min   396.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-34-51.perfetto-trace),   [median   416.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max   489.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-33-05.perfetto-trace)
+  zxing.camera.openCount       [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.camera.openSumMs       [min   396.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-34-51.perfetto-trace),   [median   416.5](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max   489.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-33-05.perfetto-trace)
+  zxing.first.frameCount       [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.first.frameSumMs       [min   776.1](file://ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-34-24.perfetto-trace),   [median 1,069.3](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max 1,166.7](file://ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-37-43.perfetto-trace)
+  zxing.first.scanCount        [min     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace),   [median     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max     1.0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace)
+  zxing.first.scanSumMs        [min 2,398.3](file://ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-34-24.perfetto-trace),   [median 2,951.9](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace),   [max 3,607.9](file://ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-37-43.perfetto-trace)
+    Traces: Iteration [0](file://ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace) [1](file://ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-33-05.perfetto-trace) [2](file://ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-33-30.perfetto-trace) [3](file://ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-33-58.perfetto-trace) [4](file://ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-34-24.perfetto-trace) [5](file://ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-34-51.perfetto-trace) [6](file://ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace) [7](file://ScanStartupBenchmark_coldStartToCameraReady_iter007_2026-11-03-06-35-51.perfetto-trace) [8](file://ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-36-17.perfetto-trace) [9](file://ScanStartupBenchmark_coldStartToCameraReady_iter009_2026-11-03-06-36-47.perfetto-trace) [10](file://ScanStartupBenchmark_coldStartToCameraReady_iter010_2026-11-03-06-37-14.perfetto-trace) [11](file://ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-37-43.perfetto-trace)
+
+INSTRUMENTATION_STATUS: android.studio.v3display.benchmark.outputDirPath=/sdcard/Download/zxing-l3
+INSTRUMENTATION_STATUS: time_to_initial_display_millis_max=1591.043958
+INSTRUMENTATION_STATUS: time_to_initial_display_millis_median=1476.4635415
+INSTRUMENTATION_STATUS: time_to_initial_display_millis_min=1062.650416
+INSTRUMENTATION_STATUS: time_to_initial_display_millis_stddev=213.58029445515604
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Count_max=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Count_median=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Count_min=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Count_stddev=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Sum_millis_max=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Sum_millis_median=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Sum_millis_min=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camera_1Sum_millis_stddev=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camerax_count_max=1.0
+INSTRUMENTATION_STATUS: zxing.backend.camerax_count_median=1.0
+INSTRUMENTATION_STATUS: zxing.backend.camerax_count_min=1.0
+INSTRUMENTATION_STATUS: zxing.backend.camerax_count_stddev=0.0
+INSTRUMENTATION_STATUS: zxing.backend.camerax_sum_millis_max=489.69974
+INSTRUMENTATION_STATUS: zxing.backend.camerax_sum_millis_median=416.454609
+INSTRUMENTATION_STATUS: zxing.backend.camerax_sum_millis_min=395.962813
+INSTRUMENTATION_STATUS: zxing.backend.camerax_sum_millis_stddev=34.22982909949193
+INSTRUMENTATION_STATUS: zxing.camera.open_count_max=1.0
+INSTRUMENTATION_STATUS: zxing.camera.open_count_median=1.0
+INSTRUMENTATION_STATUS: zxing.camera.open_count_min=1.0
+INSTRUMENTATION_STATUS: zxing.camera.open_count_stddev=0.0
+INSTRUMENTATION_STATUS: zxing.camera.open_sum_millis_max=489.732083
+INSTRUMENTATION_STATUS: zxing.camera.open_sum_millis_median=416.4810415
+INSTRUMENTATION_STATUS: zxing.camera.open_sum_millis_min=395.992708
+INSTRUMENTATION_STATUS: zxing.camera.open_sum_millis_stddev=34.24085239110642
+INSTRUMENTATION_STATUS: zxing.first.frame_count_max=1.0
+INSTRUMENTATION_STATUS: zxing.first.frame_count_median=1.0
+INSTRUMENTATION_STATUS: zxing.first.frame_count_min=1.0
+INSTRUMENTATION_STATUS: zxing.first.frame_count_stddev=0.0
+INSTRUMENTATION_STATUS: zxing.first.frame_sum_millis_max=1166.681614
+INSTRUMENTATION_STATUS: zxing.first.frame_sum_millis_median=1069.3263015
+INSTRUMENTATION_STATUS: zxing.first.frame_sum_millis_min=776.054323
+INSTRUMENTATION_STATUS: zxing.first.frame_sum_millis_stddev=154.50647345814826
+INSTRUMENTATION_STATUS: zxing.first.scan_count_max=1.0
+INSTRUMENTATION_STATUS: zxing.first.scan_count_median=1.0
+INSTRUMENTATION_STATUS: zxing.first.scan_count_min=1.0
+INSTRUMENTATION_STATUS: zxing.first.scan_count_stddev=0.0
+INSTRUMENTATION_STATUS: zxing.first.scan_sum_millis_max=3607.924165
+INSTRUMENTATION_STATUS: zxing.first.scan_sum_millis_median=2951.8532539999997
+INSTRUMENTATION_STATUS: zxing.first.scan_sum_millis_min=2398.295207
+INSTRUMENTATION_STATUS: zxing.first.scan_sum_millis_stddev=486.3186160534772
+INSTRUMENTATION_STATUS_CODE: 2
+INSTRUMENTATION_STATUS: class=io.github.kakakakacat.zxing.benchmark.l3.ScanStartupBenchmark
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=coldStartToCameraReady
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 357.439
+
+OK (1 test)
+
+
+INSTRUMENTATION_CODE: -1
+--- outputs
+  benchmark/l3/build/outputs/l3/instrument.log
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter006_2026-11-03-06-35-20.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter010_2026-11-03-06-37-14.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter000_2026-11-03-06-32-38.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter008_2026-11-03-06-36-17.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter007_2026-11-03-06-35-51.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/io.github.kakakakacat.zxing.benchmark.l3-benchmarkData.json
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter009_2026-11-03-06-36-47.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter001_2026-11-03-06-33-05.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter011_2026-11-03-06-37-43.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter002_2026-11-03-06-33-30.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter003_2026-11-03-06-33-58.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter005_2026-11-03-06-34-51.perfetto-trace
+  benchmark/l3/build/outputs/l3/zxing-l3/ScanStartupBenchmark_coldStartToCameraReady_iter004_2026-11-03-06-34-24.perfetto-trace
+  benchmark/l3/build/outputs/l3/l3-runner-args.json

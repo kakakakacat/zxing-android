@@ -195,7 +195,8 @@ benchmark/tools/l1_device.sh --backend native            # 设备端 L1 正确�
 - [x] Android 14 真机和 Android 16 模拟器验证预览、ROI、结果点及屏幕坐标映射，另有 100 次开关（发现并修复一次崩溃）和 21 项 instrumentation 测试，见[验证报告](reports/camerax-adoption-verification-20261102.md)。
 - [x] **Android 15 真机、R8 压缩构建复验**：预览、两后端像素对齐的取景区域、解码帧输入、每后端 100 次开关、21/21 测试。发现并修复 CameraX 未接收 `FrontLightMode.ON` 的缺陷，见[报告](reports/camerax-android15-mix5-20261103.md)。
 - [x] **两种后端均通过真实相机识别真实条码**：第二台设备显示本分支 `:core` 生成的码，各后端 `CODE_128` 6/6 并读出 `EAN_13`，首次触发 `ScannerTrace` 的 `zxing.first.scan` 区间，见[报告](reports/real-barcode-decode-DN-ENG41-20261103.md)。
-- [ ] **CameraX 设为默认**：目前仍为 `CAMERA1`。两台手机、两个系统版本、R8 构建和真实条码均已验证，覆盖和缺少真实识别不再是原因；剩余是结合 L4 **持续扫描 CPU 约高 60%** 的数据作出选择。
+- [x] **Camera1 打开相机不再阻塞主线程**。原先 `ScannerView.surfaceCreated` 在主线程上同步调用 `CameraManager.openDriver`，L3 实测该区间 **401–436 ms**，窗口在此期间无法绘制。现改为在串行 worker 上打开、通过回调返回主线程；`CameraManager` 全类 `@Synchronized`，因此 open 在途时主线程的 `stopPreview` / `closeDriver` / `isOpen` 一并排队到同一 worker，`ViewfinderView` 也改为在相机就绪后才拿到相机。以未改动的 CameraX 为对照，同 session 内 `startup_to_initial_display` 的差值由 **+349 / +319 ms（Camera1 更慢）翻转为 −360 / −291 ms（Camera1 更快）**；第二轮两侧区间有重叠，见[报告](reports/l3-async-open-DN-ENG41-20261103.md)。
+- [ ] **CameraX 设为默认**：目前仍为 `CAMERA1`。两台手机、两个系统版本、R8 构建和真实条码均已验证，覆盖和缺少真实识别不再是原因。**启动延迟这一条已不再支持切换**——Camera1 的同步打开修掉之后，它比 CameraX 更快到达首帧窗口。剩余是结合 L4 **持续扫描 CPU 约高 60%** 的数据作出选择。
 
 ### 命名空间与独立性
 
@@ -575,10 +576,25 @@ audit IDs from [AUDIT.md](AUDIT.md), so nothing here is a vague intention.
       a symbol this fork's own `:core` generated; `CODE_128` 6/6 and `EAN_13` on each
       backend, and `ScannerTrace`'s `zxing.first.scan` span fires for the first time:
       [`docs/maint/reports/real-barcode-decode-DN-ENG41-20261103.md`](reports/real-barcode-decode-DN-ENG41-20261103.md)
+- [x] **Camera1 no longer opens the camera on the main thread.** `ScannerView.surfaceCreated`
+      called `CameraManager.openDriver` synchronously from it, and L3 measured that span at
+      **401–436 ms** — the window could not draw until the HAL negotiation returned. It now
+      runs on a serial worker and answers through the callback the interface always
+      specified. `CameraManager` is `@Synchronized` throughout, so a main-thread
+      `stopPreview`, `closeDriver` or `isOpen` during an open would have waited the open out
+      on that monitor; those queue onto the same worker instead, and `ViewfinderView` — which
+      reads the scan rectangle through the same monitor — is handed the camera in
+      `onCameraReady` rather than in `resume()`. Against unchanged CameraX as the control,
+      the within-session `startup_to_initial_display` difference went from **+349 / +319 ms
+      (Camera1 slower) to −360 / −291 ms (Camera1 faster)**; the second pair's intervals
+      overlap, which the report says rather than hides:
+      [`docs/maint/reports/l3-async-open-DN-ENG41-20261103.md`](reports/l3-async-open-DN-ENG41-20261103.md)
 - [ ] **CameraX made the default.** Still `CAMERA1`. Coverage is no longer the reason and
       neither is the missing decode: two phones, two Android versions, an R8 build and now
-      a real symbol all agree. What is left is **a decision**, against one measurement that
-      argues the other way — L4's **~60% more CPU to keep scanning**
+      a real symbol all agree. **Startup latency no longer argues for it either** — with
+      Camera1's synchronous open gone, Camera1 reaches a drawn window first. What is left is
+      **a decision**, against one measurement that argues the other way — L4's **~60% more
+      CPU to keep scanning**
 
 ## Namespace and independence
 

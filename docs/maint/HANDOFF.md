@@ -645,10 +645,12 @@ session, same decode path. Also +17 MB PSS, +12 MB native heap and +17 threads, 
 identical Java heap and slightly *fewer* GCs, so it is not memory pressure and not GC.
 Neither backend leaks over twelve minutes and neither degrades across the run.
 
-Read with L3's two findings, the backends are not simply better and worse: **Camera1 is
-cheaper to run and janks the launch by ~400 ms of blocked main thread; CameraX launches
-smoothly and costs more to keep running.** That is now three independent measurements
-pointing the same way about CameraX's frame path on this hardware.
+Read with L3's two findings, the backends were not simply better and worse: **Camera1 was
+cheaper to run and janked the launch by ~400 ms of blocked main thread; CameraX launched
+smoothly and cost more to keep running.** That is three independent measurements pointing
+the same way about CameraX's frame path on this hardware — and **the half that favoured
+CameraX is gone**: the block was fixed on 2026-11-03 and Camera1 now reaches a drawn window
+first. What is left of the comparison all points one way.
 
 `reports/l4-verdict-DN-ENG41-20261102.md` has the whole of it. Two conditions it records
 rather than hides: this device sits at thermal status 3 permanently, so every L4 number
@@ -663,11 +665,20 @@ both camera backends. `BENCHMARKS.md` §11 has the whole of it; the reading is
 `reports/l3-verdict-DN-ENG41-20261102.md`. Three things from it are worth knowing without
 opening either file:
 
-- **The shipping Camera1 path blocks the main thread for about 400 ms at startup.**
-  `ScannerView.surfaceCreated` runs on the main thread and `Camera1Backend.open` calls
-  `openDriver` synchronously from it. It shows up as CameraX reaching the window's first
-  frame ~330 ms sooner, reproduced across both pairs with non-overlapping intervals. This
-  is a jank and ANR smell independent of which backend anyone prefers.
+- **The shipping Camera1 path blocked the main thread for about 400 ms at startup, and
+  that is fixed.** `ScannerView.surfaceCreated` runs on the main thread and
+  `Camera1Backend.open` called `openDriver` synchronously from it; it showed up as CameraX
+  reaching the window's first frame ~330 ms sooner, across both baseline pairs with
+  non-overlapping intervals. The open now runs on a serial worker. Re-measured with
+  unchanged CameraX as the control, the within-session difference reverses: **+349 / +319 ms
+  before, −360 / −291 ms after**. Two things had to move with it and are the part worth
+  remembering — every `CameraManager` accessor is `@Synchronized`, so main-thread
+  `stopPreview` / `closeDriver` / `isOpen` would have waited the open out on that monitor
+  instead, and `ViewfinderView.onDraw` reads the scan rectangle through the same monitor, so
+  the camera is handed over in `onCameraReady` now rather than in `resume()`. The worker has
+  **no Looper on purpose**: `android.hardware.Camera` delivers preview and auto-focus
+  callbacks to the Looper of whichever thread called `Camera.open()`, so a `HandlerThread`
+  would have moved them silently. `reports/l3-async-open-DN-ENG41-20261103.md`.
 - **L3 disagrees with the Phase 6 spike about CameraX's latency, in the other direction.**
   The spike has CameraX 273 ms *faster* to a decodable frame on this device; L3 has it
   ~200 ms *slower* from asking for a camera to a frame at the decoder, and ~330 ms faster

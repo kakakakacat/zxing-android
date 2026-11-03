@@ -439,6 +439,32 @@ and is now the strongest argument on the list.
 
 ---
 
+## The Camera1 main-thread block is fixed, 2026-11-03
+
+L3 recorded, as an aside to its latency comparison, that **the shipping Camera1 path blocks
+the main thread for roughly 400 ms at startup** — `ScannerView.surfaceCreated` called
+`CameraManager.openDriver` synchronously from the main thread — and said it was a jank and
+ANR smell independent of which backend wins. That was the honest reading, and it was also
+the reason CameraX put a window on screen ~330 ms sooner in the same run.
+
+It is fixed. The open runs on a serial worker and answers through the callback; the
+`@Synchronized` accessors on `CameraManager` and `ViewfinderView`'s read of the scan
+rectangle had to move with it, or the wait would only have changed its name. Measured again
+with unchanged CameraX as the control, in one session, twice:
+
+| `startup_to_initial_display` | camera1 | camerax | difference |
+| --- | --- | --- | --- |
+| 2026-11-02, two pairs | 1747 / 1811 | 1398 / 1492 | **+349 / +319** |
+| 2026-11-03, two pairs | 1117 / 1170 | 1477 / 1461 | **−360 / −291** |
+
+**This removes CameraX's only measured advantage on this device**, and it changes what the
+list below says. The second 2026-11-03 pair's intervals overlap where the baseline's did
+not; `reports/l3-async-open-DN-ENG41-20261103.md` has the qualification in full, along with
+the 100-cycle loop, the 21 instrumentation tests and the real decode that were run before
+any of it was believed.
+
+---
+
 **Why the default has not moved.** Three reasons now, where there were two. The third
 arrived with L4 and is the strongest: **CameraX costs about 60% more CPU to keep scanning**
 on the one device that can measure it, and L3 separately has it 200 ms slower to a frame.

@@ -1,0 +1,13 @@
+== generating CODE_128, and reading it back ==
+CODE_128	ASYNC-OPEN-OK
+/var/folders/wp/y6yvt47s6vz7vb8qy24fw3m00000gn/T/tmp.yRko1RRti4/sheet.png
+== showing it on ZT812U128GB254233100034 ==
+/var/folders/wp/y6yvt47s6vz7vb8qy24fw3m00000gn/T/tmp.yRko1RRti4/sheet.png: 1 file pushed, 0 skipped. 194.9 MB/s (47192 bytes in 0.000s)
+camera1	1	ASYNC-OPEN-OK
+camera1	2	ASYNC-OPEN-OK
+camera1	3	ASYNC-OPEN-OK
+camera1	4	ASYNC-OPEN-OK
+camerax	1	ASYNC-OPEN-OK
+camerax	2	ASYNC-OPEN-OK
+camerax	3	ASYNC-OPEN-OK
+camerax	4	ASYNC-OPEN-OK

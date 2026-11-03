@@ -38,6 +38,12 @@ Worth saying plainly whatever is decided about backends: **the shipping Camera1 
 the main thread for roughly 400 ms at startup.** That is a jank and ANR smell independent
 of which backend wins on latency.
 
+> **Fixed on 2026-11-03** at `aff9b8105`. The open runs on a serial worker now, and
+> re-measured against unchanged CameraX in one session the sign of the
+> `startup_to_initial_display` difference reverses — Camera1 reaches a drawn window first.
+> Every number in this file is from before that change.
+> `l3-async-open-DN-ENG41-20261103.md`.
+
 **2. CameraX is about 200 ms slower from asking for a camera to a frame at the decoder** —
 +199 ms in pair 1, +200 ms in pair 2. The magnitude is strikingly stable; the intervals do
 not overlap in pair 1 and do overlap slightly in pair 2, so this is a real effect of
