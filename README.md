@@ -295,11 +295,15 @@ audit IDs from [AUDIT.md](docs/maint/AUDIT.md), so nothing here is a vague inten
       It found a defect — `FrontLightMode.ON` never reached the CameraX backend — now
       fixed:
       [`docs/maint/reports/camerax-android15-mix5-20261103.md`](docs/maint/reports/camerax-android15-mix5-20261103.md)
-- [ ] **CameraX made the default.** Still `CAMERA1`, deliberately, and the reason is no
-      longer coverage: two phones and two Android versions now agree. What is left is one
-      missing check — no decode has been driven off real camera hardware through
-      `ScannerView` — and one measurement that argues the other way, L4's **~60% more CPU
-      to keep scanning**
+- [x] **A real barcode decoded off real camera hardware**, through `ScannerView`, on both
+      backends — the check that had been open since the beginning. A second device displays
+      a symbol this fork's own `:core` generated; `CODE_128` 6/6 and `EAN_13` on each
+      backend, and `ScannerTrace`'s `zxing.first.scan` span fires for the first time:
+      [`docs/maint/reports/real-barcode-decode-DN-ENG41-20261103.md`](docs/maint/reports/real-barcode-decode-DN-ENG41-20261103.md)
+- [ ] **CameraX made the default.** Still `CAMERA1`. Coverage is no longer the reason and
+      neither is the missing decode: two phones, two Android versions, an R8 build and now
+      a real symbol all agree. What is left is **a decision**, against one measurement that
+      argues the other way — L4's **~60% more CPU to keep scanning**
 
 ## Namespace and independence
 

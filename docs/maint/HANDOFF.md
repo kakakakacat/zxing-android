@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `81e925e3b` on branch `maint/android`, **which is pushed**.
+Last updated at commit `0f73b7e0c` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -99,6 +99,10 @@ Last updated at commit `81e925e3b` on branch `maint/android`, **which is pushed*
 | `5da9aa797` | **The CI comparison step** — CI judges a measured result, it does not take one |
 | `0e2b34992` | `:app` shipped unstripped `.so`: 35.5 MB APK against 4.7 MB |
 | `81e925e3b` | **Phase 6 verified on Android 15**, and the torch defect it found |
+| `812244527` | Handoff points at its own commit |
+| `9af04bbf0` | What the Android 15 run left on the second device; a `private.sh` trap bug |
+| `1388b3f87` | CodeQL's scan was green and its upload was refused; permissions and triggers fixed |
+| `0f73b7e0c` | **A real barcode read off a screen**, both camera backends; the `ó` was FNC4 |
 
 Nothing is uncommitted. All three workflows were green on `6d4ab48b1`: Build
 `41468529666`, Instrumentation `41468529072`, and the new **L2 comparison** `41468529824`
@@ -199,6 +203,10 @@ moves its battery counters.
   user's home LAN and reached through a root agent rather than adb. See "The second device"
   below. It is the Android 15 verification point; it is **not** an L2 device, because
   nothing here locks its clocks and it is reached over a link that drops
+- Third physical device: **DN-ENG81, Android 14 (API 34), serial `ZT812U128GB254233100034`,
+  1200x1920** — not a test target. It is the **panel**: it displays a generated symbol for
+  DN-ENG41 to read off its screen, which is what closed the "no barcode has ever been in
+  front of a phone" gap. `tools/maint/scan-off-screen.sh` drives both ends
 - Emulators created for this work: AVDs `zxing_api35` (Android 15) and `zxing_api36`
   (Android 16), Pixel 7 profile, arm64. Start with
   `emulator -avd zxing_api36 -no-snapshot -no-audio -camera-back virtualscene`
@@ -370,6 +378,16 @@ check on every push. The check was watched failing on purpose before it was comm
 9. **Emulator `wm size` changes persist.** The Android 16 large-screen reproduction ran
    `wm size 1600x2560 && wm density 240`. Both were reset afterwards, but if an emulator
    behaves oddly, `adb shell wm size reset && adb shell wm density reset`.
+10. **An `ó` out of a Code 128 is not a decoder bug.** U+00F1..U+00F4 are the FNC1..FNC4
+    escapes on both sides of this library, and they mean opposite things: `Code128Writer`
+    reads them in its *input* as "emit an FNC here", while the readers emit them for
+    *decoded* FNC content — `ó` is an FNC4-shifted character, extended ASCII. So
+    `encode("óóóó1234óóabózz")` decodes back to `1234abzz`, and a scan that returns a
+    string full of `ó` is reading a symbol that genuinely carries FNC4. This cost a
+    morning: such a scan was reported as CameraX corrupting frames, and both camera
+    backends return it identically, 3/3 each
+    (`reports/real-barcode-decode-DN-ENG41-20261103.md`). Check the content before
+    blaming the transport.
 
 ---
 
@@ -500,13 +518,18 @@ Verified on DN-ENG41 and the API 36 emulator: preview, the viewfinder rectangle 
 the same place as on Camera1, a real QR decoded with its thumbnail and result points, 100
 open/close cycles and the 21 instrumentation tests. `reports/camerax-adoption-*`.
 
-**The default has not moved, and that is the one thing left in Phase 6.** Two reasons,
-both stated rather than worked around: the Mix5 answered `{"live":false}` for the whole
-session, so Android 15 is unverified; and no decode has been driven off real camera
-hardware *through `ScannerView`* — DN-ENG41 has nothing to point at and the emulator is
-where the decode was proved. This file already records two devices disagreeing about a
-Phase 6 result measured on one of them. Flipping the shipping default on one phone would
-be that mistake again.
+**The default has not moved, and what was holding it is gone.** Android 15 was verified
+on 2026-11-03, and on the same day **a real barcode was decoded off a real camera through
+`ScannerView`, on both backends** — the check this paragraph used to name as missing. A
+third device turned up (**DN-ENG81**, 1200x1920) and a phone can read a symbol off its
+screen, so it needed no hands after all: `tools/maint/scan-off-screen.sh` is the harness
+and `reports/real-barcode-decode-DN-ENG41-20261103.md` is the result. `CODE_128` 6/6 and
+`EAN_13` on each backend, with `ScannerTrace`'s `zxing.first.scan` span firing for the
+first time in this repository's history.
+
+**So nothing factual is left — only the decision**, and the one measurement arguing
+against it is L4's ~60% more CPU to keep scanning. That is a trade-off for the user to
+weigh, not a gap to close.
 
 **The 100-cycle loop earned its keep.** Its first CameraX run crashed the app in `onPause`:
 pausing while `ProcessCameraProvider.getInstance` was still resolving left the backend's
@@ -1255,14 +1278,16 @@ one thing still open are at the top of this file. What is left here:
 - ~~**Verification**~~ — done on DN-ENG41 and the API 36 emulator,
   `reports/camerax-adoption-verification-20261102.md`, and **re-done on Android 15** on
   2026-11-03 against the minified build, `reports/camerax-android15-mix5-20261103.md`.
-- **Making CameraX the default**, still the only Phase 6 item open — but the reason has
-  changed and that matters. It is no longer coverage: two phones, two Android versions
-  and an R8 build now agree, the viewfinder rectangle lands in the same place to the
-  pixel on both backends, and 21/21 instrumentation tests pass on the Android 15 one.
-  What is left is **one missing check and one measurement that argues the other way**: no
-  decode has been driven off real camera hardware through `ScannerView` (neither phone has
-  a barcode in front of it), and L4 has CameraX at ~60% more CPU to keep scanning. The
-  first needs hands; the second is a decision, not a gap.
+- ~~**A real decode off real camera hardware**~~ — **done, 2026-11-03**, on both backends:
+  `reports/real-barcode-decode-DN-ENG41-20261103.md`. A second Android device displays a
+  symbol and the phone reads it off that screen, which is why this never needed the hands
+  it was waiting for.
+- **Making CameraX the default**, still the only Phase 6 item open — and now purely a
+  decision. Two phones, two Android versions, an R8 build and a real symbol all agree; the
+  viewfinder rectangle lands in the same place to the pixel on both backends; 21/21
+  instrumentation tests pass on the Android 15 one. The only thing pointing the other way
+  is L4's ~60% more CPU to keep scanning, which is a trade-off to weigh rather than a gap
+  to close.
 
   **The Android 15 run earned its keep by finding a defect**: `FrontLightMode.ON` was a
   silent no-op on the CameraX backend, because the rule lived inside the Camera1 parameter
@@ -1381,13 +1406,15 @@ against a real `ImageProxy`. It had not; the reader was too late.
   modern OS, and no 16 KB page hardware. **Every L2 number is still from DN-ENG41 alone**,
   at one pinned operating point, in one thermal state — the Mix5 is reached over a link that
   drops and nothing locks its clocks, so it cannot produce an L-layer timing.
-- **No barcode has ever been put in front of either phone.** Every decode this project
-  has driven through `ScannerView` off a camera was on an emulator, with a virtual scene.
-  Both phones exercise the frame path end to end — frames arrive, the decode thread burns
-  CPU on them — and neither has read a symbol. That is the last functional check standing
-  between CameraX and the default, and it needs hands rather than tooling.
+- ~~**No barcode has ever been put in front of either phone.**~~ **Closed 2026-11-03**:
+  DN-ENG41 reads symbols off **DN-ENG81**'s screen on both camera backends, and
+  `tools/maint/scan-off-screen.sh` makes it repeatable. What a panel does not cover is
+  paper, angles, poor light, movement and auto-focus — it is the easy case on purpose. The
+  Mix5 and Android 16 still have nothing in front of them.
 - **Auto-focus on the CameraX path is untested anywhere.** DN-ENG41 offers auto-focus OFF
-  only; the Mix5 can do it but has not been pointed at anything.
+  only, and a screen at a fixed distance exercises focus on neither backend, so the
+  2026-11-03 decodes do not touch this. The Mix5 can do it but has not been pointed at
+  anything.
 - **The two devices disagreed about the Phase 6 latency result**, which is the clearest
   demonstration in this repository of why a one-device number is not a result. The spike
   numbers also drift between sessions on DN-ENG41 — its camera1 median read 810 ms and
