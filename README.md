@@ -13,6 +13,34 @@ Maven profile gated on `<jdk>[,9)</jdk>` and the unmaintained `android-maven-plu
 `targetSdk 22`. This fork exists to make that code build, run and keep evolving on current
 Android — and to make the scanning pipeline reusable instead of copy-pasteable.
 
+## Performance at a glance
+
+![Java ZXing vs this fork's native decoder: per-frame median latency, including 1D regressions](docs/maint/assets/decoder-performance.svg)
+
+**Measured decoder-backend comparison, not a whole-app speedup over the original
+Barcode Scanner.** These are the Java ZXing and zxing-cpp paths inside this fork at
+`602d368c4`, using identical generated frames and matched effort options. The chart
+shows **all nine default/all-format cases**, including the centered 1D cases where Java
+wins. Panels use different, zero-based linear scales; percentages describe **time
+change**, not throughput.
+
+On DN-ENG41 (Android 14), the native backend reduces median frame-pipeline time by
+**77–81% on no-barcode frames** and **71.9–82.5% on QR hits** in this run. It is slower on
+centered 1D hits: **0.372–1.811 ms**, versus Java's **0.066–0.091 ms**. Across the
+**full 27-case matrix**, the comparison gate reports **19 pass / 8 fail**, so this is
+not an across-the-board win.
+
+**Limits:** one physical device, one run per backend, locked clocks and the reference
+device's standing warm/thermal conditions (including the report's read-through warnings).
+These clean replay frames do not measure real-camera first-scan latency, battery life
+or general device performance. Numbers belong to this measured commit, not automatically
+to every later release.
+
+[Method and interpretation](docs/maint/BENCHMARKS.md#106c-the-first-backend-ab-measured)
+· [All 27 cases and verdict](docs/maint/reports/l2-ab-602d368c4-DN-ENG41-verdict.md)
+· [Source data (CSV)](docs/maint/reports/l2-ab-602d368c4-DN-ENG41-cases.csv)
+· [Corpus correctness, including regressions](docs/maint/BENCHMARKS.md#91-l1-on-a-device--the-accuracy-question-the-native-default-was-missing)
+
 ## What is here
 
 | Module | What it is |
@@ -352,20 +380,12 @@ years of callers and buy nothing.
 - [BENCHMARKS.md](docs/maint/BENCHMARKS.md) — how performance is measured, and what is not yet measured
 - [CHANGELOG.md](CHANGELOG.md) — release notes, one section per version
 
-## Performance claims
+## Performance evidence
 
-**Still none.** There is now an L2 baseline — what one preview frame costs on one device
-at one pinned operating point — but a baseline is not a claim. Nothing has been optimised
-and nothing has been compared, so there is nothing to be faster than.
-
-What the baseline does describe is where the cost sits. On DN-ENG41 with clocks locked, a
-1920×1080 frame containing no barcode takes **81 ms** with every format enabled and
-**1.2 ms** with one 1D format enabled. The no-barcode case is the live-preview case, and
-restricting the format set is worth up to 67× on it. That is a property of the decoder as
-it stands, not the effect of any change.
-
-Where this fork has removed obviously wasteful work, that is still described as simpler
-code rather than a measured speedup. See [BENCHMARKS.md](docs/maint/BENCHMARKS.md).
+The backend A/B above is a measured L2 comparison. It includes both improvements and
+regressions; it does **not** establish that the app as a whole is faster than upstream.
+See [Performance at a glance](#performance-at-a-glance) for the chart, raw data and limits,
+and [BENCHMARKS.md](docs/maint/BENCHMARKS.md) for the full measurement protocol.
 
 ## Licence
 
