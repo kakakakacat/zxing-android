@@ -149,4 +149,43 @@ public final class NativeRenderingTest {
     assertEquals("12", NativeFrameDecoder.withoutCodabarGuards("12"));
     assertEquals("A1", NativeFrameDecoder.withoutCodabarGuards("A1"));
   }
+
+  @Test
+  public void anEciShiftsTheQrSymbologyModifierAsIsoSaysItShould() {
+    // zxing-cpp knows the offset and does not apply it: Barcode.symbologyIdentifier()
+    // calls SymbologyIdentifier.toString() with hasECI defaulted to false. A QR with an
+    // ECI therefore arrives as ]Q1 where this fork's own reader says ]Q2.
+    assertEquals("]Q2", NativeFrameDecoder.symbologyIdentifier(
+        "]Q1", BarcodeFormat.QR_CODE, true));
+    assertEquals("]Q4", NativeFrameDecoder.symbologyIdentifier(
+        "]Q3", BarcodeFormat.QR_CODE, true));
+    assertEquals("]Q6", NativeFrameDecoder.symbologyIdentifier(
+        "]Q5", BarcodeFormat.QR_CODE, true));
+  }
+
+  @Test
+  public void withoutAnEciTheIdentifierIsPassedThroughUnchanged() {
+    assertEquals("]Q1", NativeFrameDecoder.symbologyIdentifier(
+        "]Q1", BarcodeFormat.QR_CODE, false));
+    assertEquals("]C0", NativeFrameDecoder.symbologyIdentifier(
+        "]C0", BarcodeFormat.CODE_128, false));
+    assertEquals("]e0", NativeFrameDecoder.symbologyIdentifier(
+        "]e0", BarcodeFormat.RSS_14, false));
+  }
+
+  @Test
+  public void aSymbologyWhoseEciOffsetIsUnknownReportsNoIdentifier() {
+    // Data Matrix shifts its modifier by 4, Aztec by something else again, and zxing-cpp
+    // exposes none of them. An unshifted identifier under the right-looking name would be
+    // a different symbol's identifier, so there is none rather than a wrong one.
+    assertNull(NativeFrameDecoder.symbologyIdentifier(
+        "]d1", BarcodeFormat.DATA_MATRIX, true));
+    assertNull(NativeFrameDecoder.symbologyIdentifier(
+        "]z0", BarcodeFormat.AZTEC, true));
+    // Model 1 QR reports ]Q0 and this fork has no Model 1 reader to agree with.
+    assertNull(NativeFrameDecoder.symbologyIdentifier(
+        "]Q0", BarcodeFormat.QR_CODE, true));
+    assertNull(NativeFrameDecoder.symbologyIdentifier(null, BarcodeFormat.QR_CODE, false));
+    assertNull(NativeFrameDecoder.symbologyIdentifier("", BarcodeFormat.QR_CODE, false));
+  }
 }

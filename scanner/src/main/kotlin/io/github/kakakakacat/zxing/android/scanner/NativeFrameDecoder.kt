@@ -21,6 +21,7 @@ import io.github.kakakakacat.zxing.BarcodeFormat
 import io.github.kakakakacat.zxing.DecodeHintType
 import io.github.kakakakacat.zxing.LuminanceSource
 import io.github.kakakakacat.zxing.Result
+import io.github.kakakakacat.zxing.ResultMetadataType
 import io.github.kakakakacat.zxing.ResultPoint
 import java.util.Collections
 import java.util.EnumMap
@@ -36,6 +37,25 @@ import java.util.EnumMap
  * The native library is loaded once, lazily, and a failure to load is reported through
  * [isAvailable] rather than thrown: a device without the right ABI should fall back to the
  * Java decoder, not crash.
+ *
+ * ### What a [Result] from this backend carries, and what it does not
+ *
+ * `getRawBytes()` is **the decoded standard content before any character-set
+ * conversion** — the bytes the symbology defines, which is what zxing-cpp's `bytes()`
+ * returns. That is not what the Java backend puts there for a 2D symbol: `QRCodeReader`
+ * and friends report the symbol's *codewords*, which zxing-cpp does not expose at all.
+ * The two backends therefore disagree about this field, deliberately and in this one
+ * documented way. For a 1D symbol the Java backend reports no raw bytes and this one
+ * reports the content, so there a caller gains rather than differs.
+ *
+ * They are also the bytes of the symbol as read, not of [Result.getText]: with
+ * `compatibilityRendering` on, the text has had a UPC-A leading zero, UPC-E expansion,
+ * Codabar guards or an RSS-14 application identifier taken off it, and the bytes have
+ * not. Re-encoding the display string would have produced a different thing wearing the
+ * same name.
+ *
+ * Metadata is mapped item by item — see `addMetadata` for what is carried and what is
+ * absent on purpose.
  *
  * ### The native declarations are deliberately shaped
  *
@@ -91,16 +111,32 @@ constructor(
     setFormats(formats)
   }
 
+  /** Frames whose decode threw rather than missing. Read through [diagnostics]. */
+  private var decodeFailures: Long = 0
+
   override fun decode(source: LuminanceSource): Result? {
     check(handle != 0L) { "decoder already closed" }
     // getMatrix() is the scan rectangle, not the frame. Handing the native side a
     // greyscale plane rather than a BinaryBitmap is the point of the seam: zxing-cpp
     // does its own thresholding.
-    val decoded = nativeDecode(handle, source.matrix, source.width, source.height)
-    if (decoded == null || decoded.size < 2) {
+    val decoded = try {
+      nativeDecode(handle, source.matrix, source.width, source.height)
+    } catch (e: NativeDecodeException) {
+      // A decoder that throws is a lost frame, not an empty one and not a dead scanner.
+      // Counted and logged once per distinct message, so a decoder failing on every
+      // frame says so once rather than thirty times a second.
+      decodeFailures++
+      warnOnceAboutDecodeFailure(e)
       return null
+    } ?: return null
+    if (decoded.size < RESULT_LENGTH) {
+      // The native layer and this one disagree about the result shape, which can only be
+      // a build mismatch. Loud, because every frame will do the same thing.
+      throw IllegalStateException(
+          "libzxingnative returned ${decoded.size} result elements, expected $RESULT_LENGTH")
     }
-    var format = formatFromNativeName(decoded[1])
+    val nativeName = decoded[RESULT_FORMAT] as String?
+    var format = formatFromNativeName(nativeName)
     if (format == null) {
       // A format this fork has no equivalent for. Reporting it as a miss is the honest
       // answer: the caller asked for formats it can name, and inventing one would put a
@@ -109,10 +145,10 @@ constructor(
       // Logged, once per name, because the silent version of this cost 90 corpus reads
       // and took a full L1 run to notice: a decoded symbol thrown away here is
       // indistinguishable from a frame that held no barcode.
-      warnOnceAboutUnmappedFormat(decoded[1])
+      warnOnceAboutUnmappedFormat(nativeName)
       return null
     }
-    var text = decoded[0]
+    var text = decoded[RESULT_TEXT] as String
     if (compatibilityRendering) {
       val compatFormat = upcAFormatFor(format, text)
       if (compatFormat != null) {
@@ -126,7 +162,29 @@ constructor(
         text = withoutGs1GtinPrefix(text)
       }
     }
-    return Result(text, null, cornerPoints(decoded), format)
+    val result = Result(text, decoded[RESULT_BYTES] as ByteArray?,
+                        cornerPoints(decoded), format)
+    addMetadata(result, decoded, format)
+    return result
+  }
+
+  /**
+   * What this decoder has seen, as `key=value;` pairs — hits, misses, the error
+   * breakdown, and the last message zxing-cpp produced.
+   *
+   * For a log line or a report. It crosses the JNI boundary and allocates, so it is not
+   * something to call per frame. It carries counts and zxing-cpp's own error text, which
+   * describes a symbol's structure; **scan content never goes in here.**
+   *
+   * The error breakdown is only as detailed as zxing-cpp was asked to be: by default a
+   * symbol that failed its checksum is counted as a miss, because the scanning path does
+   * not turn on `returnErrors` — see the JNI for why that costs reads.
+   */
+  fun diagnostics(): String {
+    if (handle == 0L) {
+      return "closed=1;decodeFailures=$decodeFailures"
+    }
+    return nativeDiagnostics(handle) + ";decodeFailures=" + decodeFailures
   }
 
   override fun setFormats(formats: Collection<@JvmSuppressWildcards BarcodeFormat>?) {
@@ -440,23 +498,135 @@ constructor(
      * *while* it searches, through `NEED_RESULT_POINT_CALLBACK`, which is what animates the
      * viewfinder; zxing-cpp has no streaming callback and those are lost.
      */
-    private fun cornerPoints(decoded: Array<String>): Array<ResultPoint?>? {
-      if (decoded.size < 10) {
+    private fun cornerPoints(decoded: Array<Any?>): Array<ResultPoint?>? {
+      val corners = decoded[RESULT_CORNERS] as IntArray?
+      if (corners == null || corners.size < 8) {
         return null
       }
-      return try {
-        val points = arrayOfNulls<ResultPoint>(4)
-        for (i in 0 until 4) {
-          points[i] = ResultPoint(decoded[2 + i * 2].toFloat(), decoded[3 + i * 2].toFloat())
-        }
-        points
-      } catch (e: NumberFormatException) {
-        null
+      val points = arrayOfNulls<ResultPoint>(4)
+      for (i in 0 until 4) {
+        points[i] = ResultPoint(corners[i * 2].toFloat(), corners[i * 2 + 1].toFloat())
+      }
+      return points
+    }
+
+    /**
+     * The metadata zxing-cpp carries that this fork has a [ResultMetadataType] for.
+     *
+     * Mapped item by item rather than wholesale, because the two sides agree on fewer of
+     * these than the names suggest. What is deliberately **not** here:
+     *
+     * - `BYTE_SEGMENTS`, `ERRORS_CORRECTED`, `ERASURES_CORRECTED`, `ORIENTATION`,
+     *   `ISSUE_NUMBER`, `SUGGESTED_PRICE`, `POSSIBLE_COUNTRY` — zxing-cpp does not report
+     *   them, and an invented value is worse than an absent one.
+     * - structured append for anything but QR. zxing-cpp's sequence id is a different
+     *   thing per symbology — a parity byte for QR, a file id for Data Matrix, an
+     *   arbitrary string for Aztec — and only QR's packs back into the single byte this
+     *   fork's `STRUCTURED_APPEND_SEQUENCE` has always carried. The Java backend sets
+     *   these for QR alone too, so this is parity rather than a gap.
+     */
+    /**
+     * The AIM symbology identifier, with the ECI modifier zxing-cpp leaves off.
+     *
+     * **zxing-cpp knows the ECI offset and then does not apply it.**
+     * `SymbologyIdentifier::toString` takes a `hasECI` argument that shifts the modifier,
+     * and `Barcode::symbologyIdentifier()` calls it with the default `false`. So a QR
+     * carrying an ECI — which is every QR this library's own writer produces for non
+     * Latin-1 text — comes back as `]Q1` where ISO/IEC 15424 and this fork's
+     * `DecodedBitStreamParser` both say `]Q2`. Found by making the two backends compare
+     * their metadata on one symbol, which is the only reason it is not still in here.
+     *
+     * For QR the offset is 1 and the base modifiers are 1, 3 and 5 for "no FNC1", "FNC1
+     * in first position" and "FNC1 in second position" on both sides, so adding one
+     * reproduces the Java backend's 2, 4 and 6 exactly, in all three cases.
+     *
+     * For every other symbology the offset is a different number — Data Matrix shifts by
+     * 4, not 1 — and zxing-cpp does not expose it. Reporting the unshifted identifier
+     * there would be reporting a different symbol's identifier under the right-looking
+     * name, so a symbol with an ECI and no known offset carries none. A symbol without an
+     * ECI is unaffected either way, which is almost all 1D traffic.
+     *
+     * @return the identifier, or null if there is none to state
+     */
+    @JvmStatic
+    fun symbologyIdentifier(
+        nativeIdentifier: String?,
+        format: BarcodeFormat,
+        hasEci: Boolean
+    ): String? {
+      if (nativeIdentifier == null || nativeIdentifier.length != 3) {
+        return null
+      }
+      if (!hasEci) {
+        return nativeIdentifier
+      }
+      if (format != BarcodeFormat.QR_CODE) {
+        return null
+      }
+      val modifier = nativeIdentifier[2]
+      if (modifier < '1' || modifier > '8') {
+        // Model 1 reports 0 and this fork's reader has no Model 1 path to agree with;
+        // anything else is not a modifier this rule was checked against.
+        return null
+      }
+      return nativeIdentifier.substring(0, 2) + (modifier + 1)
+    }
+
+    private fun addMetadata(result: Result, decoded: Array<Any?>, format: BarcodeFormat) {
+      (decoded[RESULT_EC_LEVEL] as String?)?.takeIf { it.isNotEmpty() }?.let {
+        result.putMetadata(ResultMetadataType.ERROR_CORRECTION_LEVEL, it)
+      }
+      (decoded[RESULT_EAN_ADD_ON] as String?)?.takeIf { it.isNotEmpty() }?.let {
+        result.putMetadata(ResultMetadataType.UPC_EAN_EXTENSION, it)
+      }
+      val flags = decoded[RESULT_FLAGS] as IntArray?
+      if (flags == null || flags.size < FLAG_COUNT) {
+        return
+      }
+      val hasEci = flags[FLAG_HAS_ECI] == 1
+      symbologyIdentifier(decoded[RESULT_SYMBOLOGY_ID] as String?, format, hasEci)?.let {
+        result.putMetadata(ResultMetadataType.SYMBOLOGY_IDENTIFIER, it)
+      }
+      if (flags[FLAG_READER_INIT] == 1) {
+        // Set only when true, as Code128Reader's own value is; a false here would be a
+        // new entry in every result's metadata map.
+        result.putMetadata(ResultMetadataType.READER_INIT, true)
+      }
+      if (format != BarcodeFormat.QR_CODE) {
+        return
+      }
+      val index = flags[FLAG_SEQUENCE_INDEX]
+      val count = flags[FLAG_SEQUENCE_SIZE]
+      if (index < 0 || count < 1 || index > 0x0F || count > 0x10) {
+        // -1 for both is zxing-cpp's "not part of a sequence"; anything else out of range
+        // is not a QR structured append header and is not going to be packed into one.
+        return
+      }
+      // QR writes the header as one byte: four bits of index, then the symbol count less
+      // one. DecodedBitStreamParser hands that byte through unchanged, so the value a
+      // caller already switches on is rebuilt here rather than redefined.
+      result.putMetadata(ResultMetadataType.STRUCTURED_APPEND_SEQUENCE,
+                         (index shl 4) or (count - 1))
+      val parity = (decoded[RESULT_SEQUENCE_ID] as String?)?.toIntOrNull()
+      if (parity != null) {
+        // zxing-cpp stringifies QR's parity byte; the Java backend reports the byte.
+        result.putMetadata(ResultMetadataType.STRUCTURED_APPEND_PARITY, parity)
       }
     }
 
     private val REPORTED_UNMAPPED_FORMATS: MutableSet<String> =
         Collections.synchronizedSet(HashSet())
+
+    private val REPORTED_DECODE_FAILURES: MutableSet<String> =
+        Collections.synchronizedSet(HashSet())
+
+    private fun warnOnceAboutDecodeFailure(e: NativeDecodeException) {
+      val message = e.message ?: "no message"
+      if (REPORTED_DECODE_FAILURES.add(message)) {
+        Log.w("NativeFrameDecoder", "zxing-cpp threw on a frame; that frame is lost and " +
+            "scanning continues. Counted in diagnostics() as internalErrors", e)
+      }
+    }
 
     private fun warnOnceAboutUnmappedFormat(nativeName: String?) {
       if (nativeName != null && REPORTED_UNMAPPED_FORMATS.add(nativeName)) {
@@ -511,11 +681,44 @@ constructor(
 
     @JvmStatic private external fun nativeSetTryHarder(handle: Long, tryHarder: Boolean)
 
+    @JvmStatic private external fun nativeSetReturnErrors(handle: Long, returnErrors: Boolean)
+
+    @JvmStatic private external fun nativeDiagnostics(handle: Long): String
+
     @JvmStatic private external fun nativeDecode(
         handle: Long,
         luminance: ByteArray,
         width: Int,
         height: Int
-    ): Array<String>?
+    ): Array<Any?>?
+
+    /**
+     * Where each part of a decode lands in the array `nativeDecode` returns.
+     *
+     * A structured array rather than the ten strings this used to be: the corner points
+     * were formatted into decimal on the native side and parsed back here, and the
+     * content bytes had nowhere to go at all. Both sides read these constants —
+     * `zxing_native.cpp` by position, with the same names in its documentation — so a
+     * change to one is a change to the other, and the length check in `decode` catches a
+     * build where only one of them moved.
+     */
+    internal const val RESULT_TEXT = 0
+    internal const val RESULT_FORMAT = 1
+    internal const val RESULT_CORNERS = 2
+    internal const val RESULT_BYTES = 3
+    internal const val RESULT_EC_LEVEL = 4
+    internal const val RESULT_SYMBOLOGY_ID = 5
+    internal const val RESULT_EAN_ADD_ON = 6
+    internal const val RESULT_FLAGS = 7
+    internal const val RESULT_SEQUENCE_ID = 8
+    internal const val RESULT_LENGTH = 9
+
+    /** Positions inside `RESULT_FLAGS`. */
+    internal const val FLAG_SEQUENCE_INDEX = 0
+    internal const val FLAG_SEQUENCE_SIZE = 1
+    internal const val FLAG_READER_INIT = 2
+    internal const val FLAG_CONTENT_TYPE = 3
+    internal const val FLAG_HAS_ECI = 4
+    internal const val FLAG_COUNT = 5
   }
 }
