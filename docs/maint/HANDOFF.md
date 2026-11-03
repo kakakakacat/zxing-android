@@ -1418,6 +1418,14 @@ Getting there took two things worth knowing:
     watched failing on purpose — delete the `:core` line and it names the missing
     artifact — and `build.yml` runs it on every push.
 
+- **The AAR has been taken all the way to a consumer and works**, 2026-11-03:
+  published to `~/.m2`, resolved by a throwaway Gradle build that knows nothing about this
+  repository, compiled from both Java and Kotlin against the README's own example,
+  minified by R8 with only the default rules, installed, and used to decode a real
+  `CODE_128` off a camera — `SCANNED CODE_128 AAR-CONSUMER-OK`. Both shipped ABIs report
+  `LOAD align = 0x4000`, so 16 KB alignment is in the ELF rather than assumed.
+  `reports/aar-deliverable-check-20261103.md`. **Nothing about the artifact is blocking a
+  release; what is left is the changelog and the tag.**
 - Nothing has been released. Tagging `v0.1.0` triggers `.github/workflows/release.yml`,
   which builds, checksums, publishes to GitHub Packages and cuts a GitHub Release whose
   body comes from the `CHANGELOG.md` section for that version. Move the `[Unreleased]`

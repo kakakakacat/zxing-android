@@ -67,6 +67,10 @@ scannerView.setListener(new ScannerView.Listener() {
 @Override protected void onPause()  { scannerView.pause(); super.onPause(); }
 ```
 
+Every type above is in `io.github.kakakakacat.zxing.android.scanner` **except**
+`FrontLightMode`, which is in `io.github.kakakakacat.zxing.android.camera` — it describes
+the torch, which `ScannerCamera` owns, and it is reachable from both camera backends.
+
 **You request `CAMERA` yourself.** `ScannerView` never shows a permission dialog; if the
 permission is missing it reports `ScannerError.PERMISSION_DENIED` and leaves the
 conversation with the user to the host app. `CaptureActivity` in `android/` is a worked
