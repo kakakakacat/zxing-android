@@ -83,12 +83,35 @@ Verified from the published side rather than from the build:
 | Released AAR | the same 13 entries, `classes.jar` 131 KB, both ABIs present |
 | 16 KB alignment, in the *released* binary | `LOAD align = 0x4000` on every `LOAD`, both ABIs |
 
-**Resolving from GitHub Packages was not verified and cannot be from this machine.**
-It answers 401 without a token carrying `read:packages`, and the `gh` CLI's OAuth token
-has no such scope. That is GitHub requiring authentication for Maven packages even on a
-public repository — `PUBLISHING.md` documents it, and names JitPack as the route that
-needs no token. What was driven end to end is the same artifact served from a local
-repository, below.
+### Resolving from GitHub Packages — verified after the fact
+
+This was recorded here as *not verified*: the registry answers 401 without a token
+carrying `read:packages`, which GitHub requires for Maven packages even on a public
+repository. It was closed the same day with a token that has that scope.
+
+The consumer project below was repointed at
+`https://maven.pkg.github.com/kakakakacat/zxing-android`, with `mavenLocal()` **removed**
+from the repository list, and the Gradle module cache for `io.github.kakakakacat.zxing`
+deleted first — so nothing this machine had built earlier could satisfy the resolve.
+
+| Check | Result |
+| --- | --- |
+| The four files the build needs | `scanner` POM and AAR, `core` POM and JAR: all 200 |
+| Transitive resolve | `zxing-core` arrived through the `scanner` POM, not by being asked for |
+| `clean :app:assembleRelease` | BUILD SUCCESSFUL, R8 ran, APK packaged |
+| **Is it the released artifact?** | the fetched AAR's sha256 is `3b2f4392…` — the published `SHA256SUMS.txt` value, byte for byte |
+| On the device | installed on DN-ENG41, CameraX backend, read a Code 128 off DN-ENG81's screen: `SCANNED CODE_128 AAR-GPR-OK`, 53 times in one run |
+
+The symbol itself was generated **and read back** with the published `zxing-core-0.1.0.jar`
+from the Gradle cache, not with a local build, so both published artifacts are exercised.
+
+One practical note for a consumer, found here: a Code 128 drawn 1000 px wide on the panel
+did not decode at this working distance — it ran past the framing rectangle. At 700 px it
+decoded in under a second. That is framing, not a decoder limit, and it is the kind of
+thing a first integration hits.
+
+`PUBLISHING.md` still names JitPack as the token-free route; that remains the easier one
+to hand to someone else.
 
 ## What was still not done at the time of writing
 

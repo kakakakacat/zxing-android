@@ -1441,11 +1441,17 @@ Getting there took two things worth knowing:
   sums recompute to the published values from the downloaded files; the released AAR has
   the expected 13 entries and `LOAD align = 0x4000` on every `LOAD` segment of both ABIs.
 
-  **Not checked, and it cannot be from here:** resolving the artifact out of GitHub
-  Packages. That needs a token with `read:packages` and the `gh` CLI's OAuth token has no
-  such scope — a 401, which is GitHub requiring auth for Maven packages even on a public
-  repository, exactly as `PUBLISHING.md` already says. What *was* driven end to end is
-  the same artifact from a local repository: resolved, minified, installed and scanning.
+  **Checked later the same day, with a token that carries `read:packages`:** resolving
+  the artifact out of GitHub Packages, which had been the one open item. With
+  `mavenLocal()` removed and the module cache for the group deleted, a consumer project
+  resolved both artifacts from `maven.pkg.github.com`, R8'd, installed on DN-ENG41 and
+  read a Code 128 off DN-ENG81's screen. The AAR Gradle fetched is sha256 `3b2f4392…`,
+  the published `SHA256SUMS.txt` value. Without such a token the registry answers 401 —
+  GitHub requires auth for Maven packages even on a public repository, exactly as
+  `PUBLISHING.md` says, which is why JitPack stays the route to hand to someone else.
+  `gh auth refresh -h github.com -s read:packages` is how to get one; a fine-grained PAT
+  does **not** work against the Maven registry, it has to be classic or the gh OAuth
+  token.
 - **`release.yml` extracted the release notes *after* publishing**, so a missing
   changelog section would have failed the release with the version already taken in
   GitHub Packages, which cannot be replaced. Fixed at `0a43c6972`: the extraction now
