@@ -155,6 +155,30 @@ def halves(values):
             "second_half_mean": sum(second) / len(second)}
 
 
+def charge_drain(rows):
+    """Mean current over the soak, from the fuel gauge's charge counter.
+
+    `battery_level` is a whole percent, which over a soak of a few minutes is one or two
+    steps and cannot separate two backends. `charge_counter` is microamp-hours and moves
+    continuously, so the difference across the run divided by the run's own length is a
+    mean current in mA.
+
+    Returns None when the device exposed no counter, or when fewer than two rows carried
+    one — a single reading is a level, not a drain.
+    """
+    sampled = [row for row in rows if row.get("charge_uah") is not None]
+    if len(sampled) < 2:
+        return None
+    minutes = (sampled[-1]["uptime_ms"] - sampled[0]["uptime_ms"]) / 60000.0
+    if minutes <= 0:
+        return None
+    consumed_uah = sampled[0]["charge_uah"] - sampled[-1]["charge_uah"]
+    return {"uah": consumed_uah,
+            "minutes": minutes,
+            "n": len(sampled),
+            "mean_ma": (consumed_uah / 1000.0) / (minutes / 60.0)}
+
+
 def build_report(meta, rows, gc, run_id, commit, device_label, device_info, backend, scene,
                  interval_seconds):
     if len(rows) < 3:
@@ -178,6 +202,11 @@ def build_report(meta, rows, gc, run_id, commit, device_label, device_info, back
 
     thermal = column("thermal_status")
     battery = column("battery_level")
+    drain = charge_drain(rows)
+    system_mw = [row["usb_current_ua"] * row["usb_voltage_uv"] / 1e9
+                 for row in rows
+                 if row.get("usb_current_ua") is not None
+                 and row.get("usb_voltage_uv") is not None]
 
     cases = [
         {"name": "cpu_percent_of_one_core", "unit": "percent",
@@ -210,6 +239,26 @@ def build_report(meta, rows, gc, run_id, commit, device_label, device_info, back
         {"name": "battery_level", "unit": "percent",
          "question": "Battery level over the soak",
          **summarise(battery), "halves": None},
+        {"name": "charge_counter_uah", "unit": "uAh",
+         "question": "Fuel-gauge charge remaining, sampled on the slow rows only",
+         **summarise(column("charge_uah")), "halves": None},
+        # One number for the whole run, not a series: it is the counter's fall divided by
+        # the time it fell over. `min`/`max`/`first`/`last` stay null rather than repeating
+        # the mean, so nothing here can be read as a spread that was never measured.
+        {"name": "battery_drain_ma", "unit": "mA",
+         "question": "Mean current drawn from the battery over the soak, from the fuel "
+                     "gauge's own charge counter rather than from the whole-percent level",
+         "n": 0 if drain is None else drain["n"],
+         "mean": None if drain is None else drain["mean_ma"],
+         "min": None, "max": None, "first": None, "last": None,
+         "uah_consumed": None if drain is None else drain["uah"],
+         "minutes": None if drain is None else drain["minutes"],
+         "halves": None},
+        {"name": "system_power_mw", "unit": "mW",
+         "question": "Power drawn in at the USB port: the WHOLE phone, not this app. Only "
+                     "meaningful as a difference between two soaks measured the same way, "
+                     "and only while the battery is full so none of it is charging",
+         **summarise(system_mw), "halves": halves(system_mw)},
     ]
 
     warnings = []
@@ -230,6 +279,28 @@ def build_report(meta, rows, gc, run_id, commit, device_label, device_info, back
         warnings.append(
             "BATTERY_PINNED: the battery stayed at 100% for the whole soak, so it was on "
             "charge. Battery drain was not measured and must not be read off this run.")
+    if drain is None:
+        warnings.append(
+            "NO_FUEL_GAUGE: this device exposes no readable charge_counter, so "
+            "battery_drain_ma is null. Whole-percent battery_level is the only battery "
+            "signal here and it is too coarse to compare two backends over a short soak.")
+    elif drain["uah"] <= 0:
+        warnings.append(
+            "NOT_DISCHARGING: the fuel gauge did not fall over the soak (%+d uAh), so the "
+            "battery was not supplying the phone. battery_drain_ma is not a drain and must "
+            "not be read as one." % -drain["uah"])
+    if system_mw:
+        warnings.append(
+            "SYSTEM_POWER_IS_NOT_APP_POWER: system_power_mw is the current drawn in at the "
+            "USB port times its voltage. That is the whole phone -- screen, radios and "
+            "everything else -- not this process, and it is valid as a power figure only "
+            "while the battery is full and taking no charging current. Read it as the "
+            "difference between two soaks measured minutes apart under identical "
+            "conditions, never as an absolute cost of scanning.")
+    else:
+        warnings.append(
+            "NO_USB_POWER: no readable USB current and voltage, so system_power_mw is "
+            "null. On a device that cannot be unplugged this leaves no power signal at all.")
     if gc is None:
         warnings.append("NO_GC_DATA: no logcat was supplied, so GC was not measured.")
     elif gc["collections"] == 0:
@@ -242,10 +313,14 @@ def build_report(meta, rows, gc, run_id, commit, device_label, device_info, back
                         "a leak or a thermal effect needs time to appear.")
     if scene != "hit":
         warnings.append(
-            "MISS_PATH: nothing was decoded during this soak, so it measures the "
-            "decode-nothing path. §10 measured that as the most expensive case and it is "
-            "what live preview does almost every frame, so it is the right default -- but "
-            "it is not a scan-every-frame workload.")
+            "MISS_PATH: this run is recorded as the decode-nothing path. §10 measured "
+            "that as the most expensive case and it is what live preview does almost every "
+            "frame, so it is the right default -- but it is not a scan-every-frame "
+            "workload. The scene is what the caller declared; `l4-soak.sh` is what checks "
+            "it, by refusing to run or to finish while the scanner is showing a result. "
+            "This warning used to read 'nothing was decoded during this soak', which was a "
+            "claim this converter has never been able to make: it sees samples, not a "
+            "lens. Two soaks were spent on a result screen before that was noticed.")
 
     return {
         "layer": "L4",

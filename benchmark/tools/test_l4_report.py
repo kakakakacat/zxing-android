@@ -188,3 +188,90 @@ class GcParsing(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+POWER_COLUMNS = COLUMNS + ["charge_uah", "batt_current_ua", "usb_current_ua",
+                           "usb_voltage_uv"]
+
+
+def write_power_samples(rows, meta="clk_tck=100 interval=5 slow_every=2"):
+    handle = tempfile.NamedTemporaryFile("w", suffix=".tsv", delete=False, encoding="utf-8")
+    handle.write("# " + meta + "\n")
+    handle.write("\t".join(POWER_COLUMNS) + "\n")
+    for row in rows:
+        handle.write("\t".join("" if v is None else str(v) for v in row) + "\n")
+    handle.close()
+    return handle.name
+
+
+def power_sample(uptime, utime, stime, rss, slow=False, charge=None,
+                 usb_ua=None, usb_uv=None):
+    row = sample(uptime, utime, stime, rss, slow=slow)
+    return row + [charge if slow else None, 0 if slow else None,
+                  usb_ua if slow else None, usb_uv if slow else None]
+
+
+def build_power(rows):
+    meta, parsed = l4_report.parse_samples(write_power_samples(rows))
+    return l4_report.build_report(meta, parsed, None, "run", "abc", "DN-ENG41",
+                                  {"api": 34}, "camerax", "miss", 5)
+
+
+def case(report, name):
+    return next(c for c in report["cases"] if c["name"] == name)
+
+
+def warning(report, prefix):
+    return next((w for w in report["warnings"] if w.startswith(prefix)), None)
+
+
+class Power(unittest.TestCase):
+    """What the two power columns may and may not be read as."""
+
+    def test_system_power_is_usb_current_times_usb_voltage(self):
+        # 600,000 uA at 5,000,000 uV is 0.6 A at 5 V = 3000 mW.
+        rows = [power_sample(i * 5000, 100 * i, 10 * i, 100000, slow=(i % 2 == 0),
+                             usb_ua=600000, usb_uv=5000000)
+                for i in range(6)]
+        power = case(build_power(rows), "system_power_mw")
+        self.assertAlmostEqual(power["mean"], 3000.0, places=6)
+        self.assertEqual(power["n"], 3)
+
+    def test_system_power_always_says_it_is_not_the_app(self):
+        # The number is the whole phone. A reader who takes it for the app's cost has been
+        # misled by the report, so the report says so every time it produces one.
+        rows = [power_sample(i * 5000, 100 * i, 10 * i, 100000, slow=(i % 2 == 0),
+                             usb_ua=600000, usb_uv=5000000)
+                for i in range(6)]
+        self.assertIsNotNone(
+            warning(build_power(rows), "SYSTEM_POWER_IS_NOT_APP_POWER"))
+
+    def test_no_usb_nodes_is_null_and_said_out_loud(self):
+        rows = [power_sample(i * 5000, 100 * i, 10 * i, 100000, slow=(i % 2 == 0))
+                for i in range(6)]
+        report = build_power(rows)
+        self.assertIsNone(case(report, "system_power_mw")["mean"])
+        self.assertIsNotNone(warning(report, "NO_USB_POWER"))
+
+    def test_drain_is_microamp_hours_over_the_elapsed_time(self):
+        # 10,000 uAh gone over 30 minutes is 10 mAh/0.5 h = 20 mA.
+        rows = [power_sample(0, 0, 0, 100000, slow=True, charge=2000000),
+                power_sample(900000, 100, 10, 100000, slow=False),
+                power_sample(1800000, 200, 20, 100000, slow=True, charge=1990000)]
+        drain = case(build_power(rows), "battery_drain_ma")
+        self.assertAlmostEqual(drain["mean"], 20.0, places=6)
+        self.assertEqual(drain["uah_consumed"], 10000)
+
+    def test_a_counter_that_did_not_fall_is_not_a_drain(self):
+        rows = [power_sample(0, 0, 0, 100000, slow=True, charge=2000000),
+                power_sample(900000, 100, 10, 100000, slow=False),
+                power_sample(1800000, 200, 20, 100000, slow=True, charge=2000000)]
+        self.assertIsNotNone(warning(build_power(rows), "NOT_DISCHARGING"))
+
+    def test_one_charge_reading_is_a_level_not_a_drain(self):
+        rows = [power_sample(0, 0, 0, 100000, slow=True, charge=2000000),
+                power_sample(5000, 100, 10, 100000, slow=False),
+                power_sample(10000, 200, 20, 100000, slow=False)]
+        report = build_power(rows)
+        self.assertIsNone(case(report, "battery_drain_ma")["mean"])
+        self.assertIsNotNone(warning(report, "NO_FUEL_GAUGE"))

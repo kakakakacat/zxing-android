@@ -19,6 +19,9 @@ BACKEND="${1:-}"
 MINUTES="${2:-10}"
 SERIAL="${3:-}"
 INTERVAL="${L4_INTERVAL:-5}"
+# §12.3: the miss path is the default, and now it is also checked rather than declared.
+# Set L4_SCENE=hit when a symbol is deliberately in view.
+SCENE="${L4_SCENE:-miss}"
 SLOW_EVERY="${L4_SLOW_EVERY:-6}"
 
 case "$BACKEND" in
@@ -97,10 +100,37 @@ case "$PID" in
 esac
 echo "pid: $PID — soaking"
 
+# The scene is declared on the command line and was never checked, which is how two
+# twelve-minute soaks were spent measuring a result screen: a second device three feet away
+# was still displaying the Code 128 from an earlier test, the scanner decoded it in the
+# first second, stopped scanning and sat there. CPU read 3.4% of one core against the
+# baseline's 74% and the result file still said `scene: miss`.
+#
+# `contents_text_view` is the result screen's own view id. If it is up, this is not the
+# miss path -- whatever the caller declared.
+check_scene() {
+  "${ADB[@]}" shell "uiautomator dump /sdcard/l4-ui.xml" >/dev/null 2>&1
+  DECODED=$("${ADB[@]}" shell "cat /sdcard/l4-ui.xml" 2>/dev/null | grep -c 'contents_text_view')
+  "${ADB[@]}" shell "rm -f /sdcard/l4-ui.xml" >/dev/null 2>&1
+  echo "${DECODED:-0}" | tr -d '\r'
+}
+if [ "$SCENE" = "miss" ] && [ "$(check_scene)" != "0" ]; then
+  echo "FAIL: the scanner is showing a decoded result, so the lens is not looking at an" >&2
+  echo "      empty scene. This run would measure a result screen, not scanning." >&2
+  "${ADB[@]}" shell am force-stop "$PKG"
+  exit 1
+fi
+
 # Logcat streamed to a file for the duration, not read back afterwards. The reference
 # device's main buffer turns over in seconds under load; polling `logcat -d` at the end is
 # how the camera spike lost every decode line it was looking for.
-"${ADB[@]}" logcat -v time > "$OUT_DIR/logcat-$BACKEND.log" &
+#
+# `--pid` is not a tidiness measure. Unfiltered, this device wrote **717 MB in twelve
+# minutes** -- it logs an `AppsFilter: interaction ... BLOCKED` line for essentially every
+# package pair -- and that is a megabyte a second of USB traffic and host disk writes
+# sitting inside a measurement of the phone's own power draw. The only lines the converter
+# reads are ART's GC lines from this process, and that is exactly what `--pid` leaves.
+"${ADB[@]}" logcat -v time --pid="$PID" > "$OUT_DIR/logcat-$BACKEND.log" &
 LOGCAT_PID=$!
 
 "${ADB[@]}" shell sh /data/local/tmp/l4-sample.sh "$PID" \
@@ -118,6 +148,16 @@ wait "$LOGCAT_PID" 2>/dev/null
 # through has flat CPU for the wrong reason, and that is the exact shape of a result that
 # looks healthy and is not.
 STILL_RUNNING=$("${ADB[@]}" shell pidof "$PKG" | tr -d '\r')
+# A live process is not a live scan. `InactivityTimer` finishes CaptureActivity after five
+# minutes **when the device is on battery** -- and the only thing that keeps resetting it is
+# the ACTION_BATTERY_CHANGED broadcast, which is not a schedule anyone controls. On charge
+# the timer is cancelled outright, which is why every soak so far ran past it without
+# noticing. Off charge, the activity can end half way through: the camera closes, CPU
+# collapses, the process stays cached and `pidof` still answers. That is a soak that looks
+# healthy and measures nothing, so the window's focus is checked rather than the process.
+STILL_FOCUSED=$("${ADB[@]}" shell dumpsys window 2>/dev/null \
+    | grep -m1 'mCurrentFocus' | grep -c "$PKG" | tr -d '\r')
+SCENE_AT_END=$(check_scene)
 "${ADB[@]}" shell am force-stop "$PKG"
 
 if [ "$SAMPLER_STATUS" = "3" ]; then
@@ -126,6 +166,17 @@ if [ "$SAMPLER_STATUS" = "3" ]; then
 fi
 if [ -z "$STILL_RUNNING" ]; then
   echo "FAIL: the app was gone at the end of the soak." >&2
+  exit 1
+fi
+if [ "$SCENE" = "miss" ] && [ "$SCENE_AT_END" != "0" ]; then
+  echo "FAIL: the scanner was showing a decoded result at the end of the soak, so something" >&2
+  echo "      came into view during it. Part of this run measured a result screen." >&2
+  exit 1
+fi
+if [ "$STILL_FOCUSED" != "1" ]; then
+  echo "FAIL: $PKG no longer held the focused window at the end of the soak." >&2
+  echo "      On battery that is most likely InactivityTimer finishing CaptureActivity" >&2
+  echo "      after five minutes. The samples after that point are not a scan." >&2
   exit 1
 fi
 
