@@ -13,7 +13,7 @@ same content in 简体中文 and English. **Write new detail there, in both lang
 keep the README short.** A change only reaches the README when it changes what the
 project *is* or moves one of the headline numbers.
 
-Last updated at commit `2f1758f15` plus the embedding commit on branch `maint/android`. **Not pushed yet.**
+Last updated at commit `ed0b063ea` on branch `maint/android`, **which is pushed**.
 
 ---
 
