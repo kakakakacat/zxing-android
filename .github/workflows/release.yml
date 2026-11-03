@@ -71,6 +71,19 @@ jobs:
           python3 -I tools/maint/check_release_publishes.py \
             --version "${{ steps.version.outputs.value }}"
 
+      # Before the publish, for the same reason the check above is: the notes come from
+      # CHANGELOG.md and `changelog_section.py` exits non-zero when the version has no
+      # section. Extracting them afterwards meant a forgotten changelog entry failed the
+      # release *after* GitHub Packages had taken the version -- which cannot be replaced,
+      # so the version number was burnt and the Release never appeared.
+      - name: Extract the release notes for this version
+        id: notes
+        run: |
+          python3 tools/maint/changelog_section.py \
+            --version "${{ steps.version.outputs.value }}" \
+            --changelog CHANGELOG.md > dist/RELEASE_NOTES.md
+          cat dist/RELEASE_NOTES.md
+
       # Both artifacts, in one step, because they are not independent: :scanner declares
       # `api(project(":core"))`, so its POM carries a compile dependency on
       # io.github.kakakakacat.zxing:zxing-core at the same version. Publishing the AAR
@@ -90,16 +103,6 @@ jobs:
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      # Release notes live in CHANGELOG.md; the Release quotes that section rather
-      # than keeping a second copy that can drift from it.
-      - name: Extract the release notes for this version
-        id: notes
-        run: |
-          python3 tools/maint/changelog_section.py \
-            --version "${{ steps.version.outputs.value }}" \
-            --changelog CHANGELOG.md > dist/RELEASE_NOTES.md
-          cat dist/RELEASE_NOTES.md
 
       - name: Create the GitHub Release
         uses: softprops/action-gh-release@v2

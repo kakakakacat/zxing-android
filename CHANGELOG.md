@@ -11,6 +11,10 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.1.0] - 2026-11-03
+
 ### Added
 - **`ScannerTrace`: three asynchronous trace spans** — `zxing.camera.open`,
   `zxing.first.frame`, `zxing.first.scan`, plus one naming the camera backend in use.
@@ -42,105 +46,6 @@ API may still change between minor versions.
   open camera through, implemented by both backends.
 - The Barcode Scanner app has a **"Use CameraX"** setting, off by default, under Camera.
 
-### Changed
-- **`ViewfinderView.setCameraManager(CameraManager)` is now `setCamera(ScannerCamera)`**,
-  and `ScannerView.getCameraManager()` is joined by `getCamera()`, which answers for either
-  backend. `getCameraManager()` still returns the Camera1 `CameraManager` and now returns
-  null whenever the CameraX backend is in use, because there is no `CameraManager` behind
-  it. Nothing has been released, so no consumer is being moved.
-- `CameraManager.requestPreviewFrame` delivers a cropped frame object instead of the raw
-  `byte[]` with its size in `arg1`/`arg2`. The crop belongs to the backend, which is the
-  only thing that knows the frame geometry, and a CameraX frame is not a `byte[]` and has
-  to be handed back when the decode finishes.
-- **`minSdk` raised from 21 to 23**, dropping Android 5.0 and 5.1. Taken as a decision
-  rather than drift: CameraX requires API 23 from 1.5.0 onward, and the last release that
-  supported 21 was 1.4.2 on 2025-03-26, so staying at 21 would have meant adopting a camera
-  library frozen nineteen months ago — and the point of adopting it is the per-device quirk
-  fixes that keep arriving. The comparison behind that choice, measured on two physical
-  devices, is in `docs/maint/decisions/0001-camera-backend.md`. Three code paths the bump
-  made unreachable were removed with it: the install-time-permission branches in
-  `ScannerView.hasCameraPermission` and `CaptureActivity`, and the version check around the
-  browser-bookmark button in `ShareActivity`, which Android 6.0 had already made useless on
-  every supported release. The bookmark button, `BookmarkPickerActivity` and the reply path
-  are all still present and simply disabled; removing the feature is a product decision, not
-  part of raising a build floor.
-
-### Fixed
-- **The front light set to ON now comes on under the CameraX backend.** It was implemented
-  inside the Camera1 parameter configuration, which the CameraX backend never goes through,
-  so `FrontLightMode.ON` was silently a no-op there while `OFF` and `AUTO` both behaved —
-  AUTO because the ambient-light manager drives it through `ScannerCamera`. The rule now
-  lives in `ScannerView`'s open callback, which both backends pass through; the Camera1
-  path is unchanged, because `CameraManager.setTorch` only acts when the requested state
-  differs from the camera's current one. Found and fixed on Android 15 hardware, the first
-  device this project has had with a flash unit:
-  `docs/maint/reports/camerax-android15-mix5-20261103.md`.
-- **The app's APK no longer ships unstripped native libraries.** `:app` set no `ndkVersion`,
-  so AGP could not find `llvm-strip` and packaged every `.so` with its debug info —
-  18.6 MB for `arm64-v8a` alone against 1.8 MB stripped, and the whole APK 35.5 MB against
-  4.7 MB. It said so once, at info level, and nothing else noticed. **The published AAR was
-  never affected**: `:scanner` sets `ndkVersion` and its libraries have always been
-  stripped.
-- **A-19: back no longer leaves the app when a scan result is on screen.** Both activities
-  handled the back key in `onKeyDown`. From API 33 the back key stops being delivered there
-  once an app opts into `OnBackInvokedDispatcher` — and for an app targeting API 36, as this
-  one does, that opt-in is the default. So the handlers silently stopped running and the
-  system's default back took over, which looks plausible and is wrong: on a scanner, back
-  with a result showing means "go back to scanning", not "quit". `CaptureActivity` now
-  registers an `OnBackInvokedCallback` while — and only while — back should return to the
-  preview, so the system can still draw a real predictive-back animation for the press that
-  does leave. `HelpActivity` does the same for its WebView history. Below API 33 the
-  `onKeyDown` path is unchanged.
-- **A-16: the scan screen works on a large screen.** Android 16 ignores
-  `android:screenOrientation` on a large screen, so the landscape-designed capture UI runs
-  in a portrait window. The viewfinder rectangle now turns with the window instead of
-  staying a shallow band across it — at 1600x2560 it covered 26% of the height and now
-  covers 47%, while a landscape window is unchanged — the status line sits under the frame
-  rather than at the bottom of the window, and the result screen stacks the barcode image
-  above its text instead of beside it.
-- **A-12: the automatic front light no longer flaps.** With the front light set to AUTO,
-  every light-sensor reading called into the camera, and every reading that crossed a
-  threshold changed the flash mode — which tears down and rebuilds the autofocus manager
-  each time. The decision now lives in one place with a three-second floor between
-  changes, which is what the torch's own light needs: switching it on raises the measured
-  lux, and no threshold can tell that apart from the room getting brighter. Six seconds of
-  a sensor flapping across both thresholds cost six flash-mode changes before and one
-  after.
-- **A-08: scanning a `WIFI:` barcode adds the network again.** `WifiManager.addNetwork`
-  has returned failure for ordinary apps since Android 10, so the button logged "Unable
-  to add network" behind a toast claiming a connection had been requested. The network is
-  now offered to the system through `ACTION_WIFI_ADD_NETWORKS` on Android 11+, where the
-  user confirms it in a system prompt and it is saved for real, registered with
-  `addNetworkSuggestions` on Android 10, and added the old way below that. A WEP barcode
-  cannot be expressed as a network suggestion, so it says so instead of appearing to work.
-- **A-06 / A-07: exporting the history and sharing a barcode image work again.** Both
-  wrote into the legacy external storage root and shared a `file://` URI; scoped storage
-  has forbidden the first since Android 10 and `FileUriExposedException` the second since
-  targetSdk 24. Exports now go to the app's own cache and are handed over as a
-  `content://` URI from a `FileProvider`, with a read grant set on the Intent's ClipData
-  so the share sheet can draw its preview as well as the receiving app read the file. Old
-  exports are swept after a day. The "Sorry, the SD card is not accessible" message is
-  gone, along with the condition it described.
-- **A-10: the "share an application" picker can see installed apps again.** A `<queries>`
-  element declares the two intents this app asks about — MAIN/LAUNCHER for the picker and
-  VIEW on http(s) for the product-search browser hand-off — rather than
-  `QUERY_ALL_PACKAGES`. The picker asks `queryIntentActivities` for launcher activities
-  instead of `getInstalledApplications`, since an intent query is what the platform can
-  match that declaration against. On the test device the list went from 79 entries, of
-  which 15 were apps a user could launch and the rest unlabelled vendor services, to 49
-  launchable apps — 34 of them previously invisible to this app.
-- **A-09: the in-app book search is no longer blocked before it leaves the device, and
-  the book-URL matcher stops missing https.** Every URL the app builds is https now — the Google Books API call, the
-  read-this-page link, the book link under a scanned ISBN, and the maps / product-search /
-  book-search `VIEW` launches — so the request is no longer rejected by Android's
-  cleartext block before it leaves the device. The three `BROWSABLE` deep links accept
-  https as well as http. Separately, `LocaleManager.isBookSearchUrl` tested for `http://`
-  only, so a scanned https Google Books URL was treated as a literal ISBN and the
-  volume-id path was unreachable; it accepts both schemes now. Cleartext stays off: a
-  scanned `http://` URL is still not fetched for supplemental info, and the link opens in
-  the browser under the browser's own policy.
-
-### Added
 - **`:scanner` AAR** (`io.github.kakakakacat.zxing:zxing-android-scanner`): `ScannerView`
   with the camera, viewfinder and decode pipeline, configured through `ScannerOptions`.
   Hosts own the `CAMERA` permission conversation; a missing permission is reported as
@@ -233,45 +138,29 @@ API may still change between minor versions.
 - CI: assemble + test + lint on every push, instrumentation tests on API 21/34/35/36
   emulators, and a tagged release workflow that publishes to GitHub Packages.
 
-### Fixed
-- **`ScannerView.setFormats` silently did nothing on a running scanner.** The format
-  selection was only read when a decode thread was constructed, so a host narrowing the
-  formats mid-session kept paying for every format until the next `resume()`. It now
-  reaches the live decoder without reopening the camera; a frame already being decoded
-  finishes under the previous selection and the next frame uses the new one. This is the
-  library's cheapest performance control — a miss frame is 81 ms at 1920x1080 with every
-  format enabled and 1.2 ms with one 1D format on the reference device — and it also
-  removes two corpus misreads that only an all-formats reader can make.
-- **L1 scored nine QR samples as misreads that decode perfectly.** The corpus runner
-  stripped a trailing newline from the expected text but compared it against the raw
-  decoded text, so any payload genuinely ending in a newline could never match. The
-  corpus reads 862 correct / 4 incorrect, not 853 / 13. No decoder behaviour changed —
-  this was only ever a flaw in how the result was scored, and nine new tests cover the
-  scoring rules.
-- **Camera permission is requested at runtime.** The app had been unusable on a first run
-  since Android 6: it opened the camera without asking, got a `RuntimeException` from the
-  camera service, and told the user to restart their device.
-- **The launcher icon works again.** `CaptureActivity` declared `exported="false"`
-  alongside a MAIN/LAUNCHER filter, which on API 31+ stops the launcher starting it.
-  `ENCODE`, `SEARCH_BOOK_CONTENTS` and `SHARE` were likewise unreachable from other apps.
-- **Camera failures are told apart**: no camera, camera held by another app, preview
-  failure and permission denial each get their own message.
-- **Results from a finished scanning session are dropped** instead of being delivered into
-  a screen that has already been torn down.
-- Compilation under current AGP: `switch` over `R.id` no longer works, as R fields are not
-  compile-time constants.
-- `layout-ldpi/capture.xml` still declared the pre-AAR `SurfaceView` and `ViewfinderView`,
-  so on an ldpi device `findViewById(R.id.scanner_view)` returned null and the capture
-  screen crashed on start.
-- **Android 15/16: the bottom status hint was invisible**, drawn under the gesture
-  navigation bar once API 35 began enforcing edge-to-edge for targetSdk 35+.
-- **The decoded region now follows the viewfinder.** The crop was mapped from screen to
-  frame coordinates with independent x/y ratios, which ignores the rotation applied to
-  the preview and the front camera's mirroring. Only correct at rotation 0 — which is all
-  upstream ever hit, until Android 16 started ignoring `screenOrientation` on large
-  screens and running the activity in portrait.
-
 ### Changed
+- **`ViewfinderView.setCameraManager(CameraManager)` is now `setCamera(ScannerCamera)`**,
+  and `ScannerView.getCameraManager()` is joined by `getCamera()`, which answers for either
+  backend. `getCameraManager()` still returns the Camera1 `CameraManager` and now returns
+  null whenever the CameraX backend is in use, because there is no `CameraManager` behind
+  it. Nothing has been released, so no consumer is being moved.
+- `CameraManager.requestPreviewFrame` delivers a cropped frame object instead of the raw
+  `byte[]` with its size in `arg1`/`arg2`. The crop belongs to the backend, which is the
+  only thing that knows the frame geometry, and a CameraX frame is not a `byte[]` and has
+  to be handed back when the decode finishes.
+- **`minSdk` raised from 21 to 23**, dropping Android 5.0 and 5.1. Taken as a decision
+  rather than drift: CameraX requires API 23 from 1.5.0 onward, and the last release that
+  supported 21 was 1.4.2 on 2025-03-26, so staying at 21 would have meant adopting a camera
+  library frozen nineteen months ago — and the point of adopting it is the per-device quirk
+  fixes that keep arriving. The comparison behind that choice, measured on two physical
+  devices, is in `docs/maint/decisions/0001-camera-backend.md`. Three code paths the bump
+  made unreachable were removed with it: the install-time-permission branches in
+  `ScannerView.hasCameraPermission` and `CaptureActivity`, and the version check around the
+  browser-bookmark button in `ShareActivity`, which Android 6.0 had already made useless on
+  every supported release. The bookmark button, `BookmarkPickerActivity` and the reply path
+  are all still present and simply disabled; removing the feature is a product decision, not
+  part of raising a build floor.
+
 - **The native zxing-cpp decoder is now the default**, with the Java decoder as the
   fallback where there is no native build for the device's ABI. Measured on the reference
   device: 56–82% faster on every 2D case and on frames that decode nothing under all
@@ -334,3 +223,129 @@ API may still change between minor versions.
 - `android-core`, folded into `:scanner`.
 - Manifest permissions that were already no-ops: `FLASHLIGHT`,
   `READ_HISTORY_BOOKMARKS`, `WRITE_EXTERNAL_STORAGE`.
+
+### Fixed
+- **The front light set to ON now comes on under the CameraX backend.** It was implemented
+  inside the Camera1 parameter configuration, which the CameraX backend never goes through,
+  so `FrontLightMode.ON` was silently a no-op there while `OFF` and `AUTO` both behaved —
+  AUTO because the ambient-light manager drives it through `ScannerCamera`. The rule now
+  lives in `ScannerView`'s open callback, which both backends pass through; the Camera1
+  path is unchanged, because `CameraManager.setTorch` only acts when the requested state
+  differs from the camera's current one. Found and fixed on Android 15 hardware, the first
+  device this project has had with a flash unit:
+  `docs/maint/reports/camerax-android15-mix5-20261103.md`.
+- **The app's APK no longer ships unstripped native libraries.** `:app` set no `ndkVersion`,
+  so AGP could not find `llvm-strip` and packaged every `.so` with its debug info —
+  18.6 MB for `arm64-v8a` alone against 1.8 MB stripped, and the whole APK 35.5 MB against
+  4.7 MB. It said so once, at info level, and nothing else noticed. **The published AAR was
+  never affected**: `:scanner` sets `ndkVersion` and its libraries have always been
+  stripped.
+- **A-19: back no longer leaves the app when a scan result is on screen.** Both activities
+  handled the back key in `onKeyDown`. From API 33 the back key stops being delivered there
+  once an app opts into `OnBackInvokedDispatcher` — and for an app targeting API 36, as this
+  one does, that opt-in is the default. So the handlers silently stopped running and the
+  system's default back took over, which looks plausible and is wrong: on a scanner, back
+  with a result showing means "go back to scanning", not "quit". `CaptureActivity` now
+  registers an `OnBackInvokedCallback` while — and only while — back should return to the
+  preview, so the system can still draw a real predictive-back animation for the press that
+  does leave. `HelpActivity` does the same for its WebView history. Below API 33 the
+  `onKeyDown` path is unchanged.
+- **A-16: the scan screen works on a large screen.** Android 16 ignores
+  `android:screenOrientation` on a large screen, so the landscape-designed capture UI runs
+  in a portrait window. The viewfinder rectangle now turns with the window instead of
+  staying a shallow band across it — at 1600x2560 it covered 26% of the height and now
+  covers 47%, while a landscape window is unchanged — the status line sits under the frame
+  rather than at the bottom of the window, and the result screen stacks the barcode image
+  above its text instead of beside it.
+- **A-12: the automatic front light no longer flaps.** With the front light set to AUTO,
+  every light-sensor reading called into the camera, and every reading that crossed a
+  threshold changed the flash mode — which tears down and rebuilds the autofocus manager
+  each time. The decision now lives in one place with a three-second floor between
+  changes, which is what the torch's own light needs: switching it on raises the measured
+  lux, and no threshold can tell that apart from the room getting brighter. Six seconds of
+  a sensor flapping across both thresholds cost six flash-mode changes before and one
+  after.
+- **A-08: scanning a `WIFI:` barcode adds the network again.** `WifiManager.addNetwork`
+  has returned failure for ordinary apps since Android 10, so the button logged "Unable
+  to add network" behind a toast claiming a connection had been requested. The network is
+  now offered to the system through `ACTION_WIFI_ADD_NETWORKS` on Android 11+, where the
+  user confirms it in a system prompt and it is saved for real, registered with
+  `addNetworkSuggestions` on Android 10, and added the old way below that. A WEP barcode
+  cannot be expressed as a network suggestion, so it says so instead of appearing to work.
+- **A-06 / A-07: exporting the history and sharing a barcode image work again.** Both
+  wrote into the legacy external storage root and shared a `file://` URI; scoped storage
+  has forbidden the first since Android 10 and `FileUriExposedException` the second since
+  targetSdk 24. Exports now go to the app's own cache and are handed over as a
+  `content://` URI from a `FileProvider`, with a read grant set on the Intent's ClipData
+  so the share sheet can draw its preview as well as the receiving app read the file. Old
+  exports are swept after a day. The "Sorry, the SD card is not accessible" message is
+  gone, along with the condition it described.
+- **A-10: the "share an application" picker can see installed apps again.** A `<queries>`
+  element declares the two intents this app asks about — MAIN/LAUNCHER for the picker and
+  VIEW on http(s) for the product-search browser hand-off — rather than
+  `QUERY_ALL_PACKAGES`. The picker asks `queryIntentActivities` for launcher activities
+  instead of `getInstalledApplications`, since an intent query is what the platform can
+  match that declaration against. On the test device the list went from 79 entries, of
+  which 15 were apps a user could launch and the rest unlabelled vendor services, to 49
+  launchable apps — 34 of them previously invisible to this app.
+- **A-09: the in-app book search is no longer blocked before it leaves the device, and
+  the book-URL matcher stops missing https.** Every URL the app builds is https now — the Google Books API call, the
+  read-this-page link, the book link under a scanned ISBN, and the maps / product-search /
+  book-search `VIEW` launches — so the request is no longer rejected by Android's
+  cleartext block before it leaves the device. The three `BROWSABLE` deep links accept
+  https as well as http. Separately, `LocaleManager.isBookSearchUrl` tested for `http://`
+  only, so a scanned https Google Books URL was treated as a literal ISBN and the
+  volume-id path was unreachable; it accepts both schemes now. Cleartext stays off: a
+  scanned `http://` URL is still not fetched for supplemental info, and the link opens in
+  the browser under the browser's own policy.
+
+- **`ScannerView.setFormats` silently did nothing on a running scanner.** The format
+  selection was only read when a decode thread was constructed, so a host narrowing the
+  formats mid-session kept paying for every format until the next `resume()`. It now
+  reaches the live decoder without reopening the camera; a frame already being decoded
+  finishes under the previous selection and the next frame uses the new one. This is the
+  library's cheapest performance control — a miss frame is 81 ms at 1920x1080 with every
+  format enabled and 1.2 ms with one 1D format on the reference device — and it also
+  removes two corpus misreads that only an all-formats reader can make.
+- **L1 scored nine QR samples as misreads that decode perfectly.** The corpus runner
+  stripped a trailing newline from the expected text but compared it against the raw
+  decoded text, so any payload genuinely ending in a newline could never match. The
+  corpus reads 862 correct / 4 incorrect, not 853 / 13. No decoder behaviour changed —
+  this was only ever a flaw in how the result was scored, and nine new tests cover the
+  scoring rules.
+- **Camera permission is requested at runtime.** The app had been unusable on a first run
+  since Android 6: it opened the camera without asking, got a `RuntimeException` from the
+  camera service, and told the user to restart their device.
+- **The launcher icon works again.** `CaptureActivity` declared `exported="false"`
+  alongside a MAIN/LAUNCHER filter, which on API 31+ stops the launcher starting it.
+  `ENCODE`, `SEARCH_BOOK_CONTENTS` and `SHARE` were likewise unreachable from other apps.
+- **Camera failures are told apart**: no camera, camera held by another app, preview
+  failure and permission denial each get their own message.
+- **Results from a finished scanning session are dropped** instead of being delivered into
+  a screen that has already been torn down.
+- Compilation under current AGP: `switch` over `R.id` no longer works, as R fields are not
+  compile-time constants.
+- `layout-ldpi/capture.xml` still declared the pre-AAR `SurfaceView` and `ViewfinderView`,
+  so on an ldpi device `findViewById(R.id.scanner_view)` returned null and the capture
+  screen crashed on start.
+- **Android 15/16: the bottom status hint was invisible**, drawn under the gesture
+  navigation bar once API 35 began enforcing edge-to-edge for targetSdk 35+.
+- **The decoded region now follows the viewfinder.** The crop was mapped from screen to
+  frame coordinates with independent x/y ratios, which ignores the rotation applied to
+  the preview and the front camera's mirroring. Only correct at rotation 0 — which is all
+  upstream ever hit, until Android 16 started ignoring `screenOrientation` on large
+  screens and running the activity in portrait.
+
+### Security
+- **`EncodeActivity` no longer opens any URI a caller names.** It is exported for
+  `ACTION_SEND` of `text/x-vcard` — how the Contacts app shares a card — and the
+  `EXTRA_STREAM` it was handed went straight to `ContentResolver.openInputStream`, so any
+  installed application could pick the URI and have this app open it with its own
+  identity: `file:///data/data/<package>/databases/…` is the user's scan history, readable
+  by this uid and no other. A scheme other than `content`, and any authority resolving to
+  this application's own package, are now refused. Reported by CodeQL as
+  `java/android/unsafe-content-uri-resolution`.
+- **And one intent could crash that activity.** `openInputStream` answers an ungranted URI
+  with `SecurityException`, which is not an `IOException`, and only `IOException` was
+  caught. Both that and `IllegalArgumentException` from an unknown authority are now the
+  same refusal as any other unreadable stream.
