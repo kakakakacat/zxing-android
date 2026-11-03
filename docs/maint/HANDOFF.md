@@ -1429,21 +1429,30 @@ Getting there took two things worth knowing:
   `LOAD align = 0x4000`, so 16 KB alignment is in the ELF rather than assumed.
   `reports/aar-deliverable-check-20261103.md`. **Nothing about the artifact is blocking a
   release; what is left is the changelog and the tag.**
-- **0.1.0 is cut in the changelog and nothing else is in the way.** `[Unreleased]` is now
-  `## [0.1.0] - 2026-11-03`, its duplicate `### Added`/`### Changed`/`### Fixed`
-  subsections are merged into one of each, today's security fix is a `### Security`
-  section, and `changelog_section.py --version 0.1.0` was watched producing the Release
-  body. `check_release_publishes.py --version 0.1.0` passes. **What is left is one
-  command: `git push origin v0.1.0`.** Maven Central stays unconfigured on purpose; this
-  release goes to GitHub Packages only.
+- **v0.1.0 is released, 2026-11-03.** `[Unreleased]` became `## [0.1.0] - 2026-11-03`
+  (its duplicate `### Added`/`### Changed`/`### Fixed` subsections merged into one of
+  each, and the day's security fix added as `### Security`), the tag was pushed, and
+  `release.yml` went green on the first run, every step: build, checksums, the
+  resolvability check, the notes, the publish, the Release.
+
+  **Checked afterwards rather than trusted:** both packages read `0.1.0` in GitHub
+  Packages; the Release carries the AAR, the debug APK and `SHA256SUMS.txt`, and both
+  sums recompute to the published values from the downloaded files; the released AAR has
+  the expected 13 entries and `LOAD align = 0x4000` on every `LOAD` segment of both ABIs.
+
+  **Not checked, and it cannot be from here:** resolving the artifact out of GitHub
+  Packages. That needs a token with `read:packages` and the `gh` CLI's OAuth token has no
+  such scope — a 401, which is GitHub requiring auth for Maven packages even on a public
+  repository, exactly as `PUBLISHING.md` already says. What *was* driven end to end is
+  the same artifact from a local repository: resolved, minified, installed and scanning.
 - **`release.yml` extracted the release notes *after* publishing**, so a missing
   changelog section would have failed the release with the version already taken in
   GitHub Packages, which cannot be replaced. Fixed at `0a43c6972`: the extraction now
   runs beside the resolvability check, before anything is pushed.
-- Nothing has been released. Tagging `v0.1.0` triggers `.github/workflows/release.yml`,
-  which builds, checksums, publishes to GitHub Packages and cuts a GitHub Release whose
-  body comes from the `CHANGELOG.md` section for that version. Move the `[Unreleased]`
-  section to `[0.1.0]` first, or the release script exits non-zero by design.
+- **The next release is the same three steps.** Put the changes under a fresh
+  `## [Unreleased]`, rename it to the version with its date, tag `vX.Y.Z`;
+  `.github/workflows/release.yml` does the rest. `changelog_section.py` exits non-zero on
+  a version with no section, by design, and that check now runs *before* the publish.
 - **Maven Central is not set up.** It needs a Central Portal account with the
   `io.github.kakakakacat` namespace verified, a published GPG key, and a plugin that
   speaks the Central Portal bundle API. Details in `PUBLISHING.md`.

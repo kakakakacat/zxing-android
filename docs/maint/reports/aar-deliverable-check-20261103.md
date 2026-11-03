@@ -70,7 +70,27 @@ the published AAR in a foreign application:
   `org.jetbrains.kotlin.android`; it fails with "extension 'kotlin' already registered".
   That is trap 7 and it bites outside this repository too.
 
-## What is still not done for a release
+## Released, and what the release was checked against
+
+**v0.1.0 went out on 2026-11-03**, `release.yml` green on the first run, every step.
+Verified from the published side rather than from the build:
+
+| Check | Result |
+| --- | --- |
+| Packages in GitHub Packages | `zxing-android-scanner` and `zxing-core`, both `0.1.0` |
+| Release assets | the AAR, the debug APK, `SHA256SUMS.txt`, not a draft, not a prerelease |
+| Checksums | both recompute to the published values from the downloaded files |
+| Released AAR | the same 13 entries, `classes.jar` 131 KB, both ABIs present |
+| 16 KB alignment, in the *released* binary | `LOAD align = 0x4000` on every `LOAD`, both ABIs |
+
+**Resolving from GitHub Packages was not verified and cannot be from this machine.**
+It answers 401 without a token carrying `read:packages`, and the `gh` CLI's OAuth token
+has no such scope. That is GitHub requiring authentication for Maven packages even on a
+public repository — `PUBLISHING.md` documents it, and names JitPack as the route that
+needs no token. What was driven end to end is the same artifact served from a local
+repository, below.
+
+## What was still not done at the time of writing
 
 Nothing about the artifact. The remaining steps are process:
 
