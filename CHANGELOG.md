@@ -11,6 +11,10 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] - 2026-11-03
+
 ### Added
 - **`ScannerCamera.capabilities()` and `ScannerView.getCameraCapabilities()`.** Which of
   the options the running backend actually applies. The two camera stacks honour different
