@@ -81,6 +81,26 @@ misfiring. The contact was created through `content insert` against
 extra, and deleted afterwards. **A grant that is not on the data URI is not a grant**, and
 that cost most of the verification.
 
+## The alert is dismissed, not closed, and that is deliberate
+
+CodeQL re-ran on the fix and **kept the alert open**. The query sanitizes only the
+path-prefix form its own help shows — normalize `getPath()`, reject `/data` — and does not
+model a scheme restriction or an authority allow list, although its Recommendation text
+asks for exactly those. The taint it still sees runs from the parcelable extra to
+`openInputStream`; what it cannot see is that nothing dangerous survives the two checks in
+between.
+
+Alert #1 is therefore dismissed as a **false positive**, with the fix commit and this file
+named in the dismissal. The alternative was to add the path normalization as well, purely
+so the query would recognise it — unreachable code, because the scheme has already been
+restricted to `content` by then and there is no filesystem path left to normalize. A check
+that exists to satisfy a tool rather than an attacker is the kind of thing this repository
+has spent the whole project removing.
+
+**If the guard is ever relaxed, the dismissal has to be revisited**: it is justified by
+`rejectUnsafeStream` existing and refusing those two shapes, not by the finding having been
+wrong.
+
 ## Not covered
 
 `:app` has no test source set, on purpose, so none of this is pinned by a test — it is

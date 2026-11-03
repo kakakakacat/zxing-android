@@ -1366,6 +1366,25 @@ line and lost the decode line on every single run. That looked exactly like a de
 never happened, and the first reading of it was that `YPlaneLuminanceSource` had thrown
 against a real `ImageProxy`. It had not; the reader was too late.
 
+### Code scanning
+
+CodeQL runs on every push to `maint/android` and on the weekly schedule, and it is green.
+Getting there took two things worth knowing:
+
+- **A green scan is not a green workflow.** The only run this fork ever had was red
+  because the repository's default `GITHUB_TOKEN` is read-only and the inherited workflow
+  declared no `permissions`: the analysis finished and the *upload* was refused with
+  `Resource not accessible by integration`. Fixed at `1388b3f87`, which also repointed
+  triggers that were still filtered to `master` — in this fork an untouched branch, so
+  nothing on `maint/android` had ever been scanned on a push.
+- **There is one dismissed alert and it must not be re-dismissed blindly.** #1,
+  `java/android/unsafe-content-uri-resolution` on `QRCodeEncoder`, was real and is fixed
+  at `343158d5f`. The query kept it open afterwards because it models only the
+  path-prefix form of validation, so it is dismissed as a false positive. That dismissal
+  is justified by `rejectUnsafeStream` existing — **if that guard is ever relaxed, reopen
+  it.** `reports/encode-stream-uri-guard-DN-ENG41-20261103.md` has the reasoning and the
+  four device cases.
+
 ### Release and distribution
 
 - **Fixed: tagging `v0.1.0` would have published an AAR nobody can resolve.** Found on
