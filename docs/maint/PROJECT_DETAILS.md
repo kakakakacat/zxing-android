@@ -47,7 +47,8 @@ dependencies {
 }
 ```
 
-GitHub Packages 或 JitPack 的仓库配置见 [发布与集成说明](PUBLISHING.md)。
+自第一个经 Central 发布的版本起，消费方无需配置仓库也无需 token；在那之前请用 GitHub
+Packages 或 JitPack。三者的配置见 [发布与集成说明](PUBLISHING.md)。
 
 ```xml
 <io.github.kakakakacat.zxing.android.scanner.ScannerView
@@ -216,7 +217,7 @@ benchmark/tools/l1_device.sh --backend native            # 设备端 L1 正确�
 | --- | --- |
 | 全部 | **首扫延迟仍未测量**。L3 覆盖启动、相机打开和首帧，首扫需固定并拍照记录的场景。**耗电仍未真正测得**：DN-ENG41 无法停止充电（`/sys/class/power_supply` 下没有任何开关），只能用 USB 输入功率给出一个上界——两后端整机功耗差小于约 300 mW，分辨不出本应存在的差异。真正测得需要一台能放电的设备。 |
 | 全部 | 只有 Android 14（无 GMS）和 Android 15 两台高通真机，均为 4 KB 页。一台 Android 16 真机（Samsung SM-S948B，SM8850）只跑到 21/21 instrumentation 就因链路不稳中止——**它仍是高通、仍是 4 KB 页**，没有补上非高通和 16 KB 页这两条。缺 Android 16 真实相机、非高通、现代系统低端机和 16 KB 页硬件验证；**所有 L2 数字仍只来自 Android 14 设备**。 |
-| 发布 | 未配置 Maven Central，仅提供 GitHub Packages 和 JitPack。 |
+| 发布 | Maven Central 的构建配置已就绪（签名、bundle 上传、POM 必填项），但**尚未真正发布过任何版本**：还需 Central Portal 上已验证的 `io.github.kakakakacat` 命名空间和一把 GPG 签名密钥。在第一个版本上去之前，消费方仍只能走 GitHub Packages 或 JitPack。 |
 | AAR | 解码类型位于 `io.github.kakakakacat.zxing.*`，结果不能直接传给其他 ZXing 库。 |
 | AAR | CameraX 自动对焦未验证：Android 14 设备仅支持关闭自动对焦，Android 15 设备尚未对着实际目标验证。 |
 
@@ -307,7 +308,8 @@ dependencies {
 }
 ```
 
-Repository setup (GitHub Packages or JitPack) is in
+From the first version released through Maven Central, a consumer declares no repository
+and needs no token. Until then, use GitHub Packages or JitPack. All three are in
 [docs/maint/PUBLISHING.md](PUBLISHING.md).
 
 ```xml
@@ -635,7 +637,7 @@ years of callers and buy nothing.
 | --- | --- | --- |
 | — | **First-scan latency is still unmeasured**: L3 covers launch, camera-open and first-frame, and the scan target needs a fixed, photographed scene nobody has built. **Battery drain is still not measured either**: DN-ENG41 cannot be made to discharge — there is no charging switch anywhere under `/sys/class/power_supply` — so USB input power gives only a bound, and that bound (±300 mW whole-device) is wider than the difference it would have to resolve. It needs hardware that can discharge | all |
 | — | Two physical devices, both Qualcomm and both 4 KB pages: Android 14 (no GMS) and Android 15. One Android 16 phone (Samsung SM-S948B, SM8850) got as far as 21/21 instrumentation before its cloud tunnel became unusable — and it is **also Qualcomm and also 4 KB pages**, so it closed neither of those. No real-camera verification on Android 16, nothing non-Qualcomm, nothing low-end with a modern OS, no 16 KB page hardware — and **every L2 number is still from the Android 14 one alone** | all |
-| — | Maven Central publishing is not set up; GitHub Packages and JitPack only | release |
+| — | Maven Central is wired but **nothing has been deployed through it yet**: it still needs a verified `io.github.kakakakacat` namespace on the Central Portal and a GPG signing key. Until a version lands there, consumers still need GitHub Packages or JitPack | release |
 | — | Decoder types are `io.github.kakakakacat.zxing.*`, so results cannot be passed straight to other ZXing-based libraries | AAR |
 | — | Auto-focus on the CameraX path is untested: the Android 14 device offers auto-focus OFF only, and the Android 15 one has not been driven at a subject | AAR |
 

@@ -12,6 +12,9 @@ androidxTestCore = "1.6.1"
 androidxTestExtJunit = "1.2.1"
 androidxBenchmark = "1.5.0"
 androidxLifecycle = "2.8.7"
+# Publishes to Maven Central's Portal API. Plain `maven-publish` cannot: the Portal takes
+# a signed bundle upload, not a repository deploy. See docs/maint/PUBLISHING.md.
+mavenPublish = "0.37.0"
 # The CameraX line :scanner ships against, Phase 6's adoption. Current stable; minSdk 23,
 # which is this project's floor since `2e9e5ce16`.
 camerax = "1.6.2"
@@ -46,3 +49,4 @@ android-library = { id = "com.android.library", version.ref = "agp" }
 # L3 only: a Macrobenchmark module drives another app rather than being one.
 android-test = { id = "com.android.test", version.ref = "agp" }
 androidx-benchmark = { id = "androidx.benchmark", version.ref = "androidxBenchmark" }
+vanniktech-maven-publish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }

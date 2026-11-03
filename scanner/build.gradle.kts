@@ -6,6 +6,7 @@
 plugins {
   alias(libs.plugins.android.library)
   `maven-publish`
+  alias(libs.plugins.vanniktech.maven.publish)
 }
 
 group = "io.github.kakakakacat.zxing"
@@ -79,12 +80,6 @@ android {
     }
   }
 
-  publishing {
-    singleVariant("release") {
-      withSourcesJar()
-    }
-  }
-
   lint {
     abortOnError = false
   }
@@ -133,10 +128,11 @@ dependencies {
   androidTestImplementation(libs.androidx.test.ext.junit)
 }
 
+// GitHub Packages stays: it is where every release before Maven Central went, and a
+// consumer already pointing at it should not have the repository disappear underneath
+// them. New consumers want Maven Central, which needs no repository and no token.
 publishing {
   repositories {
-    // GitHub Packages. Works with the token CI already has; consumers authenticate
-    // with any GitHub token that has read:packages. See docs/maint/PUBLISHING.md.
     maven {
       name = "GitHubPackages"
       url = uri("https://maven.pkg.github.com/kakakakacat/zxing-android")
@@ -146,28 +142,54 @@ publishing {
       }
     }
   }
-  publications {
-    register<MavenPublication>("release") {
-      artifactId = "zxing-android-scanner"
-      afterEvaluate { from(components["release"]) }
-      pom {
-        name.set("ZXing Android Scanner")
-        description.set(
-          "Barcode scanning pipeline for Android, maintained as a community fork of the " +
-            "ZXing Android client. Not an official ZXing release."
-        )
-        url.set("https://github.com/kakakakacat/zxing-android")
-        licenses {
-          license {
-            name.set("The Apache License, Version 2.0")
-            url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
-          }
-        }
-        scm {
-          url.set("https://github.com/kakakakacat/zxing-android")
-          connection.set("scm:git:https://github.com/kakakakacat/zxing-android.git")
-        }
+}
+
+mavenPublishing {
+  // The Portal's own API, with the deployment left in VALIDATED for a human to release.
+  // Automatic release is deliberately not used: a version published to Central can never
+  // be replaced or withdrawn, so the last gate before that is a person looking at it.
+  publishToMavenCentral()
+  // Central rejects an unsigned bundle. The key lives in the environment, never here --
+  // ORG_GRADLE_PROJECT_signingInMemoryKey and friends; see docs/maint/PUBLISHING.md.
+  signAllPublications()
+
+  coordinates(group.toString(), "zxing-android-scanner", version.toString())
+
+  // The release variant, with sources and javadoc jars. This replaces the
+  // `android { publishing { singleVariant("release") } }` block that used to stand
+  // above: the plugin configures that variant itself and the two cannot both do it.
+  configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
+    variant = "release",
+    sourcesJar = true,
+    publishJavadocJar = true,
+  ))
+
+  pom {
+    name.set("ZXing Android Scanner")
+    description.set(
+      "Barcode scanning pipeline for Android, maintained as a community fork of the " +
+        "ZXing Android client. Not an official ZXing release."
+    )
+    url.set("https://github.com/kakakakacat/zxing-android")
+    licenses {
+      license {
+        name.set("The Apache License, Version 2.0")
+        url.set("https://www.apache.org/licenses/LICENSE-2.0.txt")
+        distribution.set("repo")
       }
+    }
+    // Central requires a developer entry. It is the maintainer of this fork, not of ZXing.
+    developers {
+      developer {
+        id.set("kakakakacat")
+        name.set("kakakakacat")
+        url.set("https://github.com/kakakakacat")
+      }
+    }
+    scm {
+      url.set("https://github.com/kakakakacat/zxing-android")
+      connection.set("scm:git:https://github.com/kakakakacat/zxing-android.git")
+      developerConnection.set("scm:git:ssh://git@github.com/kakakakacat/zxing-android.git")
     }
   }
 }

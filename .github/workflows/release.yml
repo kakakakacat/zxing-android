@@ -1,7 +1,7 @@
 name: Release
 
 # Builds the AAR and the APK for a tag, attaches them to a GitHub Release with
-# checksums, and publishes the AAR to GitHub Packages.
+# checksums, and publishes both Maven artifacts to GitHub Packages and Maven Central.
 #
 # Nothing here is signed with a production key: the APK is a debug-signed build and is
 # explicitly not an update to the published Barcode Scanner. See docs/maint/MIGRATION.md.
@@ -22,6 +22,11 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    # Job level, not step level, and only so the Maven Central step can tell whether it
+    # has anything to publish with: `secrets` is out of scope in a step's `if:`, while
+    # job-level `env` is in scope. A fork without these still gets its GitHub Release.
+    env:
+      HAS_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_USERNAME != '' && secrets.SIGNING_KEY != '' }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -98,11 +103,34 @@ jobs:
         run: |
           ./gradlew \
             :core:publishMavenPublicationToGitHubPackagesRepository \
-            :scanner:publishReleasePublicationToGitHubPackagesRepository \
+            :scanner:publishMavenPublicationToGitHubPackagesRepository \
             -PscannerVersion=${{ steps.version.outputs.value }}
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Maven Central, the one of the three that costs a consumer nothing: no repository
+      # declaration and no token. Both modules go up in a single Gradle invocation on
+      # purpose -- the plugin then uploads them as one Portal deployment, so the AAR and
+      # the decoder it depends on are validated and released together rather than as two
+      # deployments that can diverge.
+      #
+      # The deployment is left VALIDATED for a human to release from
+      # https://central.sonatype.com/publishing/deployments. A version released to
+      # Central can never be replaced or withdrawn.
+      #
+      # Skipped, rather than failing the release, when the secrets are absent: a fork
+      # that cannot sign for this namespace should still be able to cut a GitHub release.
+      - name: Publish to Maven Central
+        if: env.HAS_CENTRAL_TOKEN == 'true'
+        run: |
+          ./gradlew :core:publishToMavenCentral :scanner:publishToMavenCentral \
+            -PscannerVersion=${{ steps.version.outputs.value }}
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
       - name: Create the GitHub Release
         uses: softprops/action-gh-release@v2

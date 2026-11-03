@@ -11,7 +11,17 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added
+- **Maven Central publishing.** Both artifacts are now built as a signed Central Portal
+  bundle, so a consumer needs neither a repository declaration nor a token —
+  `implementation("io.github.kakakakacat.zxing:zxing-android-scanner:<version>")` and
+  nothing else. GitHub Packages and JitPack keep publishing unchanged.
+
+  The release workflow uploads `:core` and `:scanner` in one Gradle invocation, which
+  makes them a single deployment: the AAR and the decoder its POM depends on are
+  validated and released together. The deployment is left `VALIDATED` for a human to
+  release, because a version on Central can never be replaced or withdrawn. The step is
+  skipped, not failed, when the publishing secrets are absent.
 
 ## [0.1.0] - 2026-11-03
 

@@ -29,7 +29,9 @@ git push origin v0.1.0
 1. builds `:scanner:assembleRelease` and `:app:assembleDebug` at that version,
 2. writes `SHA256SUMS.txt` for both artifacts,
 3. publishes both Maven artifacts to **GitHub Packages**,
-4. creates a GitHub Release with the AAR, the APK and the checksums attached.
+4. uploads both to **Maven Central**, as one signed Portal deployment, when the
+   publishing secrets are present,
+5. creates a GitHub Release with the AAR, the APK and the checksums attached.
 
 `workflow_dispatch` runs the same thing with a version typed in, for a dry run.
 
@@ -37,13 +39,60 @@ The version comes from the tag (`v0.1.0` → `0.1.0`) and is passed to Gradle as
 `-PscannerVersion`. Locally, `./gradlew :core:publishToMavenLocal
 :scanner:publishToMavenLocal -PscannerVersion=0.1.0` puts the same artifacts in `~/.m2`.
 
-No secret has to be created for this: the workflow uses the built-in `GITHUB_TOKEN`.
+GitHub Packages needs no secret: the workflow uses the built-in `GITHUB_TOKEN`. Maven
+Central needs four, and the step is skipped rather than failed when they are missing, so
+a fork can still cut a release:
+
+| Secret | What it is |
+| --- | --- |
+| `MAVEN_CENTRAL_USERNAME` | Central Portal user token, username half |
+| `MAVEN_CENTRAL_PASSWORD` | Central Portal user token, password half |
+| `SIGNING_KEY` | ASCII-armoured **private** GPG key (`gpg --armor --export-secret-keys`) |
+| `SIGNING_KEY_PASSWORD` | That key's passphrase |
+
+The Portal deployment is left in `VALIDATED`, not released. Release it by hand at
+<https://central.sonatype.com/publishing/deployments>. That gate is deliberate: a version
+released to Central can never be replaced or withdrawn.
+
+### Publishing from a laptop
+
+Same four, as Gradle properties in `~/.gradle/gradle.properties` (never in the repo):
+
+```properties
+mavenCentralUsername=<token username>
+mavenCentralPassword=<token password>
+signingInMemoryKey=<armoured private key, newlines stripped>
+signingInMemoryKeyPassword=<passphrase>
+```
+
+```sh
+./gradlew :core:publishToMavenCentral :scanner:publishToMavenCentral -PscannerVersion=0.1.0
+```
+
+Both modules in one invocation, always: that is what makes them a single deployment, so
+the AAR and the decoder its POM depends on are validated and released together.
 
 ## Consuming it
 
+### Maven Central (nothing for the consumer to configure)
+
+The one of the three that costs a consumer nothing — no repository declaration, no
+token. The build is wired for it; **no version has gone through it yet**, so until one
+does, the two below are what actually resolve.
+
+```kotlin
+dependencies {
+  implementation("io.github.kakakakacat.zxing:zxing-android-scanner:0.1.0")
+}
+```
+
+`mavenCentral()` is already in most projects' repository list, and `zxing-core` comes in
+as a transitive dependency of the AAR.
+
 ### GitHub Packages
 
-GitHub Packages requires authentication even for public packages, so consumers need a
+Still published, so a consumer already pointing here keeps resolving. New consumers want
+Maven Central above. GitHub Packages requires authentication even for public packages, so consumers need a
 token with `read:packages`:
 
 ```kotlin
@@ -81,17 +130,19 @@ dependencies {
 }
 ```
 
-## Maven Central — not done yet
+## How Maven Central is wired
 
-Maven Central is the only one of the three that needs no repository declaration and no
-token from consumers, so it is the right end state. It is **not** set up, and this
-document does not pretend otherwise. It needs, from the maintainer:
+Plain `maven-publish` cannot deploy there: the Central Portal takes a signed bundle
+upload over its own API rather than a repository deploy. `com.vanniktech.maven.publish`
+speaks it, and is applied in `core/build.gradle.kts` and `scanner/build.gradle.kts`
+alongside the existing GitHub Packages repository, which is unchanged.
 
-1. a Central Portal account with the `io.github.kakakakacat` namespace verified (GitHub
-   account ownership is accepted as proof),
-2. a GPG key published to a keyserver, with the private key and passphrase added as
-   repository secrets,
-3. a publishing plugin that speaks the Central Portal bundle API — plain `maven-publish`
-   cannot upload there. `com.vanniktech.maven.publish` or JReleaser both do.
+What the Portal rejects a bundle for, and what satisfies each:
 
-Until those exist, releases go to GitHub Packages and JitPack only.
+| Requirement | Where it is met |
+| --- | --- |
+| Verified `io.github.kakakakacat` namespace | Central Portal account, proved by GitHub account ownership |
+| GPG signature on every artifact | `signAllPublications()`, key supplied from the environment |
+| sources jar | the plugin's `sourcesJar = true` |
+| javadoc jar | the plugin's; empty for `:core`, whose upstream sources do not survive strict doclint |
+| POM `name`, `description`, `url`, licence, developer, SCM | the `pom { }` block in each module |
