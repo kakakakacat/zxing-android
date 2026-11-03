@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `d759c47eb` on branch `maint/android`, **which is pushed**.
+Last updated at commit `00fcad4ce` on branch `maint/android`, **which is pushed**.
 
 ---
 
