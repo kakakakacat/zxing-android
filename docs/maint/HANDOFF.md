@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `14722d942` on branch `maint/android`, **which is pushed**.
+Last updated at commit `ea0f853d6` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -105,6 +105,7 @@ Last updated at commit `14722d942` on branch `maint/android`, **which is pushed*
 | `65fc7bf57` | **A real barcode read off a screen**, both camera backends; the `ó` was FNC4 |
 | `343158d5f` | `EncodeActivity` opened any URI a caller named, and crashed on most of them |
 | `14722d942` | Why CodeQL alert #1 is dismissed, and the code-scanning state |
+| `ea0f853d6` | **The AAR taken all the way to a consumer**: resolved, minified, and it scans |
 
 Nothing is uncommitted. All three workflows were green on `6d4ab48b1`: Build
 `41468529666`, Instrumentation `41468529072`, and the new **L2 comparison** `41468529824`
