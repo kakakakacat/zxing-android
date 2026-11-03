@@ -16,6 +16,7 @@
 
 package io.github.kakakakacat.zxing.android.encode
 
+import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -151,6 +152,7 @@ constructor(
     val bundle = intent.extras ?: throw WriterException("No extras")
     val uri = bundle.getParcelable<Uri>(Intent.EXTRA_STREAM)
         ?: throw WriterException("No EXTRA_STREAM")
+    rejectUnsafeStream(uri)
     val vcard: ByteArray
     val vcardString: String
     try {
@@ -169,6 +171,17 @@ constructor(
       }
     } catch (ioe: IOException) {
       throw WriterException(ioe)
+    } catch (se: SecurityException) {
+      // A caller can name a URI it never granted this app, and `openInputStream` answers
+      // that with SecurityException, which is not an IOException. Before this was caught,
+      // any application on the device could crash this exported activity with one intent
+      // -- the `am start` that checks the guard above does it too, because the shell grants
+      // nothing. Refusing is the same outcome as any other unreadable stream.
+      throw WriterException(se)
+    } catch (iae: IllegalArgumentException) {
+      // An authority no provider answers for reaches the resolver as this, from the same
+      // untrusted extra and with the same consequence.
+      throw WriterException(iae)
     }
     val result = Result(vcardString, vcard, null, BarcodeFormat.QR_CODE)
     val parsedResult = ResultParser.parseResult(result)
@@ -178,6 +191,39 @@ constructor(
     encodeQRCodeContents(parsedResult)
     if (contents.isNullOrEmpty()) {
       throw WriterException("No content to encode")
+    }
+  }
+
+  /**
+   * Refuses an `EXTRA_STREAM` this process would be opening on someone else's behalf.
+   *
+   * `EncodeActivity` is exported for `ACTION_SEND` of `text/x-vcard` -- that is how the
+   * Contacts app shares a card -- so any installed application can hand this one a [Uri]
+   * and have it opened with *this* app's identity. That is the confused deputy, and the
+   * two shapes it takes here are:
+   *
+   * - **A non-`content` scheme.** `file:///data/data/<this package>/databases/...` is
+   *   readable by this uid and by nothing else on the device; the caller could not open
+   *   it and this app can. `content` is also the only scheme `ACTION_SEND` is specified
+   *   to carry, so nothing legitimate is being turned away.
+   * - **This app's own provider.** `${applicationId}.fileprovider` is `exported="false"`
+   *   and hands out one cache subtree; a caller naming it is asking this app to read its
+   *   own files back to itself, which no sender has a reason to do.
+   *
+   * What this deliberately does not do is verify that the *sender* could read the URI.
+   * An activity cannot: `Binder.getCallingUid` is this process outside a transaction, and
+   * `callingPackage` is null unless the sender used `startActivityForResult`, which the
+   * share flow does not. The grant the sender attaches is what the resolver then enforces.
+   */
+  @Throws(WriterException::class)
+  private fun rejectUnsafeStream(uri: Uri) {
+    if (uri.scheme != ContentResolver.SCHEME_CONTENT) {
+      throw WriterException("EXTRA_STREAM is not a content URI: ${uri.scheme}")
+    }
+    val authority = uri.authority ?: throw WriterException("EXTRA_STREAM has no authority")
+    val provider = activity.packageManager.resolveContentProvider(authority, 0)
+    if (provider != null && provider.packageName == activity.packageName) {
+      throw WriterException("EXTRA_STREAM names this application's own provider")
     }
   }
 

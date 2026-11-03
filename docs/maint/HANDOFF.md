@@ -378,7 +378,13 @@ check on every push. The check was watched failing on purpose before it was comm
 9. **Emulator `wm size` changes persist.** The Android 16 large-screen reproduction ran
    `wm size 1600x2560 && wm density 240`. Both were reset afterwards, but if an emulator
    behaves oddly, `adb shell wm size reset && adb shell wm density reset`.
-10. **An `ó` out of a Code 128 is not a decoder bug.** U+00F1..U+00F4 are the FNC1..FNC4
+10. **`am start --grant-read-uri-permission` grants the intent's data and ClipData, not
+    an extra.** Three attempts to hand `EncodeActivity` a readable `EXTRA_STREAM` through
+    MediaStore all came back `SecurityException` and looked exactly like the new URI guard
+    misfiring. Put the URI in `-d` as well as `--eu`, or drive a provider that grants on
+    its own terms — `content://com.android.contacts/contacts/as_vcard/<lookup>` does, and
+    a contact can be created from the shell with `content insert`.
+11. **An `ó` out of a Code 128 is not a decoder bug.** U+00F1..U+00F4 are the FNC1..FNC4
     escapes on both sides of this library, and they mean opposite things: `Code128Writer`
     reads them in its *input* as "emit an FNC here", while the readers emit them for
     *decoded* FNC content — `ó` is an FNC4-shifted character, extended ASCII. So
