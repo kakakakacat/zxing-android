@@ -143,6 +143,11 @@ What the Portal rejects a bundle for, and what satisfies each:
 | --- | --- |
 | Verified `io.github.kakakakacat` namespace | Central Portal account, proved by GitHub account ownership |
 | GPG signature on every artifact | `signAllPublications()`, key supplied from the environment |
+
+Signing is applied only when a signing key is actually present. It signs every
+publication, the GitHub Packages one included, and a signing task without a signatory
+fails the build rather than skipping — so applying it unconditionally broke the
+GitHub Packages step, which is given no key, and would break any fork that has none.
 | sources jar | the plugin's `sourcesJar = true` |
 | javadoc jar | the plugin's; empty for `:core`, whose upstream sources do not survive strict doclint |
 | POM `name`, `description`, `url`, licence, developer, SCM | the `pom { }` block in each module |

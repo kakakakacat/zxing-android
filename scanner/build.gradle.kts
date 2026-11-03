@@ -151,7 +151,16 @@ mavenPublishing {
   publishToMavenCentral()
   // Central rejects an unsigned bundle. The key lives in the environment, never here --
   // ORG_GRADLE_PROJECT_signingInMemoryKey and friends; see docs/maint/PUBLISHING.md.
-  signAllPublications()
+  //
+  // Only when a key is actually there. `signAllPublications()` signs *every* publication,
+  // the GitHub Packages one included, and a signing task with no signatory fails the
+  // build rather than skipping -- so the unconditional call took the GitHub Packages
+  // publish down with it on a step that is given no key, and would do the same to any
+  // fork that has none. GitHub Packages does not want a signature; Central does, and the
+  // step that uploads there is the one that sets the property.
+  if (providers.gradleProperty("signingInMemoryKey").isPresent) {
+    signAllPublications()
+  }
 
   coordinates(group.toString(), "zxing-android-scanner", version.toString())
 
