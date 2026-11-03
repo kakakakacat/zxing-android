@@ -22,6 +22,9 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import android.graphics.Rect;
+import android.os.ParcelFileDescriptor;
+import java.io.InputStream;
+import java.io.IOException;
 
 import androidx.camera.core.CameraSelector;
 import androidx.camera.core.ImageAnalysis;
@@ -61,10 +64,19 @@ public final class EmbeddedScannerHostTest {
   private static final long TIMEOUT_SECONDS = 15;
 
   @Before
-  public void grantCameraAndRequireOne() {
-    InstrumentationRegistry.getInstrumentation().getUiAutomation().grantRuntimePermission(
-        ApplicationProvider.getApplicationContext().getPackageName(),
-        android.Manifest.permission.CAMERA);
+  public void grantCameraAndRequireOne() throws IOException {
+    String packageName = ApplicationProvider.getApplicationContext().getPackageName();
+    // UiAutomation.grantRuntimePermission is newer than our API 23 minimum. The shell
+    // permission command works on every supported API; drain it before opening a camera.
+    ParcelFileDescriptor descriptor = InstrumentationRegistry.getInstrumentation()
+        .getUiAutomation().executeShellCommand("pm grant " + packageName + " android.permission.CAMERA");
+    try (InputStream output = new ParcelFileDescriptor.AutoCloseInputStream(descriptor)) {
+      byte[] buffer = new byte[256];
+      while (output.read(buffer) != -1) { /* wait for pm to complete */ }
+    }
+    assertEquals("camera permission was not granted", android.content.pm.PackageManager.PERMISSION_GRANTED,
+        ApplicationProvider.getApplicationContext().getPackageManager().checkPermission(
+            android.Manifest.permission.CAMERA, packageName));
     Assume.assumeTrue("no camera on this device",
                       ApplicationProvider.getApplicationContext().getPackageManager()
                           .hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_ANY));
