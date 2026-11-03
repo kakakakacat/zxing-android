@@ -33,5 +33,20 @@ enum class ScannerError {
   CAMERA_UNAVAILABLE,
 
   /** The camera opened but the preview could not be attached to the surface. */
-  PREVIEW_FAILED
+  PREVIEW_FAILED,
+
+  /**
+   * The camera is fine; the decoder is not.
+   *
+   * Either it could not be built — [ScannerOptions.DecoderBackend.NATIVE] asked for on a
+   * device with no native build for its ABI, or a format selection the native backend
+   * cannot be asked for — or it threw on
+   * [DecoderThread.MAX_CONSECUTIVE_DECODE_FAILURES] frames in a row and the session was
+   * given up. The cause is passed to
+   * [ScannerView.Listener.onScannerError] where it is an `Exception`.
+   *
+   * A host that asked for a specific backend can retry with
+   * [ScannerOptions.DecoderBackend.AUTO], which falls back to the Java decoder by itself.
+   */
+  DECODER_UNAVAILABLE
 }

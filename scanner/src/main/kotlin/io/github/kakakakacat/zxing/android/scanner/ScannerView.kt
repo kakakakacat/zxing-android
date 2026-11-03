@@ -142,15 +142,23 @@ class ScannerView(
    */
   fun setFormats(formats: Collection<@JvmSuppressWildcards BarcodeFormat>?) {
     this.formats = formats
-    val decodeHandler = decoderThread?.getHandler()
-    decodeHandler?.obtainMessage(DecoderThread.MSG_SET_FORMATS, formats)?.sendToTarget()
+    // Recorded by the decode thread whether or not its decoder exists yet. Reaching for
+    // its handler here used to mean blocking this thread until the decoder was built, and
+    // dropping the change silently if it never was.
+    decoderThread?.setFormats(formats)
   }
 
   fun setListener(listener: Listener?) {
     this.listener = listener
   }
 
-  /** Thumbnails cost an allocation and a pixel copy per successful scan. Default on. */
+  /**
+   * Thumbnails cost an allocation and a pixel copy per successful scan. Default on.
+   *
+   * **Takes effect on the next [resume]**, not on the next scan: the decode thread is
+   * built with this once and reads it per frame thereafter. [setFormats] is the one
+   * setting that changes a running session, and it says so.
+   */
   fun setThumbnailsEnabled(enabled: Boolean) {
     this.thumbnailsEnabled = enabled
   }
@@ -298,9 +306,10 @@ class ScannerView(
         camera.setTorch(true)
       }
       ambientLightManager?.start(camera)
-      isScanning = true
       viewfinderView.drawViewfinder()
-      requestFrame()
+      // The first frame is asked for when the decoder says it is up, in handleDecodeReply.
+      // Asking here meant waiting on the decode thread's latch from the main thread --
+      // unbounded, and for ever if the decoder failed to build.
     }
 
     override fun onCameraError(error: ScannerError, cause: Exception?) {
@@ -314,10 +323,9 @@ class ScannerView(
   private fun requestFrame() {
     val camera = backend ?: return
     val thread = decoderThread ?: return
-    val decodeHandler = thread.getHandler()
-    if (decodeHandler != null) {
-      camera.requestFrame(decodeHandler, DecoderThread.MSG_DECODE)
-    }
+    // Never blocks: a frame is only ever asked for after the decoder has announced itself.
+    val decodeHandler = thread.handlerIfReady() ?: return
+    camera.requestFrame(decodeHandler, DecoderThread.MSG_DECODE)
   }
 
   private fun stopScanning() {
@@ -329,16 +337,17 @@ class ScannerView(
     // Cancel the outstanding request before the thread goes away, so no frame is delivered
     // to a looper that has quit.
     backend?.stopFrames()
-    if (thread != null) {
-      thread.getHandler()?.obtainMessage(DecoderThread.MSG_QUIT)?.sendToTarget()
-      try {
-        thread.join(500L)
-      } catch (ie: InterruptedException) {
-        Thread.currentThread().interrupt()
-      }
-    }
+    // Asked to stop, not waited for. The 500 ms join this replaces ran on whichever
+    // thread called pause() -- the main thread, for every host that follows the
+    // documented lifecycle -- and a single slow decode spent it there. Nothing needs the
+    // thread gone before this returns: a Camera1 frame is a heap array the decoder owns
+    // once delivered, and a CameraX ImageProxy keeps its reader open until it is closed,
+    // so neither backend's close() can pull a buffer out from under a decode in flight.
+    thread?.requestQuit()
     mainHandler.removeMessages(MSG_DECODE_SUCCEEDED)
     mainHandler.removeMessages(MSG_DECODE_FAILED)
+    mainHandler.removeMessages(MSG_DECODER_READY)
+    mainHandler.removeMessages(MSG_DECODER_FAILED)
   }
 
   private fun handleDecodeReply(msg: Message) {
@@ -346,6 +355,23 @@ class ScannerView(
       // A reply from a session that has already been torn down. Dropping it is the
       // whole point of the session id: upstream could deliver a decode from the previous
       // camera session into a freshly resumed screen.
+      return
+    }
+    if (msg.what == MSG_DECODER_READY) {
+      // The decoder exists. This is where a session starts asking for frames, and the
+      // only place it does so for the first time.
+      isScanning = true
+      requestFrame()
+      return
+    }
+    if (msg.what == MSG_DECODER_FAILED) {
+      // Either the decoder could not be built -- an explicit NATIVE backend on an ABI
+      // with no native build, a format selection zxing-cpp cannot be asked for -- or it
+      // threw on frame after frame. Both used to end with a thread that was simply gone
+      // and a scanner that waited for a frame that would never come.
+      val cause = msg.obj as? Throwable
+      stopScanning()
+      reportError(ScannerError.DECODER_UNAVAILABLE, cause as? Exception)
       return
     }
     if (msg.what == MSG_DECODE_FAILED) {
@@ -397,5 +423,11 @@ class ScannerView(
   companion object {
     internal const val MSG_DECODE_SUCCEEDED = 10
     internal const val MSG_DECODE_FAILED = 11
+
+    /** The decode thread's decoder is up; `arg1` is the session. */
+    internal const val MSG_DECODER_READY = 12
+
+    /** The decoder could not be built or gave up; `obj` is the cause. */
+    internal const val MSG_DECODER_FAILED = 13
   }
 }

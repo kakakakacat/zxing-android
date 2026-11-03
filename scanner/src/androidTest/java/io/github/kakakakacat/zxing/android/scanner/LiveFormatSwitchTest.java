@@ -92,7 +92,7 @@ public final class LiveFormatSwitchTest {
 
     decoder = new DecoderThread(replyTo, ScannerOptions.defaults(), null, null, false, 1);
     decoder.start();
-    decodeHandler = decoder.getHandler();
+    decodeHandler = decoder.awaitReady(5000L);
     assertNotNull("decode looper never came up", decodeHandler);
   }
 

@@ -31,7 +31,10 @@ PREFS=/data/data/$PKG/shared_prefs/${PKG}_preferences.xml
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-CORE=$(ls core/build/libs/core-*.jar 2>/dev/null | head -1)
+# The classes jar, not the sources or javadoc ones that sit beside it. Publishing
+# put those in core/build/libs and `head -1` then picked core-*-javadoc.jar, which
+# compiles against nothing and fails with two dozen "cannot find symbol".
+CORE=$(ls core/build/libs/core-*.jar 2>/dev/null | grep -v -e -sources -e -javadoc | head -1)
 if [ -z "$CORE" ]; then
   echo "no core jar; run ./gradlew :core:jar" >&2
   exit 2

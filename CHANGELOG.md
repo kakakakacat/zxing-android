@@ -12,6 +12,18 @@ API may still change between minor versions.
 ## [Unreleased]
 
 ### Added
+- **Decoded results carry their bytes and their metadata.** A `Result` from the native
+  backend now has `getRawBytes()` — the decoded standard content, before any character-set
+  conversion — and the metadata zxing-cpp reports that this fork has a `ResultMetadataType`
+  for: error correction level, symbology identifier, EAN/UPC add-on, reader-init and QR
+  structured append. What is deliberately absent, and why, is documented on
+  `NativeFrameDecoder`. The bytes are the symbol's own and are not rewritten to match a
+  display string that compatibility rendering has changed.
+- **`ScannerError.DECODER_UNAVAILABLE`.** Reported when the decoder cannot be built —
+  `DecoderBackend.NATIVE` on a device with no native build for its ABI, or a format
+  selection zxing-cpp cannot be asked for — or when it throws on ten frames in a row.
+  Previously the decode thread died quietly and the scanner waited for a frame that was
+  never coming.
 - **Maven Central publishing.** Both artifacts are now built as a signed Central Portal
   bundle, so a consumer needs neither a repository declaration nor a token —
   `implementation("io.github.kakakakacat.zxing:zxing-android-scanner:<version>")` and
@@ -22,6 +34,34 @@ API may still change between minor versions.
   validated and released together. The deployment is left `VALIDATED` for a human to
   release, because a version on Central can never be replaced or withdrawn. The step is
   skipped, not failed, when the publishing secrets are absent.
+
+### Fixed
+- **Text crossing the JNI boundary.** The native backend built every string with
+  `NewStringUTF`, which takes modified UTF-8, from zxing-cpp's standard UTF-8. A payload
+  with an embedded `U+0000` and any supplementary-plane character — emoji, CJK extension B
+  — were therefore handed to it in an encoding it does not accept. The conversion is now
+  explicit and length-aware, so a NUL no longer truncates a result and an emoji arrives as
+  itself. Covered on a device, against the Java backend on the same frames.
+- **The symbology identifier of a symbol carrying an ECI.** zxing-cpp knows the ECI
+  modifier offset and does not apply it, so a QR came back `]Q1` where ISO/IEC 15424 and
+  this fork's own reader say `]Q2`. Corrected for QR; for a symbology whose offset
+  zxing-cpp does not expose there is no identifier rather than a wrong one.
+- **A decode thread whose decoder failed to start hung every waiter.** The decoder was
+  built inside the handler's constructor and the latch counted down after it, so an
+  initialisation that threw never reached the notification — and `getHandler()` had no
+  timeout. Initialisation now has four explicit states, both outcomes are announced, and
+  the waiting API takes a timeout.
+- **Two main-thread waits on the decode thread are gone.** `ScannerView` no longer blocks
+  on the decoder coming up before asking for the first frame — it is told — and tearing a
+  session down no longer joins the decode thread for up to 500 ms on the caller's thread.
+- **A decoder that throws is no longer indistinguishable from an empty frame.** On the
+  native side a C++ exception was caught and the frame reported as holding nothing; a
+  frame whose dimensions did not describe its buffer was answered the same way. They are
+  now an exception each, counted, and a frame that throws is a lost frame rather than a
+  dead scanner — until ten in a row, which ends the session with an error.
+- **A format change made before the decoder exists is no longer dropped**, and one the
+  backend cannot honour stops the session instead of leaving it scanning for the previous
+  selection.
 
 ## [0.1.0] - 2026-11-03
 
