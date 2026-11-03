@@ -3,6 +3,16 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
+**Where documentation goes, changed by the user on 2026-11-03.** `README.md` is now a
+short bilingual landing page and nothing else: what this project is, one table of
+improvements over upstream, one performance chart with its conditions, what is next, and
+links out. Everything that used to live there — the integration example, the build
+instructions, the support range, the phase-by-phase status list, the namespace rationale,
+the known-problems table — moved to `docs/maint/PROJECT_DETAILS.md`, which carries the
+same content in 简体中文 and English. **Write new detail there, in both languages, and
+keep the README short.** A change only reaches the README when it changes what the
+project *is* or moves one of the headline numbers.
+
 Last updated at commit `00fcad4ce` on branch `maint/android`, **which is pushed**.
 
 ---
@@ -623,7 +633,8 @@ Everything else is below.
 
 ## What is left
 
-Ordered as the user asked for it. The README carries the same list as tickboxes.
+Ordered as the user asked for it. `docs/maint/PROJECT_DETAILS.md` carries the same list as
+tickboxes, in both languages — it used to be the README's, and moved on 2026-11-03.
 
 ### Phase 4 — all four layers now exist and are baselined
 
@@ -1424,7 +1435,8 @@ Getting there took two things worth knowing:
 
 - **The AAR has been taken all the way to a consumer and works**, 2026-11-03:
   published to `~/.m2`, resolved by a throwaway Gradle build that knows nothing about this
-  repository, compiled from both Java and Kotlin against the README's own example,
+  repository, compiled from both Java and Kotlin against the documented example (then in
+  the README, now in `PROJECT_DETAILS.md`),
   minified by R8 with only the default rules, installed, and used to decode a real
   `CODE_128` off a camera — `SCANNED CODE_128 AAR-CONSUMER-OK`. Both shipped ABIs report
   `LOAD align = 0x4000`, so 16 KB alignment is in the ELF rather than assumed.
