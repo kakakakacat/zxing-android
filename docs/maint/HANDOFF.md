@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `ea0f853d6` on branch `maint/android`, **which is pushed**.
+Last updated at commit `94404e586` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -106,6 +106,8 @@ Last updated at commit `ea0f853d6` on branch `maint/android`, **which is pushed*
 | `343158d5f` | `EncodeActivity` opened any URI a caller named, and crashed on most of them |
 | `14722d942` | Why CodeQL alert #1 is dismissed, and the code-scanning state |
 | `ea0f853d6` | **The AAR taken all the way to a consumer**: resolved, minified, and it scans |
+| `0a43c6972` | **0.1.0 cut in the changelog**, and its notes extracted before the publish |
+| `94404e586` | The release state, recorded |
 
 Nothing is uncommitted. All three workflows were green on `6d4ab48b1`: Build
 `41468529666`, Instrumentation `41468529072`, and the new **L2 comparison** `41468529824`
@@ -1427,6 +1429,17 @@ Getting there took two things worth knowing:
   `LOAD align = 0x4000`, so 16 KB alignment is in the ELF rather than assumed.
   `reports/aar-deliverable-check-20261103.md`. **Nothing about the artifact is blocking a
   release; what is left is the changelog and the tag.**
+- **0.1.0 is cut in the changelog and nothing else is in the way.** `[Unreleased]` is now
+  `## [0.1.0] - 2026-11-03`, its duplicate `### Added`/`### Changed`/`### Fixed`
+  subsections are merged into one of each, today's security fix is a `### Security`
+  section, and `changelog_section.py --version 0.1.0` was watched producing the Release
+  body. `check_release_publishes.py --version 0.1.0` passes. **What is left is one
+  command: `git push origin v0.1.0`.** Maven Central stays unconfigured on purpose; this
+  release goes to GitHub Packages only.
+- **`release.yml` extracted the release notes *after* publishing**, so a missing
+  changelog section would have failed the release with the version already taken in
+  GitHub Packages, which cannot be replaced. Fixed at `0a43c6972`: the extraction now
+  runs beside the resolvability check, before anything is pushed.
 - Nothing has been released. Tagging `v0.1.0` triggers `.github/workflows/release.yml`,
   which builds, checksums, publishes to GitHub Packages and cuts a GitHub Release whose
   body comes from the `CHANGELOG.md` section for that version. Move the `[Unreleased]`
