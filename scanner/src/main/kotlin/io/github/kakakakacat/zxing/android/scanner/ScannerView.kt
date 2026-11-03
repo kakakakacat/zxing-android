@@ -185,7 +185,11 @@ class ScannerView(
     val opened = createBackend()
     backend = opened
     ambientLightManager = AmbientLightManager(context, options.frontLightMode)
-    viewfinderView.setCamera(opened)
+    // The viewfinder gets the camera when the camera is ready, not when it is asked for.
+    // `ViewfinderView.onDraw` reads the scan rectangle off it, and on the Camera1 path
+    // every `CameraManager` accessor is `@Synchronized` -- so handing it over up here put
+    // the first layout pass's `onDraw` on the main thread behind an open running on the
+    // worker. That is the stall this change exists to remove, in a second place.
     val holder = surfaceView.holder
     if (hasSurface) {
       openCamera(holder)
@@ -264,6 +268,7 @@ class ScannerView(
         // a theoretical one: the provider comes up asynchronously.
         return
       }
+      viewfinderView.setCamera(camera)
       ScannerTrace.begin(ScannerTrace.FIRST_FRAME, sessionId)
       ScannerTrace.begin(ScannerTrace.FIRST_SCAN, sessionId)
       val thread = DecoderThread(

@@ -29,9 +29,11 @@ import io.github.kakakakacat.zxing.android.scanner.ScannerError
  * CameraX handles badly has somewhere to fall back to; the reasoning is in
  * `docs/maint/decisions/0001-camera-backend.md`.
  *
- * **Opening is asynchronous** and the result arrives on [Callback], on the main thread.
- * Camera1 opens synchronously and still answers through the callback, because writing the
- * caller against the slower of the two is the only way one caller can drive both.
+ * **Opening is asynchronous** on both, and the result arrives on [Callback], on the main
+ * thread. Camera1 used to open synchronously and answer through the callback anyway, so
+ * that one caller could drive both; it now really is asynchronous, because the synchronous
+ * open was measured blocking the main thread for 401–436 ms at startup. See
+ * [Camera1Backend] for what that cost and what it took to move.
  *
  * Frames are pulled, not pushed: nothing is delivered until [requestFrame] asks, and one
  * request yields at most one frame. That is what keeps a single decode thread from
@@ -46,7 +48,8 @@ internal interface ScannerCameraBackend : ScannerCamera {
    * Opens the camera against [holder] and starts the preview.
    *
    * The surface must already exist. Exactly one of [Callback.onCameraReady] or
-   * [Callback.onCameraError] follows, possibly before this returns.
+   * [Callback.onCameraError] follows, on the main thread, after this returns — unless
+   * [close] is called first, in which case neither does and the camera is released.
    */
   fun open(holder: SurfaceHolder, callback: Callback)
 
