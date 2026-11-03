@@ -13,7 +13,7 @@ same content in 简体中文 and English. **Write new detail there, in both lang
 keep the README short.** A change only reaches the README when it changes what the
 project *is* or moves one of the headline numbers.
 
-Last updated at commit `08105ca61` on branch `maint/android`, **which is pushed**.
+Last updated at commit `13c3e4221` on branch `maint/android`. **Not pushed yet.**
 
 ---
 
@@ -478,6 +478,54 @@ check on every push. The check was watched failing on purpose before it was comm
 ---
 
 ## Start here if you are new to this file
+
+**Two P0 items from the 2026-11-03 review are done, `3785004b1` and `13c3e4221`.**
+
+**The JNI bridge was handing modified UTF-8's function standard UTF-8.** Every string the
+native backend returned went through `NewStringUTF`, which takes *modified* UTF-8, and
+zxing-cpp produces the standard kind. The two differ in exactly the two places a payload
+is most likely to land: U+0000 is one byte rather than two, and a supplementary-plane
+character is one four-byte sequence rather than a surrogate pair of three-byte ones. This
+file never asserted what the runtime did with that, and now it does not have to: the
+conversion is explicit, validated, and `NewString` is called with a length. An embedded
+NUL stops truncating and an emoji arrives as itself, checked on a device against the Java
+backend on the same frames.
+
+**Mapping the result metadata found something worth knowing.** zxing-cpp knows the ECI
+modifier offset and then does not apply it — `Barcode::symbologyIdentifier()` calls
+`SymbologyIdentifier::toString()` with `hasECI` defaulted to false — so a QR carrying an
+ECI came back `]Q1` where ISO/IEC 15424 and this fork's own `DecodedBitStreamParser` both
+say `]Q2`. It was found only because the new test makes the two backends compare their
+metadata on one symbol. Corrected for QR, where the offset is 1 and the base modifiers
+agree; for a symbology whose offset zxing-cpp does not expose there is now no identifier
+rather than a wrong one. **If a backend looks like it disagrees about a standard field,
+check whether the other one is simply not applying a rule it knows.**
+
+**The decode thread could hang the main thread for ever, and two configurations reached
+it.** The decoder was built inside the `DecodeHandler` constructor and the latch counted
+down after it, so an initialisation that threw never reached the notification —
+`DecoderBackend.NATIVE` on an ABI with no native build, or a format selection zxing-cpp
+cannot be asked for, both throw there. `getHandler()` had no timeout. The thread now has
+four states and announces both terminal ones; `ScannerView` is *told* the decoder is up
+rather than blocking on it, and the 500 ms `join` in teardown is gone (neither backend's
+`close()` can pull a buffer out from under a decode in flight — a Camera1 frame is a heap
+array, a CameraX `ImageProxy` keeps its reader open until closed).
+
+**The decoder is injectable now**, through `DecoderThread.DecoderFactory`, which is the
+only way those states can be produced on demand. Nine lifecycle tests drive them. **Two of
+those tests passed for the wrong reason first time**: their fake frame returned a null
+source, which the decode thread answers as a miss without ever calling the decoder, so
+"the decoder threw" was never tested. A fake that is too convenient tests the fake.
+
+Evidence for both: 44/44 `:scanner` instrumentation tests on DN-ENG41, the same 44 again
+with CheckJNI on (framework restarted, "CheckJNI is ON" in logcat, no warning of any
+kind), 100 open/close cycles with no fatal, and a real CODE_128 read off DN-ENG81's screen
+3/3 on each camera backend. **Not** verified: that no main-thread wait remains, by trace.
+The blocking calls are gone by construction and no systrace was taken.
+
+**`scan-off-screen.sh` broke the moment publishing started writing javadoc jars** into
+`core/build/libs` — its `head -1` picked `core-*-javadoc.jar` and the helper would not
+compile. Fixed there; worth remembering for any other script that globs that directory.
 
 **CI had not run on any of this until 2026-11-02, and now it has.** The remote sat at
 `de2472846` from 2026-10-30 while 70 commits accumulated locally — the whole benchmark

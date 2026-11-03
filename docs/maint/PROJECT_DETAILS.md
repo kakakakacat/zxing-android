@@ -100,6 +100,19 @@ CameraX 不依赖 `camera-view`，直接向扫描器已有的 `SurfaceView` 输�
 
 结果在主线程回调，并携带产生该结果的扫描会话 ID。`pause()` 之后才完成的解码结果会被丢弃，不会送入已经离开的界面。
 
+**结果里有什么。** 原生后端返回的 `Result` 除文本外还带原始字节与元数据：
+
+- `getRawBytes()` 是**按码制定义的解码内容字节，未经字符集转换**，即 zxing-cpp 的 `bytes()`。这与 Java 后端不同：Java 后端的二维码读取器放在这里的是符号的码字（codeword），而 zxing-cpp 不提供码字。两个后端在这一个字段上有意不一致，且仅此一处。一维码上 Java 后端本来就不返回原始字节，所以这里是净增。
+- 这些字节是符号本身的，不是把展示字符串重新编码得来的：兼容渲染已经改写过 UPC-A 前导零、UPC-E 展开、Codabar 首尾符和 RSS-14 的 AI 前缀，字节保持原样。
+- 元数据逐项映射：纠错级别、AIM 符号学标识符、EAN/UPC 附加码、reader-init、以及二维码的结构化追加。zxing-cpp 不报告的项（`BYTE_SEGMENTS`、纠错数、方向、国家码等）一律缺省，不编造。
+- **携带 ECI 的符号的符号学标识符**：zxing-cpp 知道 ECI 的 modifier 偏移却不应用它，二维码因此返回 `]Q1`，而 ISO/IEC 15424 和本仓库自己的读取器都是 `]Q2`。二维码已修正；偏移量 zxing-cpp 未暴露的码制则不返回标识符，而不是返回一个错的。
+
+**文本编码。** 文本以显式的 UTF-8→UTF-16 转换跨越 JNI 边界，带长度调用 `NewString`。内嵌 `U+0000` 不再截断结果，emoji 和补充平面汉字按原字符返回。非法字节序列变为 U+FFFD，不丢弃也不透传。
+
+**解码器起不来时会报错，不再静默。** `DecoderBackend.NATIVE` 在没有对应 ABI 原生库的设备上、或码制集合 zxing-cpp 无法接受时，`ScannerView` 报 `ScannerError.DECODER_UNAVAILABLE` 并带上原因；解码器连续在十帧上抛异常也是同一个错误。单帧抛异常只丢这一帧，继续扫描。`DecoderBackend.AUTO` 仍会自动退回 Java 解码器。
+
+**什么时候生效。** `setFormats` 对运行中的会话立即生效；`setThumbnailsEnabled` 在下一次 `resume()` 生效——解码线程创建时读取一次。
+
 ### 构建
 
 需要 JDK 17+、Android SDK platform 36 和 build-tools 36.0.0。Gradle 与 AGP 版本已固定，wrapper 会自行下载 Gradle。
@@ -385,6 +398,42 @@ by an all-formats reader. Measurements and method in
 Results arrive on the main thread, and each carries the id of the scanning session that
 produced it, so a decode that finishes after `pause()` is dropped rather than delivered
 into a screen that is already gone.
+
+**What a result carries.** A `Result` from the native backend has bytes and metadata
+beside its text:
+
+- `getRawBytes()` is **the decoded standard content, before any character-set
+  conversion** — zxing-cpp's `bytes()`. That is not what the Java backend puts there for
+  a 2D symbol: its readers report the symbol's codewords, which zxing-cpp does not
+  expose. The two backends disagree about this one field, deliberately, and about no
+  other. For a 1D symbol the Java backend reports no raw bytes at all, so there this is a
+  gain rather than a difference.
+- They are the symbol's own bytes, not a re-encoding of the display string. Compatibility
+  rendering has already taken a UPC-A leading zero, a UPC-E expansion, Codabar guards or
+  an RSS-14 application identifier off the text; the bytes keep them.
+- Metadata is mapped item by item: error correction level, AIM symbology identifier,
+  EAN/UPC add-on, reader-init, and QR structured append. What zxing-cpp does not report —
+  `BYTE_SEGMENTS`, errors corrected, orientation, possible country — is absent rather than
+  invented.
+- **The symbology identifier of a symbol carrying an ECI**: zxing-cpp knows the ECI
+  modifier offset and does not apply it, so a QR came back `]Q1` where ISO/IEC 15424 and
+  this fork's own reader say `]Q2`. Corrected for QR; for a symbology whose offset
+  zxing-cpp does not expose there is no identifier rather than a wrong one.
+
+**Text encoding.** Text crosses the JNI boundary through an explicit, validated UTF-8 to
+UTF-16 conversion and `NewString` with a length. An embedded `U+0000` no longer truncates
+a result, and an emoji or a supplementary-plane character arrives as itself. Malformed
+bytes become U+FFFD rather than being dropped or passed through.
+
+**A decoder that cannot start says so.** `DecoderBackend.NATIVE` on a device with no
+native build for its ABI, or a format selection zxing-cpp cannot be asked for, is
+reported as `ScannerError.DECODER_UNAVAILABLE` with the cause; so is a decoder that
+throws on ten frames in a row. One frame that throws loses that frame and scanning
+continues. `DecoderBackend.AUTO` still falls back to the Java decoder by itself.
+
+**When a setting takes effect.** `setFormats` reaches a running session.
+`setThumbnailsEnabled` takes effect on the next `resume()`: the decode thread reads it
+once, when it is built.
 
 ## Building
 
