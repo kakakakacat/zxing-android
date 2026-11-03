@@ -631,6 +631,26 @@ neither. Device against device, always.
 
 Everything else is below.
 
+## The third device, and why it is not three gaps closed
+
+A Samsung **SM-S948B** — Android 16 / API 36, SM8850, arm64-v8a — was reachable for about
+an hour over a cloud ADB tunnel (`rdb`) on 2026-11-03. It produced **21/21 `:scanner`
+instrumentation tests on real Android 16 hardware**, including the 12 native-decoder ones,
+which is the first Android 16 claim here not made on an emulator. Then the tunnel became
+unusable and the run was abandoned. `reports/android16-SM-S948B-20261103.md`.
+
+**It is Qualcomm and its `PAGE_SIZE` is 4096**, so it closed neither the non-Qualcomm gap
+nor the 16 KB page gap, whatever "Android 16 flagship" suggests. `id -u` was 2000, so no
+root, which rules out L2/L3/L4 by rule and not just by inconvenience — §10.6 turns an
+unlocked-clock L2 run into `inconclusive`.
+
+**The trap worth keeping:** `adb connect` does **not** repair a transport that has gone
+`offline` — it answers `already connected` and leaves the dead one in place. A retry loop
+built on it tried the same broken connection five times per step and reported a working
+device as unreachable, failing all 34 steps. `adb disconnect` *then* `adb connect`.
+`tools/maint/android16-checks.sh` does that now, and eight consecutive probes passed where
+zero had.
+
 ## What is left
 
 Ordered as the user asked for it. `docs/maint/PROJECT_DETAILS.md` carries the same list as
@@ -656,6 +676,26 @@ first. What is left of the comparison all points one way.
 rather than hides: this device sits at thermal status 3 permanently, so every L4 number
 from it is a throttled number; and on charge the battery never moves, so drain is not
 measured.
+
+**Re-run 2026-11-03 to answer the power question, and the CPU finding reproduced:** 78.8%
+of one core against 123.6%, **+57%**, with PSS and threads landing where the baseline put
+them — so the Camera1 async-open change did not move steady-state cost, which is what a
+startup change should look like. **Power could not be resolved and that is the result**:
+DN-ENG41 has no charging switch anywhere under `/sys/class/power_supply`, so the fuel gauge
+is flat by construction, and the USB-input figure gives +15 mW with a 95% interval of
+[−272, +308] mW — wide enough to contain the 150–250 mW the extra CPU ought to cost. A
+bound, not a measurement. `reports/l4-power-DN-ENG41-20261103.md`.
+
+**Two traps that cost two full soaks each, now refused by the harness rather than
+documented.** A second device was still showing a Code 128 from an earlier test, so the
+scanner decoded it in the first second and sat on the result screen for twelve minutes —
+CPU 3.4% against 74%, and the result file still said `scene: "miss"`, because the scene was
+declared on the command line and never checked. And `InactivityTimer` finishes
+CaptureActivity after five minutes **on battery** (on charge it is cancelled, which is why
+no soak had hit it), leaving a cached process that `pidof` still answers for. `l4-soak.sh`
+now checks the result view before and after, and the focused window at the end. Also: that
+device's unfiltered logcat was **717 MB in twelve minutes** of `AppsFilter` spam, inside a
+measurement of its own power draw — the stream is `logcat --pid` now.
 
 ### Phase 4 — L1 and L2
 

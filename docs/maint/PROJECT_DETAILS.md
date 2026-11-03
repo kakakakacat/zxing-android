@@ -196,7 +196,7 @@ benchmark/tools/l1_device.sh --backend native            # 设备端 L1 正确�
 - [x] **Android 15 真机、R8 压缩构建复验**：预览、两后端像素对齐的取景区域、解码帧输入、每后端 100 次开关、21/21 测试。发现并修复 CameraX 未接收 `FrontLightMode.ON` 的缺陷，见[报告](reports/camerax-android15-mix5-20261103.md)。
 - [x] **两种后端均通过真实相机识别真实条码**：第二台设备显示本分支 `:core` 生成的码，各后端 `CODE_128` 6/6 并读出 `EAN_13`，首次触发 `ScannerTrace` 的 `zxing.first.scan` 区间，见[报告](reports/real-barcode-decode-DN-ENG41-20261103.md)。
 - [x] **Camera1 打开相机不再阻塞主线程**。原先 `ScannerView.surfaceCreated` 在主线程上同步调用 `CameraManager.openDriver`，L3 实测该区间 **401–436 ms**，窗口在此期间无法绘制。现改为在串行 worker 上打开、通过回调返回主线程；`CameraManager` 全类 `@Synchronized`，因此 open 在途时主线程的 `stopPreview` / `closeDriver` / `isOpen` 一并排队到同一 worker，`ViewfinderView` 也改为在相机就绪后才拿到相机。以未改动的 CameraX 为对照，同 session 内 `startup_to_initial_display` 的差值由 **+349 / +319 ms（Camera1 更慢）翻转为 −360 / −291 ms（Camera1 更快）**；第二轮两侧区间有重叠，见[报告](reports/l3-async-open-DN-ENG41-20261103.md)。
-- [ ] **CameraX 设为默认**：目前仍为 `CAMERA1`。两台手机、两个系统版本、R8 构建和真实条码均已验证，覆盖和缺少真实识别不再是原因。**启动延迟这一条已不再支持切换**——Camera1 的同步打开修掉之后，它比 CameraX 更快到达首帧窗口。剩余是结合 L4 **持续扫描 CPU 约高 60%** 的数据作出选择。
+- [x] **CameraX 是否设为默认：决定保持 `CAMERA1`**。三条曾经支持切换的性能论据现在全部不成立——覆盖已由第二台设备答复；启动延迟在 Camera1 同步打开修复后**反转**（Camera1 反而快 291–360 ms）；耗电在现有硬件上**无法分辨**（DN-ENG41 无法放电，整机功耗差 +15 mW，95% CI [−272, +308] mW，区间宽到足以容纳本应存在的 150–250 mW）。唯一可测的差异是 CameraX **持续扫描多耗 57% CPU**（78.8% 对 123.6%，两个 session 复现）。把出货默认推向唯一一条可测且更贵的路径需要理由，而理由已不存在。CameraX 仍是调用方一行代码即可选用，维护性与弃用论据不受影响——那说的是「是否继续维护 Camera1」，与默认值是两件事。见[报告](reports/l4-power-DN-ENG41-20261103.md)。
 
 ### 命名空间与独立性
 
@@ -214,8 +214,8 @@ benchmark/tools/l1_device.sh --backend native            # 设备端 L1 正确�
 
 | 范围 | 问题 |
 | --- | --- |
-| 全部 | **首扫延迟仍未测量**。L3 覆盖启动、相机打开和首帧，首扫需固定并拍照记录的场景。L4 已有基线；参考设备充电时电池计数不变，因此功耗未测。 |
-| 全部 | 只有 Android 14（无 GMS）和 Android 15 两台高通真机，均为 4 KB 页。缺 Android 16 真实相机、非高通、现代系统低端机和 16 KB 页硬件验证；**所有 L2 数字仍只来自 Android 14 设备**。 |
+| 全部 | **首扫延迟仍未测量**。L3 覆盖启动、相机打开和首帧，首扫需固定并拍照记录的场景。**耗电仍未真正测得**：DN-ENG41 无法停止充电（`/sys/class/power_supply` 下没有任何开关），只能用 USB 输入功率给出一个上界——两后端整机功耗差小于约 300 mW，分辨不出本应存在的差异。真正测得需要一台能放电的设备。 |
+| 全部 | 只有 Android 14（无 GMS）和 Android 15 两台高通真机，均为 4 KB 页。一台 Android 16 真机（Samsung SM-S948B，SM8850）只跑到 21/21 instrumentation 就因链路不稳中止——**它仍是高通、仍是 4 KB 页**，没有补上非高通和 16 KB 页这两条。缺 Android 16 真实相机、非高通、现代系统低端机和 16 KB 页硬件验证；**所有 L2 数字仍只来自 Android 14 设备**。 |
 | 发布 | 未配置 Maven Central，仅提供 GitHub Packages 和 JitPack。 |
 | AAR | 解码类型位于 `io.github.kakakakacat.zxing.*`，结果不能直接传给其他 ZXing 库。 |
 | AAR | CameraX 自动对焦未验证：Android 14 设备仅支持关闭自动对焦，Android 15 设备尚未对着实际目标验证。 |
@@ -589,12 +589,20 @@ audit IDs from [AUDIT.md](AUDIT.md), so nothing here is a vague intention.
       (Camera1 slower) to −360 / −291 ms (Camera1 faster)**; the second pair's intervals
       overlap, which the report says rather than hides:
       [`docs/maint/reports/l3-async-open-DN-ENG41-20261103.md`](reports/l3-async-open-DN-ENG41-20261103.md)
-- [ ] **CameraX made the default.** Still `CAMERA1`. Coverage is no longer the reason and
-      neither is the missing decode: two phones, two Android versions, an R8 build and now
-      a real symbol all agree. **Startup latency no longer argues for it either** — with
-      Camera1's synchronous open gone, Camera1 reaches a drawn window first. What is left is
-      **a decision**, against one measurement that argues the other way — L4's **~60% more
-      CPU to keep scanning**
+- [x] **Whether to make CameraX the default — decided: it stays `CAMERA1`.** All three
+      performance arguments that once favoured the flip are gone. Coverage was answered on
+      the second device. Startup latency **reversed** once Camera1's synchronous open was
+      fixed: Camera1 now reaches a drawn window 291–360 ms sooner. Power turned out to be
+      **unresolvable on the available hardware** — DN-ENG41 cannot be made to discharge, and
+      the whole-device difference reads +15 mW with a 95% interval of [−272, +308] mW, wide
+      enough to contain the 150–250 mW the extra CPU ought to cost. The one measurable
+      difference left is that CameraX costs **57% more CPU to keep scanning** (78.8% of one
+      core against 123.6%, reproduced in a second session). Moving a shipping default
+      towards the only measurably more expensive path needs a reason and there is none
+      left. CameraX stays one line away for any caller, and the maintenance and deprecation
+      case for it is untouched — that is the case for *reducing what this project
+      maintains*, which is a different decision from which backend a caller gets by
+      default: [`docs/maint/reports/l4-power-DN-ENG41-20261103.md`](reports/l4-power-DN-ENG41-20261103.md)
 
 ## Namespace and independence
 
@@ -625,8 +633,8 @@ years of callers and buy nothing.
 
 | ID | Problem | Where |
 | --- | --- | --- |
-| — | **First-scan latency is still unmeasured**: L3 covers launch, camera-open and first-frame, and the scan target needs a fixed, photographed scene nobody has built. L4 exists and is baselined; power is unmeasured, because the reference device on charge never moves its battery counters | all |
-| — | Two physical devices, both Qualcomm and both 4 KB pages: Android 14 (no GMS) and Android 15. No real-camera verification on Android 16, nothing non-Qualcomm, nothing low-end with a modern OS, no 16 KB page hardware — and **every L2 number is still from the Android 14 one alone** | all |
+| — | **First-scan latency is still unmeasured**: L3 covers launch, camera-open and first-frame, and the scan target needs a fixed, photographed scene nobody has built. **Battery drain is still not measured either**: DN-ENG41 cannot be made to discharge — there is no charging switch anywhere under `/sys/class/power_supply` — so USB input power gives only a bound, and that bound (±300 mW whole-device) is wider than the difference it would have to resolve. It needs hardware that can discharge | all |
+| — | Two physical devices, both Qualcomm and both 4 KB pages: Android 14 (no GMS) and Android 15. One Android 16 phone (Samsung SM-S948B, SM8850) got as far as 21/21 instrumentation before its cloud tunnel became unusable — and it is **also Qualcomm and also 4 KB pages**, so it closed neither of those. No real-camera verification on Android 16, nothing non-Qualcomm, nothing low-end with a modern OS, no 16 KB page hardware — and **every L2 number is still from the Android 14 one alone** | all |
 | — | Maven Central publishing is not set up; GitHub Packages and JitPack only | release |
 | — | Decoder types are `io.github.kakakakacat.zxing.*`, so results cannot be passed straight to other ZXing-based libraries | AAR |
 | — | Auto-focus on the CameraX path is untested: the Android 14 device offers auto-focus OFF only, and the Android 15 one has not been driven at a subject | AAR |

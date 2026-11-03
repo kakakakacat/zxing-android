@@ -465,6 +465,42 @@ any of it was believed.
 
 ---
 
+## The power question, answered as far as the hardware allows — 2026-11-03
+
+L4's +60% CPU was the strongest argument against flipping the default, and the obvious
+follow-up was whether it costs battery. The baseline could not say: those soaks were on
+charge. This one tried.
+
+The CPU finding reproduces — **78.8% of one core against 123.6%, +57%**, with PSS and
+thread counts landing where the baseline put them. The power comparison does not resolve:
+DN-ENG41 cannot be made to discharge (no charging switch anywhere under
+`/sys/class/power_supply`), so what is measurable is the current coming in at the USB port
+while the battery is full and taking none. That gives
+
+```
+camerax - camera1 = +15 mW, 95% CI [-272, +308] mW   (+0.5%, CI [-8.5%, +9.6%])
+```
+
+which straddles zero and is wide enough to contain the ~150–250 mW that CameraX's extra
+0.45 of a core ought to cost. **The reading is "this device cannot tell", not "they cost
+the same."** `reports/l4-power-DN-ENG41-20261103.md`.
+
+**So every performance argument that once favoured CameraX has reversed or evaporated:**
+coverage was answered on the second device, startup latency reversed when Camera1's
+synchronous open was fixed, and power is unresolvable on the available hardware. The one
+measurable difference left is that CameraX costs 57% more CPU to keep scanning.
+
+**The recommendation on the default is therefore to leave it at `CAMERA1`** — and the
+reason is now one sentence instead of three: moving a shipping default towards the only
+measurably more expensive path needs a reason, and there is none left on the table. This
+does not touch the maintenance and deprecation case above, which is the case for CameraX
+and still stands; it is the case for *reducing what this project maintains*, which is a
+different decision from which backend a caller gets by default. Today is the evidence for
+keeping them apart: the one real defect found was fixed on the default path, not stepped
+around by switching away from it.
+
+---
+
 **Why the default has not moved.** Three reasons now, where there were two. The third
 arrived with L4 and is the strongest: **CameraX costs about 60% more CPU to keep scanning**
 on the one device that can measure it, and L3 separately has it 200 ms slower to a frame.
