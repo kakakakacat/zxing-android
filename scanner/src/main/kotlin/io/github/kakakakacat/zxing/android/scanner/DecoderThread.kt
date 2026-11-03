@@ -116,7 +116,7 @@ internal class DecoderThread @JvmOverloads constructor(
   @Volatile
   private var startFailure: Throwable? = null
 
-  private var requestedFormats: Collection<BarcodeFormat>? = initialFormats
+  private var requestedFormats: Collection<BarcodeFormat>? = initialFormats?.toList()
 
   private var quitRequested = false
 
@@ -170,11 +170,12 @@ internal class DecoderThread @JvmOverloads constructor(
    * under the lock that publishes the handler, so neither can be lost to the other.
    */
   fun setFormats(formats: Collection<@JvmSuppressWildcards BarcodeFormat>?) {
+    val snapshot = formats?.toList()
     val target = synchronized(lock) {
-      requestedFormats = formats
+      requestedFormats = snapshot
       handler
     }
-    target?.obtainMessage(MSG_SET_FORMATS, formats)?.sendToTarget()
+    target?.obtainMessage(MSG_SET_FORMATS, snapshot)?.sendToTarget()
   }
 
   /**

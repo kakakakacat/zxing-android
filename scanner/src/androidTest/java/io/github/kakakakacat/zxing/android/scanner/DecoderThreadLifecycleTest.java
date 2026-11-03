@@ -277,7 +277,7 @@ public final class DecoderThreadLifecycleTest {
     CountDownLatch release = new CountDownLatch(1);
     FakeDecoder decoder = new FakeDecoder();
     List<Collection<BarcodeFormat>> created = new ArrayList<>();
-    Collection<BarcodeFormat> initial = Arrays.asList(BarcodeFormat.QR_CODE);
+    Collection<BarcodeFormat> initial = new ArrayList<>(Arrays.asList(BarcodeFormat.QR_CODE));
     DecoderThread thread = start(formats -> {
       created.add(formats);
       entered.countDown();
@@ -288,16 +288,19 @@ public final class DecoderThreadLifecycleTest {
     // Waited for, not raced: the change has to arrive after the thread has read the
     // selection it is building with, or it is not the case this test is about.
     assertTrue(entered.await(TIMEOUT_SECONDS, TimeUnit.SECONDS));
-    assertSame(initial, created.get(0));
-    Collection<BarcodeFormat> wanted = Arrays.asList(BarcodeFormat.EAN_13);
+    assertEquals(initial, created.get(0));
+    initial.clear();
+    assertEquals(Arrays.asList(BarcodeFormat.QR_CODE), created.get(0));
+    Collection<BarcodeFormat> wanted = new ArrayList<>(Arrays.asList(BarcodeFormat.EAN_13));
     thread.setFormats(wanted);  // while the decoder is still being built
+    wanted.clear(); // The caller still owns its input collection.
     release.countDown();
     Handler handler = thread.awaitReady(TimeUnit.SECONDS.toMillis(TIMEOUT_SECONDS));
     assertNotNull(handler);
     drain(handler);
 
-    assertSame("the selection in force must be the last one asked for",
-               wanted, decoder.lastFormats());
+    assertEquals("the selection in force must be the last one asked for",
+                 Arrays.asList(BarcodeFormat.EAN_13), decoder.lastFormats());
   }
 
   @Test

@@ -153,11 +153,12 @@ class ScannerView(
    * (§9). Narrow this to what the host actually accepts.
    */
   fun setFormats(formats: Collection<@JvmSuppressWildcards BarcodeFormat>?) {
-    this.formats = formats
+    val snapshot = formats?.toList()
+    this.formats = snapshot
     // Recorded by the decode thread whether or not its decoder exists yet. Reaching for
     // its handler here used to mean blocking this thread until the decoder was built, and
     // dropping the change silently if it never was.
-    decoderThread?.setFormats(formats)
+    decoderThread?.setFormats(snapshot)
   }
 
   fun setListener(listener: Listener?) {
