@@ -3,7 +3,7 @@
 Operational notes that do not belong in the README: where things stand, what is in
 flight, and the environment quirks that will otherwise be rediscovered the hard way.
 
-Last updated at commit `cd1f8f16b` on branch `maint/android`, **which is pushed**.
+Last updated at commit `d759c47eb` on branch `maint/android`, **which is pushed**.
 
 ---
 
@@ -108,6 +108,7 @@ Last updated at commit `cd1f8f16b` on branch `maint/android`, **which is pushed*
 | `ea0f853d6` | **The AAR taken all the way to a consumer**: resolved, minified, and it scans |
 | `0a43c6972` | **0.1.0 cut in the changelog**, and its notes extracted before the publish |
 | `cd1f8f16b` | The release state, recorded |
+| `d759c47eb` | **v0.1.0 released**, and checked from the published side |
 
 Nothing is uncommitted. All three workflows were green on `6d4ab48b1`: Build
 `41468529666`, Instrumentation `41468529072`, and the new **L2 comparison** `41468529824`
