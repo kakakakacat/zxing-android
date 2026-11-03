@@ -313,6 +313,9 @@ public final class DecoderThreadLifecycleTest {
 
     Message reply = awaitReply(ScannerView.MSG_DECODE_FAILED);
     assertEquals(1, reply.arg1);
+    // The reply is posted before finally closes the frame. Await handler completion,
+    // not a scheduler race between two threads (no sleep or relaxed assertion).
+    drain(handler);
     assertEquals("a lost frame is still returned, exactly once", 1, frame.closes.get());
     assertEquals("one bad frame must not stop the session",
                  DecoderThread.State.READY, thread.decoderState());

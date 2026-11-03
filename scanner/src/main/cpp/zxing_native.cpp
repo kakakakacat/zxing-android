@@ -193,22 +193,21 @@ jstring newJavaString(JNIEnv* env, const std::string& utf8) {
 }
 
 /**
- * Holds a primitive array pinned for as long as it is in scope, and no longer.
+ * Holds Java array elements for the call, releasing a pin or VM copy on every exit.
  *
- * <p>The previous shape of `nativeDecode` released the array on each of its exits by
- * hand. That is one `return` away from a permanently pinned array, which on ART stops
- * the garbage collector from moving anything.
+ * Uses the ordinary array API: decoding and result allocation must not run inside a
+ * GetPrimitiveArrayCritical section. The VM may copy; JNI_ABORT avoids copying back.
  */
 class PinnedBytes {
  public:
   PinnedBytes(JNIEnv* env, jbyteArray array) : env_(env), array_(array) {
-    pixels_ = static_cast<uint8_t*>(env->GetPrimitiveArrayCritical(array, nullptr));
+    pixels_ = reinterpret_cast<uint8_t*>(env->GetByteArrayElements(array, nullptr));
   }
 
   ~PinnedBytes() {
     if (pixels_ != nullptr) {
       // JNI_ABORT: nothing was written, so there is nothing to copy back.
-      env_->ReleasePrimitiveArrayCritical(array_, pixels_, JNI_ABORT);
+      env_->ReleaseByteArrayElements(array_, reinterpret_cast<jbyte*>(pixels_), JNI_ABORT);
     }
   }
 
@@ -421,57 +420,15 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeSetFor
  * has no such streaming callback, so only the points of a finished symbol survive the
  * switch.
  */
-JNIEXPORT jobjectArray JNICALL
-Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode(
-    JNIEnv* env, jclass, jlong handle, jbyteArray luminance, jint width, jint height) {
-  NativeDecoder* decoder = fromHandle(handle);
-  if (decoder == nullptr) {
-    throwJava(env, "java/lang/IllegalStateException", "the native decoder is closed");
-    return nullptr;
-  }
-  if (luminance == nullptr || width <= 0 || height <= 0) {
-    throwJava(env, "java/lang/IllegalArgumentException",
-              "a frame needs a buffer and positive dimensions, got " +
-                  std::to_string(width) + "x" + std::to_string(height));
-    return nullptr;
-  }
-  const jsize length = env->GetArrayLength(luminance);
-  // int64_t throughout: width * height overflows a jint at 46341 square, and a buffer
-  // check that overflows is a check that passes.
-  if (static_cast<int64_t>(length) <
-      static_cast<int64_t>(width) * static_cast<int64_t>(height)) {
-    // Reading it would be a native out-of-bounds read, so refuse rather than read.
-    throwJava(env, "java/lang/IllegalArgumentException",
-              "a " + std::to_string(width) + "x" + std::to_string(height) +
-                  " frame needs " + std::to_string(static_cast<int64_t>(width) * height) +
-                  " bytes, got " + std::to_string(length));
-    return nullptr;
-  }
-
+static jobjectArray decodeImage(JNIEnv* env, NativeDecoder* decoder, const ZXing::ImageView& image) {
   ZXing::Barcode barcode;
   std::string internalError;
-  {
-    // Critical section: no JNI calls while the array is pinned, and nothing is built
-    // from the result until it is released. The Barcode owns its own content, so it
-    // outlives the pin without referring to the frame.
-    PinnedBytes pinned(env, luminance);
-    if (!pinned.ok()) {
-      decoder->internalErrors++;
-      decoder->lastError = "the frame buffer could not be pinned";
-      throwJava(env, "java/lang/OutOfMemoryError", decoder->lastError);
-      return nullptr;
-    }
-    try {
-      const ZXing::ImageView image(pinned.get(), width, height, ZXing::ImageFormat::Lum);
-      barcode = ZXing::ReadBarcode(image, decoder->options);
-    } catch (const std::exception& e) {
-      // Copied here rather than after the release: the exception object does not outlive
-      // its catch block. This is the error path, where one allocation under the pin is
-      // cheaper than losing the reason.
-      internalError = e.what();
-    } catch (...) {
-      internalError = "a non-std::exception escaped zxing-cpp";
-    }
+  try {
+    barcode = ZXing::ReadBarcode(image, decoder->options);
+  } catch (const std::exception& e) {
+    internalError = e.what();
+  } catch (...) {
+    internalError = "a non-std::exception escaped zxing-cpp";
   }
 
   if (!internalError.empty()) {
@@ -603,6 +560,67 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode
     return nullptr;
   }
   return result;
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode(
+    JNIEnv* env, jclass, jlong handle, jbyteArray luminance, jint width, jint height) {
+  NativeDecoder* decoder = fromHandle(handle);
+  if (decoder == nullptr) {
+    throwJava(env, "java/lang/IllegalStateException", "the native decoder is closed");
+    return nullptr;
+  }
+  if (luminance == nullptr || width <= 0 || height <= 0) {
+    throwJava(env, "java/lang/IllegalArgumentException",
+              "a frame needs a buffer and positive dimensions, got " +
+                  std::to_string(width) + "x" + std::to_string(height));
+    return nullptr;
+  }
+  const jsize length = env->GetArrayLength(luminance);
+  // int64_t throughout: width * height overflows a jint at 46341 square, and a buffer
+  // check that overflows is a check that passes.
+  if (static_cast<int64_t>(length) <
+      static_cast<int64_t>(width) * static_cast<int64_t>(height)) {
+    // Reading it would be a native out-of-bounds read, so refuse rather than read.
+    throwJava(env, "java/lang/IllegalArgumentException",
+              "a " + std::to_string(width) + "x" + std::to_string(height) +
+                  " frame needs " + std::to_string(static_cast<int64_t>(width) * height) +
+                  " bytes, got " + std::to_string(length));
+    return nullptr;
+  }
+
+  PinnedBytes pixels(env, luminance);
+  if (!pixels.ok()) return nullptr; // JVM allocation exception remains pending.
+  const ZXing::ImageView image(pixels.get(), width, height, ZXing::ImageFormat::Lum);
+  return decodeImage(env, decoder, image);
+}
+
+JNIEXPORT jobjectArray JNICALL
+Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecodeDirect(
+    JNIEnv* env, jclass, jlong handle, jobject buffer, jint width, jint height,
+    jint rowStride, jint pixelStride) {
+  NativeDecoder* decoder = fromHandle(handle);
+  if (decoder == nullptr) {
+    throwJava(env, "java/lang/IllegalStateException", "the native decoder is closed");
+    return nullptr;
+  }
+  auto* pixels = buffer == nullptr ? nullptr :
+      static_cast<const uint8_t*>(env->GetDirectBufferAddress(buffer));
+  const jlong capacity = buffer == nullptr ? -1 : env->GetDirectBufferCapacity(buffer);
+  const int64_t rowBytes = width > 0 && pixelStride > 0 ?
+      static_cast<int64_t>(width - 1) * pixelStride + 1 : 0;
+  const int64_t required = height > 0 && rowStride > 0 ?
+      static_cast<int64_t>(height - 1) * rowStride + rowBytes : 0;
+  // Also bound offsets to int: ImageView's coordinate arithmetic uses int.
+  if (pixels == nullptr || width <= 0 || height <= 0 || pixelStride <= 0 ||
+      rowStride <= 0 || rowBytes > rowStride || required <= 0 ||
+      required > capacity || required > INT32_MAX) {
+    throwJava(env, "java/lang/IllegalArgumentException", "invalid direct luma plane bounds or strides");
+    return nullptr;
+  }
+  const ZXing::ImageView image(pixels, width, height, ZXing::ImageFormat::Lum,
+                               rowStride, pixelStride);
+  return decodeImage(env, decoder, image);
 }
 
 /**

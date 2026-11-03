@@ -39,6 +39,9 @@ object FrameDecoders {
   /** The zxing-cpp decoder: the default. Available only where its ABI is. */
   const val NATIVE: String = NativeFrameDecoder.NAME
 
+  /** Experimental direct-buffer path; a distinct benchmark identity. */
+  const val NATIVE_DIRECT: String = "zxing-cpp-direct"
+
   /** Short spelling of [JAVA], for a command line or an instrumentation argument. */
   const val JAVA_ALIAS: String = "java"
 
@@ -58,6 +61,7 @@ object FrameDecoders {
    */
   @JvmStatic
   fun canonical(name: String?): String {
+    if (name == NATIVE_DIRECT || name == "native-direct") return NATIVE_DIRECT
     if (JAVA == name || JAVA_ALIAS == name) {
       return JAVA
     }
@@ -94,6 +98,7 @@ object FrameDecoders {
       fixed.remove(DecodeHintType.POSSIBLE_FORMATS)
       return JavaFrameDecoder(fixed, formats)
     }
+    if (name == NATIVE_DIRECT) return NativeFrameDecoder(hints, formats, true, true)
     if (NATIVE == name) {
       // TRY_HARDER maps onto zxing-cpp's tryHarder and tryRotate; see the JNI for why
       // those two and not its other two effort flags. Every other hint is still dropped,
@@ -129,6 +134,7 @@ object FrameDecoders {
     if (JAVA == name) {
       return "backend=zxing-java"
     }
+    if (name == NATIVE_DIRECT) return "backend=$NATIVE_DIRECT;" + NativeFrameDecoder.buildInfo()
     if (NATIVE == name) {
       return "backend=zxing-cpp;" + NativeFrameDecoder.buildInfo()
     }

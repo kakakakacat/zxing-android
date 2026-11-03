@@ -115,6 +115,9 @@ jobs:
         # costs a POM generation, and because the alternative is finding out at a tag.
         run: python3 -I tools/maint/check_release_publishes.py
 
+      - name: Release verification gate tests
+        run: python3 tools/maint/test_release_gate.py
+
       - name: Lint
         run: ./gradlew :scanner:lintRelease :app:lintDebug
 

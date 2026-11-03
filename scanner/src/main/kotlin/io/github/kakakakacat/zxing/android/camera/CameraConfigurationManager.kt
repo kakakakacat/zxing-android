@@ -109,11 +109,13 @@ internal class CameraConfigurationManager(
     display.getSize(theScreenResolution)
     screenResolution = theScreenResolution
     Log.i(TAG, "Screen resolution in current orientation: $screenResolution")
+    val previewTarget = if (options.previewWidth > 0)
+      Point(options.previewWidth, options.previewHeight) else theScreenResolution
     cameraResolution =
-        CameraConfigurationUtils.findBestPreviewSizeValue(parameters, theScreenResolution)
+        CameraConfigurationUtils.findBestPreviewSizeValue(parameters, previewTarget)
     Log.i(TAG, "Camera resolution: $cameraResolution")
     val preview =
-        CameraConfigurationUtils.findBestPreviewSizeValue(parameters, theScreenResolution)
+        CameraConfigurationUtils.findBestPreviewSizeValue(parameters, previewTarget)
     bestPreviewSize = preview
     Log.i(TAG, "Best available preview size: $preview")
 

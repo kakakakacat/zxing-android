@@ -740,3 +740,57 @@ and [BENCHMARKS.md](BENCHMARKS.md) for the full measurement protocol.
 ## Licence
 
 Apache 2.0, as upstream. See [LICENSE](../../LICENSE), [NOTICE](../../NOTICE) and [AUTHORS](../../AUTHORS).
+
+
+## Experimental controls / 实验性选项
+
+```kotlin
+val options = ScannerOptions.Builder()
+    .setCameraBackend(ScannerOptions.CameraBackend.CAMERAX)
+    .setDecoderBackend(ScannerOptions.DecoderBackend.FORMAT_AWARE)
+    .setNativeDirectBuffer(true)
+    .setPreviewSize(1280, 720)
+    .setDecodeIntervalMillis(50)
+    .build()
+```
+
+These are opt-in controls, not measured improvements. `AUTO` keeps its native-first
+behavior. `FORMAT_AWARE` chooses Java for explicitly 1D-only requests or Java-only hints,
+otherwise AUTO; changing formats replaces the decoder on its owning decode thread.
+Resolution is a request and camera negotiation may choose another size. The interval
+adds a delay after failed attempts, trading responsiveness for less decode work; it does
+not set sensor FPS. Direct input applies only to direct Y-plane buffers, with an array
+fallback for other luminance sources. The camera frame remains owned until decoding ends.
+
+以上均为可选控制项，不代表已经测得性能提升。`AUTO` 仍优先 native；`FORMAT_AWARE` 对明确只扫
+一维码或携带 Java 专属 hints 的请求选择 Java，否则按 AUTO 处理；修改码制会在解码线程替换解码器。
+分辨率为协商目标，实际尺寸由设备决定。间隔在失败后延迟下一次请求，以响应速度换取更少解码工作，
+不控制传感器 FPS。直接输入仅用于 direct Y 平面，其余输入回退到数组；解码完成前仍持有相机帧。
+
+### Compare the direct path / 对比直接输入路径
+
+Run `DirectPlaneBenchmark` separately with `l2.backend=native` and
+`l2.backend=native-direct`, identical `l2.matrix=full`, device, build, hints and frame
+goldens. Staging a generated frame into a direct buffer occurs outside timing; crop,
+source construction, copying (array path only) and decoding are timed. The distinct stage
+`directPlaneEndToEnd` prevents mixing this with the existing byte-array baseline.
+Use the L2 report converter and comparison criteria in [BENCHMARKS.md](BENCHMARKS.md).
+This synthetic plane uses packed rows; instrumentation also checks padded rows,
+pixel strides 1/2, crop offsets and heap fallback. It does not measure CameraX acquisition,
+battery, thermal throttling or real camera recognition rate.
+
+分别以 `l2.backend=native` 和 `l2.backend=native-direct` 运行 `DirectPlaneBenchmark`，
+保持 `l2.matrix=full`、设备、构建、hints 和图像 golden 一致。生成图像写入 direct 缓冲区不计时；
+裁剪、输入对象创建、数组路径复制和解码计时。独立阶段名 `directPlaneEndToEnd` 避免与原数组基线混用。
+按 [BENCHMARKS.md](BENCHMARKS.md) 的工具及标准评估。该合成基准使用紧密行布局；设备测试另覆盖
+行 padding、像素步幅 1/2、裁剪偏移及堆缓冲区回退。此基准不评估 CameraX 取帧、功耗、温控或实景识别率。
+
+### Remaining device validation / 待完成的设备验证
+
+Physical-device performance, front-camera switching, preview aspect-ratio rendering,
+Compose/Dialog integration and OS split-screen behavior require dedicated follow-up.
+Embedded-view bounds tests do not establish support for all those host environments.
+No new performance percentage should be placed in the README before those measurements.
+
+真机性能、前置相机切换、预览宽高比渲染、Compose/Dialog 集成和系统分屏仍需专项验证；
+嵌入视图边界测试不能代表上述场景已全部支持。获得实测证据前，README 不新增性能百分比。

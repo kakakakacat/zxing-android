@@ -104,7 +104,7 @@ internal class Camera1Backend(
   override fun getFramingRectInPreview(): Rect? = cameraManager.getFramingRectInPreview()
 
   override fun setTorch(on: Boolean) {
-    cameraManager.setTorch(on)
+    onWorkerIfOpening { cameraManager.setTorch(on) }
   }
 
   override fun open(holder: SurfaceHolder, callback: ScannerCameraBackend.Callback) {
@@ -167,7 +167,7 @@ internal class Camera1Backend(
   }
 
   override fun setViewportSize(width: Int, height: Int) {
-    cameraManager.setViewportSize(width, height)
+    onWorkerIfOpening { cameraManager.setViewportSize(width, height) }
   }
 
   override fun capabilities(): CameraCapabilities = cameraManager.capabilities()

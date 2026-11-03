@@ -96,6 +96,8 @@ internal class DecoderThread @JvmOverloads constructor(
     STOPPED
   }
 
+  private val directBuffer = options.nativeDirectBuffer
+
   private val backendPreference: ScannerOptions.DecoderBackend = options.decoderBackend
 
   /** Everything except `POSSIBLE_FORMATS`, which the host may change per scan. */
@@ -215,15 +217,23 @@ internal class DecoderThread @JvmOverloads constructor(
     if (backendPreference == ScannerOptions.DecoderBackend.NATIVE) {
       // Deliberately not caught: an explicit NATIVE that cannot be honoured is reported to
       // the host rather than quietly answered with a different decoder.
-      return NativeFrameDecoder(fixedHints, formats, true)
+      return NativeFrameDecoder(fixedHints, formats, true, directBuffer)
     }
+    if (backendPreference == ScannerOptions.DecoderBackend.FORMAT_AWARE) {
+      return FormatAwareDecoder(fixedHints, formats,
+          { JavaFrameDecoder(fixedHints, it) }, { createAutoDecoder(it) })
+    }
+    return createAutoDecoder(formats)
+  }
+
+  private fun createAutoDecoder(formats: Collection<BarcodeFormat>?): FrameDecoder {
     if (!NativeFrameDecoder.isAvailable()) {
       Log.i(TAG, "No native decoder for this ABI; using the Java decoder",
             NativeFrameDecoder.loadFailure())
       return JavaFrameDecoder(fixedHints, formats)
     }
     return try {
-      NativeFrameDecoder(fixedHints, formats, true)
+      NativeFrameDecoder(fixedHints, formats, true, directBuffer)
     } catch (e: RuntimeException) {
       // The library loaded but would not produce a decoder. Scanning with the Java one
       // beats not scanning, and the reason is logged rather than swallowed. The format

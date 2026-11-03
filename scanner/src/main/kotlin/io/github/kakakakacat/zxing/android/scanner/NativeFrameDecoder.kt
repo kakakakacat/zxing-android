@@ -79,11 +79,18 @@ internal class NativeFrameDecoder
  *     rather than of one symbology, and so is not switchable here. All four were found by
  *     running the corpus through both backends; BENCHMARKS.md §9.1 counts them.
  */
-constructor(
+@JvmOverloads constructor(
     hints: Map<DecodeHintType, *>?,
     formats: Collection<@JvmSuppressWildcards BarcodeFormat>?,
-    private val compatibilityRendering: Boolean
+    private val compatibilityRendering: Boolean,
+    private val directBuffer: Boolean = false,
+    private val decodeCall: DecodeCall? = null
 ) : FrameDecoder {
+
+  /** Test seam at the native-call boundary; absent in normal operation. */
+  internal fun interface DecodeCall {
+    fun decode(handle: Long, matrix: ByteArray, width: Int, height: Int): Array<Any?>?
+  }
 
   private var handle: Long = 0L
 
@@ -101,14 +108,20 @@ constructor(
     if (!AVAILABLE) {
       throw IllegalStateException("libzxingnative is not loaded", LOAD_FAILURE)
     }
+    val formatList = nativeFormatList(formats) // Validate before allocating native memory.
     handle = nativeCreate()
     check(handle != 0L) { "could not create the native decoder" }
     // Presence is what means true in this decoder -- MultiFormatReader reads it as
     // containsKey -- so a hint whose value is Boolean.FALSE still turns it on, here as
     // there. Matching the Java backend's reading of the hint matters more than being
     // right about a map nobody builds that way.
-    nativeSetTryHarder(handle, hints != null && hints.containsKey(DecodeHintType.TRY_HARDER))
-    setFormats(formats)
+    try {
+      nativeSetTryHarder(handle, hints != null && hints.containsKey(DecodeHintType.TRY_HARDER))
+      nativeSetFormats(handle, formatList)
+    } catch (failure: Throwable) {
+      close()
+      throw failure
+    }
   }
 
   /** Frames whose decode threw rather than missing. Read through [diagnostics]. */
@@ -120,14 +133,25 @@ constructor(
     // greyscale plane rather than a BinaryBitmap is the point of the seam: zxing-cpp
     // does its own thresholding.
     val decoded = try {
-      nativeDecode(handle, source.matrix, source.width, source.height)
+      val plane = if (directBuffer)
+        source as? io.github.kakakakacat.zxing.android.camera.YPlaneLuminanceSource else null
+      val buffer = plane?.directBuffer()
+      if (decodeCall != null) {
+        decodeCall.decode(handle, source.matrix, source.width, source.height)
+      } else if (plane != null && buffer != null) {
+        nativeDecodeDirect(handle, buffer, source.width, source.height,
+            plane.planeRowStride(), plane.planePixelStride())
+      } else {
+        nativeDecode(handle, source.matrix, source.width, source.height)
+      }
     } catch (e: NativeDecodeException) {
       // A decoder that throws is a lost frame, not an empty one and not a dead scanner.
       // Counted and logged once per distinct message, so a decoder failing on every
       // frame says so once rather than thirty times a second.
       decodeFailures++
       warnOnceAboutDecodeFailure(e)
-      return null
+      // Preserve the error outcome for DecoderThread's consecutive-failure budget.
+      throw e
     } ?: return null
     if (decoded.size < RESULT_LENGTH) {
       // The native layer and this one disagree about the result shape, which can only be
@@ -624,7 +648,7 @@ constructor(
       val message = e.message ?: "no message"
       if (REPORTED_DECODE_FAILURES.add(message)) {
         Log.w("NativeFrameDecoder", "zxing-cpp threw on a frame; that frame is lost and " +
-            "scanning continues. Counted in diagnostics() as internalErrors", e)
+            "the session failure budget applies. Counted in diagnostics() as internalErrors", e)
       }
     }
 
@@ -684,6 +708,11 @@ constructor(
     @JvmStatic private external fun nativeSetReturnErrors(handle: Long, returnErrors: Boolean)
 
     @JvmStatic private external fun nativeDiagnostics(handle: Long): String
+
+    @JvmStatic private external fun nativeDecodeDirect(
+        handle: Long, buffer: java.nio.ByteBuffer, width: Int, height: Int,
+        rowStride: Int, pixelStride: Int
+    ): Array<Any?>?
 
     @JvmStatic private external fun nativeDecode(
         handle: Long,

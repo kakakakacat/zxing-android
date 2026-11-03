@@ -18,15 +18,17 @@ on:
 permissions:
   contents: write
   packages: write
+  actions: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     # Job level, not step level, and only so the Maven Central step can tell whether it
     # has anything to publish with: `secrets` is out of scope in a step's `if:`, while
     # job-level `env` is in scope. A fork without these still gets its GitHub Release.
     env:
-      HAS_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_USERNAME != '' && secrets.SIGNING_KEY != '' }}
+      HAS_CENTRAL_TOKEN: ${{ secrets.MAVEN_CENTRAL_USERNAME != '' && secrets.MAVEN_CENTRAL_PASSWORD != '' && secrets.SIGNING_KEY != '' }}
     steps:
       - uses: actions/checkout@v5
         with:
@@ -46,14 +48,39 @@ jobs:
           NDK_VERSION=$(grep -E '^ndk = ' gradle/libs.versions.toml | cut -d'"' -f2)
           "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION"
 
-      - name: Resolve version
+      - name: Resolve and validate version
         id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "value=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
-          fi
+          python3 - <<'PYTHON'
+          import os, sys
+          sys.path.insert(0, "tools/maint")
+          from release_gate import validate_version
+          value = os.environ.get("INPUT_VERSION") or os.environ["GITHUB_REF_NAME"].removeprefix("v")
+          value = validate_version(value)
+          with open(os.environ["GITHUB_OUTPUT"], "a") as output:
+              output.write(f"value={value}\n")
+          PYTHON
+
+      - name: Require successful verification of this exact commit
+        run: python3 tools/maint/release_gate.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_VERSION: ${{ steps.version.outputs.value }}
+
+      - name: Validate Central credential set
+        env:
+          CENTRAL_USER: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          CENTRAL_KEY: ${{ secrets.SIGNING_KEY }}
+        run: |
+          python3 - <<'PYTHON'
+          import os
+          supplied = [bool(os.environ[x].strip()) for x in ("CENTRAL_USER", "CENTRAL_PASSWORD", "CENTRAL_KEY")]
+          if any(supplied) and not all(supplied):
+              raise SystemExit("Incomplete Central credentials: configure token username, token password and signing key together")
+          PYTHON
 
       - name: Build
         run: |
@@ -99,6 +126,15 @@ jobs:
       # the 849921bfa rename -- avoiding that collision is why the rename happened -- and
       # the stale reasoning is what hid the broken POM. PUBLISHING.md has always
       # documented both artifacts as published.
+      - name: Preflight Central signatures before publishing either repository
+        if: env.HAS_CENTRAL_TOKEN == 'true'
+        run: |
+          ./gradlew :core:signMavenPublication :scanner:signMavenPublication \
+            -PscannerVersion=${{ steps.version.outputs.value }}
+        env:
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.SIGNING_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_KEY_PASSWORD }}
+
       - name: Publish the AAR and the decoder to GitHub Packages
         run: |
           ./gradlew \

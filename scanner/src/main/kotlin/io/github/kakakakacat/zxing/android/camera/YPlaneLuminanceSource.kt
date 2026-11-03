@@ -89,8 +89,8 @@ class YPlaneLuminanceSource(
     // The last byte the rectangle reads has to exist. Checking it here turns a
     // misconfigured crop into an exception at construction rather than a
     // BufferUnderflowException from somewhere inside the binarizer.
-    val lastIndex = (top + height - 1).toLong() * rowStride +
-        (left + width - 1).toLong() * pixelStride
+    val lastIndex = (top.toLong() + height - 1) * rowStride +
+        (left.toLong() + width - 1) * pixelStride
     if (lastIndex >= plane.limit()) {
       throw IllegalArgumentException(
           "the scan rectangle runs past the end of the plane: needs " + (lastIndex + 1) +
@@ -111,12 +111,26 @@ class YPlaneLuminanceSource(
     return out
   }
 
+  /** A bounded, read-only view of the ROI start, or null for the safe array path. */
+  fun directBuffer(): ByteBuffer? {
+    if (!plane.isDirect) return null
+    val start = top.toLong() * rowStride + left.toLong() * pixelStride
+    if (start > Int.MAX_VALUE) return null
+    val cursor = plane.asReadOnlyBuffer()
+    cursor.position(start.toInt())
+    return cursor.slice().asReadOnlyBuffer()
+  }
+
+  fun planeRowStride(): Int = rowStride
+  fun planePixelStride(): Int = pixelStride
+
   override fun getMatrix(): ByteArray {
     val width = width
     val height = height
     // The scan rectangle, and only the scan rectangle. Returning the plane itself is not
     // an option even when the rectangle covers the whole image: a direct buffer has no
     // accessible array, and padded rows would not be contiguous anyway.
+    require(width.toLong() * height <= Int.MAX_VALUE) { "ROI is too large" }
     val matrix = ByteArray(width * height)
     for (y in 0 until height) {
       readRow(y, matrix, y * width)

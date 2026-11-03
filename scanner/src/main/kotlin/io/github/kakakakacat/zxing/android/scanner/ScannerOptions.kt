@@ -71,7 +71,14 @@ class ScannerOptions private constructor(
      *
      * Ignored by [CameraBackend.CAMERA1], which does not use CameraX at all.
      */
-    val cameraXProcessConfiguration: Boolean
+    val cameraXProcessConfiguration: Boolean,
+    /** Experimental direct Y-plane JNI input; off until measured on the host device. */
+    val nativeDirectBuffer: Boolean,
+    /** Requested camera stream size; 0/0 keeps the existing negotiation. */
+    val previewWidth: Int,
+    val previewHeight: Int,
+    /** Minimum delay between decode requests, not a camera frame-rate guarantee. */
+    val decodeIntervalMillis: Long
 ) {
 
   /**
@@ -125,7 +132,10 @@ class ScannerOptions private constructor(
      *
      * Use only when a caller would rather fail than silently get the Java decoder.
      */
-    NATIVE
+    NATIVE,
+
+    /** Opt-in: Java for 1D-only requests or Java-only hints, AUTO otherwise. */
+    FORMAT_AWARE
   }
 
   /**
@@ -138,6 +148,9 @@ class ScannerOptions private constructor(
    */
   fun buildUpon(): Builder = Builder()
       .setCameraBackend(cameraBackend)
+      .setNativeDirectBuffer(nativeDirectBuffer)
+      .setPreviewSize(previewWidth, previewHeight)
+      .setDecodeIntervalMillis(decodeIntervalMillis)
       .setCameraXProcessConfiguration(cameraXProcessConfiguration)
       .setDecoderBackend(decoderBackend)
       .setFormats(formats)
@@ -154,6 +167,32 @@ class ScannerOptions private constructor(
       .setFramingRect(framingRectWidth, framingRectHeight)
 
   class Builder {
+
+    private var nativeDirectBuffer = false
+    private var previewWidth = 0
+    private var previewHeight = 0
+    private var decodeIntervalMillis = 0L
+
+    /** Enables an experimental path. Image ownership still lasts through decode. */
+    fun setNativeDirectBuffer(enabled: Boolean): Builder {
+      nativeDirectBuffer = enabled
+      return this
+    }
+
+    /** 0/0 restores legacy negotiation; both nonzero dimensions must be positive. */
+    fun setPreviewSize(width: Int, height: Int): Builder {
+      require((width == 0 && height == 0) || (width > 0 && height > 0))
+      previewWidth = width
+      previewHeight = height
+      return this
+    }
+
+    /** Delays the next request after completion; may increase first-scan latency. */
+    fun setDecodeIntervalMillis(interval: Long): Builder {
+      require(interval >= 0)
+      decodeIntervalMillis = interval
+      return this
+    }
 
     private var cameraBackend = CameraBackend.CAMERA1
     private var cameraXProcessConfiguration = false
@@ -265,10 +304,9 @@ class ScannerOptions private constructor(
     fun build(): ScannerOptions = ScannerOptions(
         cameraBackend,
         decoderBackend,
-        formats?.let { Collections.unmodifiableCollection(it) },
-        // unmodifiableMap over the builder's own EnumMap, as before. A LinkedHashMap copy
-        // would read the same and iterate in insertion order rather than enum order.
-        Collections.unmodifiableMap(baseHints),
+        formats?.let { Collections.unmodifiableCollection(ArrayList(it)) },
+        // Snapshot the hints so later builder mutations cannot change a built instance.
+        Collections.unmodifiableMap(EnumMap(baseHints)),
         characterSet,
         cameraId,
         autoFocus,
@@ -280,7 +318,8 @@ class ScannerOptions private constructor(
         frontLightMode,
         framingRectWidth,
         framingRectHeight,
-        cameraXProcessConfiguration)
+        cameraXProcessConfiguration,
+        nativeDirectBuffer, previewWidth, previewHeight, decodeIntervalMillis)
   }
 
   companion object {

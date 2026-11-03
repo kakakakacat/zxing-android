@@ -358,7 +358,7 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
   @Synchronized
   fun setManualFramingRect(width: Int, height: Int) {
     if (initialized) {
-      val screenResolution = configManager.screenResolution!!
+      val screenResolution = viewport() ?: return
       val w = if (width > screenResolution.x) screenResolution.x else width
       val h = if (height > screenResolution.y) screenResolution.y else height
       val leftOffset = (screenResolution.x - w) / 2

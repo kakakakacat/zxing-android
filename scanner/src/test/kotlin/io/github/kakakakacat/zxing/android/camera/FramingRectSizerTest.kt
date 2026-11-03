@@ -70,11 +70,11 @@ class FramingRectSizerTest {
   @Test
   fun neitherDimensionEverExceedsTheWindow() {
     val sizes = listOf(320 to 240, 640 to 480, 1080 to 1920, 1600 to 2560, 2560 to 1600,
-                       3840 to 2160, 240 to 320)
+                       3840 to 2160, 240 to 320, 160 to 300, 200 to 200, 1 to 1, 20 to 400)
     for ((w, h) in sizes) {
       val (frameWidth, frameHeight) = FramingRectSizer.sizeFor(w, h)
-      assertTrue("$w x $h -> width $frameWidth", frameWidth <= maxOf(w, 240))
-      assertTrue("$w x $h -> height $frameHeight", frameHeight <= maxOf(h, 240))
+      assertTrue("$w x $h -> width $frameWidth", frameWidth <= w)
+      assertTrue("$w x $h -> height $frameHeight", frameHeight <= h)
     }
   }
 }

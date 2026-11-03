@@ -62,9 +62,10 @@ internal object FramingRectSizer {
   }
 
   private fun inRange(resolution: Int, hardMax: Int): Int {
-    val dim = 5 * resolution / 8 // Target 5/8 of each dimension
+    require(resolution > 0) { "viewport dimensions must be positive" }
+    val dim = (5L * resolution / 8).toInt() // Target 5/8 of each dimension
     if (dim < MIN_FRAME) {
-      return MIN_FRAME
+      return minOf(MIN_FRAME, resolution)
     }
     return minOf(dim, hardMax)
   }

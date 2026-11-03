@@ -49,6 +49,12 @@ def microbenchmark(name, time_runs, alloc_runs=None, **context):
 
 class CaseNameTest(unittest.TestCase):
 
+    def test_direct_plane_stage_keeps_a_distinct_case_identity(self):
+        case = l2_report.convert_case({
+            "name": "directPlaneEndToEnd[HD_HIT_QR_DEFAULT]",
+            "metrics": {"timeNs": {"runs": [100, 110]}}})
+        self.assertEqual("directPlaneEndToEnd", case["stage"])
+
     def test_parses_every_parameter_combination(self):
         for resolution in ("VGA", "HD", "FHD"):
             for variant in ("HIT_QR", "HIT_1D", "MISS"):

@@ -11,7 +11,26 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
-Nothing yet.
+### Added / 新增
+- Opt-in direct Y-plane JNI decoding, format-aware backend routing, requested preview
+  resolution and decode request intervals. Defaults are unchanged; new strategies carry
+  no performance claim until measured on physical devices.
+- 可选的直接亮度平面 JNI 输入、按码制选择解码器、预览分辨率和解码请求间隔；默认配置不变，
+  新策略须经真机测量后才能宣称性能收益。
+- Direct-plane L2 benchmarks with identical pixels and correctness checks; regression
+  coverage for native failures, padded/interleaved cropped buffers and immutable options.
+- 直接亮度平面 L2 基准使用相同图像并校验结果；新增 native 故障、带步幅裁剪及配置快照回归测试。
+
+### Fixed / 修复
+- Keep framing rectangles inside small embedded views; use viewport dimensions for manual
+  framing. Queue Camera1 viewport/torch updates behind an opening camera.
+- 小尺寸嵌入视图取景框不再越界；手动取景框按视图计算；Camera1 打开期间的视图及闪光灯操作排队执行。
+- Propagate native internal errors into the session failure budget, release native handles
+  if initialization fails, and avoid JNI critical sections during decode/result allocation.
+- native 内部异常进入会话失败计数；初始化失败释放句柄；解码及结果分配不再占用 JNI critical 区域。
+- Require successful verification workflows for the exact release commit before publishing;
+  validate version, complete Central credentials and signing before either Maven upload.
+- 发布前校验同一提交的验证工作流、版本号、Central 凭据完整性及签名，避免上传后才发现配置错误。
 
 ## [0.2.0] - 2026-11-03
 

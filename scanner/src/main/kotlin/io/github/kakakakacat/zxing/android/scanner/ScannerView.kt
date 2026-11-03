@@ -352,8 +352,19 @@ class ScannerView(
       ScannerTrace.end(ScannerTrace.CAMERA_OPEN, sessionId)
       ScannerTrace.end(ScannerTrace.backendSpan(options.cameraBackend), sessionId)
       stopScanning()
+      ambientLightManager?.stop()
+      backend?.close()
+      viewfinderView.setCamera(null)
       reportError(error, cause)
     }
+  }
+
+  private val nextFrame = Runnable { requestFrame() }
+
+  private fun requestNextFrame() {
+    mainHandler.removeCallbacks(nextFrame)
+    if (options.decodeIntervalMillis == 0L) requestFrame()
+    else mainHandler.postDelayed(nextFrame, options.decodeIntervalMillis)
   }
 
   private fun requestFrame() {
@@ -366,6 +377,7 @@ class ScannerView(
 
   private fun stopScanning() {
     isScanning = false
+    mainHandler.removeCallbacks(nextFrame)
     // Invalidate the session first: anything still in flight is now stale.
     sessionId++
     val thread = decoderThread
@@ -412,7 +424,7 @@ class ScannerView(
     }
     if (msg.what == MSG_DECODE_FAILED) {
       if (isScanning) {
-        requestFrame()
+        requestNextFrame()
       }
       return
     }

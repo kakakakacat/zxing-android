@@ -457,9 +457,16 @@ internal class CameraXBackend(
    */
   private fun resolutionSelector(): ResolutionSelector = ResolutionSelector.Builder()
       .setAspectRatioStrategy(
-          AspectRatioStrategy(AspectRatio.RATIO_16_9, AspectRatioStrategy.FALLBACK_RULE_AUTO))
+          AspectRatioStrategy(
+              if (options.previewWidth > 0 &&
+                  kotlin.math.abs(options.previewWidth.toDouble() / options.previewHeight - 4.0 / 3) <
+                  kotlin.math.abs(options.previewWidth.toDouble() / options.previewHeight - 16.0 / 9))
+                AspectRatio.RATIO_4_3 else AspectRatio.RATIO_16_9,
+              AspectRatioStrategy.FALLBACK_RULE_AUTO))
       .setResolutionStrategy(
-          ResolutionStrategy(Size(TARGET_WIDTH, TARGET_HEIGHT),
+          ResolutionStrategy(Size(
+                                  options.previewWidth.takeIf { it > 0 } ?: TARGET_WIDTH,
+                                  options.previewHeight.takeIf { it > 0 } ?: TARGET_HEIGHT),
                              ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER))
       .build()
 

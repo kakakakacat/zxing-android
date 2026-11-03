@@ -151,3 +151,16 @@ GitHub Packages step, which is given no key, and would break any fork that has n
 | sources jar | the plugin's `sourcesJar = true` |
 | javadoc jar | the plugin's; empty for `:core`, whose upstream sources do not survive strict doclint |
 | POM `name`, `description`, `url`, licence, developer, SCM | the `pom { }` block in each module |
+
+
+### Exact-commit verification / 同一提交验证
+
+Before any upload, release automation requires successful Build, Instrumentation,
+L2 comparison and CodeQL workflow runs for `GITHUB_SHA`. Missing, skipped, cancelled
+or failed checks block publishing; a green run on an older commit does not qualify.
+Central username, password and signing key must be supplied together. Signature tasks
+run before publishing to either Maven repository. No release is triggered by editing code.
+
+任何上传前，发布流程要求 `GITHUB_SHA` 对应的 Build、Instrumentation、L2 comparison 和 CodeQL
+工作流成功；缺失、跳过、取消或失败均阻止发布，旧提交的成功记录无效。Central 用户名、密码及签名密钥
+必须同时配置；上传任一 Maven 仓库之前先执行签名任务。修改代码本身不会触发版本发布。
