@@ -15,7 +15,7 @@
 | 高版本 Android | 旧 Barcode Scanner 不再更新，原 Android 工程 targetSdk 22 | targetSdk 36；适配运行时权限、边到边显示、预测性返回及大屏布局；Android 14/15 真机验证，Android 16 模拟器验证 |
 | Kotlin 重构 | Android 代码以 Java 为主 | 应用、扫描库与 Intent 集成模块已转为 Kotlin，保留 Java 调用兼容测试；core 仍为 Java |
 | 解码性能 | Java 解码路径 | 增加并默认使用 zxing-cpp 原生后端，保留 Java 后端；二维码与全码制未命中场景有实测收益，见下图 |
-| 相机与帧处理 | Camera1 相机链路 | 保留 Camera1，新增可选 CameraX；支持原位读取亮度平面，减少不必要的整帧复制 |
+| 相机与帧处理 | Camera1 相机链路，在主线程上同步打开相机 | 保留 Camera1，新增可选 CameraX；**相机改为在工作线程打开**，启动时不再阻塞主线程（实测该阻塞为 401–436 ms）；支持原位读取亮度平面，减少不必要的整帧复制 |
 | 应用集成 | 原应用代码与 Intent 辅助集成 | 提供可复用的 ScannerView / AAR，支持会话隔离、错误回调和扫描中更新码制 |
 | 问题修复 | 历史 Android 实现 | 修复扫描区域旋转/镜像映射、现代文件分享、Wi-Fi 添加流程、补光灯控制等问题 |
 | 性能验证 | 核心解码测试 | 增加 Android 帧链路、相机启动和持续扫描 benchmark，公开原始结果与回归判定 |
@@ -53,7 +53,7 @@ This compares the original repository's **Android app and integration code**, no
 | Modern Android | Legacy Barcode Scanner no longer updated; Android project targets SDK 22 | Targets SDK 36; runtime permissions, edge-to-edge, predictive back and large-screen layouts; Android 14/15 verified on hardware, Android 16 on emulators |
 | Kotlin refactoring | Android code primarily in Java | App, scanner and Intent integration modules converted to Kotlin, with Java-call compatibility tests; core remains Java |
 | Decoding performance | Java decoding path | Adds zxing-cpp as the default native backend while retaining Java; measured gains on QR hits and all-format misses, shown below |
-| Camera and frame processing | Camera1 pipeline | Retains Camera1 and adds optional CameraX; reads luma planes in place to reduce unnecessary full-frame copies |
+| Camera and frame processing | Camera1 pipeline, opening the camera synchronously on the main thread | Retains Camera1 and adds optional CameraX; **the camera opens on a worker thread**, so startup no longer blocks the main thread (measured at 401–436 ms); reads luma planes in place to reduce unnecessary full-frame copies |
 | App integration | Original app code and Intent helpers | Reusable ScannerView / AAR, session isolation, error callbacks and live format updates |
 | Bug fixes | Historical Android implementation | Fixes ROI rotation/mirroring, modern file sharing, Wi-Fi setup, torch control and other defects |
 | Performance validation | Core decoder tests | Adds Android frame-pipeline, camera-startup and sustained-scanning benchmarks, with raw results and regression verdicts |
