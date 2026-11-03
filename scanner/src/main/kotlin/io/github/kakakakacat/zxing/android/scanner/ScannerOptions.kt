@@ -52,7 +52,26 @@ class ScannerOptions private constructor(
     val frontLightMode: FrontLightMode,
     /** Requested scan rectangle width in pixels, or 0 to derive it from the screen. */
     val framingRectWidth: Int,
-    val framingRectHeight: Int
+    val framingRectHeight: Int,
+    /**
+     * Whether the scanner may configure CameraX for the whole process. Off by default.
+     *
+     * `ProcessCameraProvider.configureInstance` is process-wide and can be called once:
+     * the scanner would be telling CameraX that only the back camera exists, for every
+     * part of the host application, from a library the host embedded to read barcodes.
+     * That is the host's decision, so it is off unless asked for.
+     *
+     * It is worth asking for in an application whose only camera use is this scanner, and
+     * on hardware with one camera. Without the limiter CameraX's validator insists both
+     * lens facings exist and retries initialisation for about five seconds when one does
+     * not: 5,987 ms against 114 ms, measured on a one-camera emulator, and no difference
+     * at all on a two-camera phone. A host that wants the limiter and its own CameraX
+     * configuration should set `CameraXConfig.Builder.setAvailableCamerasLimiter` itself
+     * through `CameraXConfig.Provider` and leave this off.
+     *
+     * Ignored by [CameraBackend.CAMERA1], which does not use CameraX at all.
+     */
+    val cameraXProcessConfiguration: Boolean
 ) {
 
   /**
@@ -119,6 +138,7 @@ class ScannerOptions private constructor(
    */
   fun buildUpon(): Builder = Builder()
       .setCameraBackend(cameraBackend)
+      .setCameraXProcessConfiguration(cameraXProcessConfiguration)
       .setDecoderBackend(decoderBackend)
       .setFormats(formats)
       .setBaseHints(baseHints)
@@ -136,6 +156,7 @@ class ScannerOptions private constructor(
   class Builder {
 
     private var cameraBackend = CameraBackend.CAMERA1
+    private var cameraXProcessConfiguration = false
     private var decoderBackend = DecoderBackend.AUTO
     private var formats: Collection<BarcodeFormat>? = null
     private var baseHints: MutableMap<DecodeHintType, Any> = EnumMap(DecodeHintType::class.java)
@@ -150,6 +171,12 @@ class ScannerOptions private constructor(
     private var frontLightMode = FrontLightMode.OFF
     private var framingRectWidth = 0
     private var framingRectHeight = 0
+
+    /** See [ScannerOptions.cameraXProcessConfiguration]. Off by default. */
+    fun setCameraXProcessConfiguration(enabled: Boolean): Builder {
+      this.cameraXProcessConfiguration = enabled
+      return this
+    }
 
     /** @param backend null is treated as [CameraBackend.CAMERA1] */
     fun setCameraBackend(backend: CameraBackend?): Builder {
@@ -252,7 +279,8 @@ class ScannerOptions private constructor(
         exposureDisabled,
         frontLightMode,
         framingRectWidth,
-        framingRectHeight)
+        framingRectHeight,
+        cameraXProcessConfiguration)
   }
 
   companion object {

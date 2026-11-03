@@ -35,6 +35,7 @@ import io.github.kakakakacat.zxing.ResultPointCallback
 import io.github.kakakakacat.zxing.android.AmbientLightManager
 import io.github.kakakakacat.zxing.android.ViewfinderView
 import io.github.kakakakacat.zxing.android.camera.Camera1Backend
+import io.github.kakakakacat.zxing.android.camera.CameraCapabilities
 import io.github.kakakakacat.zxing.android.camera.CameraManager
 import io.github.kakakakacat.zxing.android.camera.CameraXBackend
 import io.github.kakakakacat.zxing.android.camera.FrontLightMode
@@ -117,6 +118,17 @@ class ScannerView(
         this@ScannerView.handleDecodeReply(msg)
       }
     }
+
+    // Registered for the life of the view rather than around each resume.
+    //
+    // It used to be added in resume() and only when the surface did not exist yet, which
+    // is right for a host that resumes from onResume -- the surface is created after
+    // that, and surfaceCreated opens the camera. A host that calls resume() on a view
+    // already on screen never got that callback, because SurfaceHolder does not replay
+    // surfaceCreated for a callback added after the surface exists. The camera simply
+    // never opened, and nothing said so. A tab, a reused dialog, a scanner started from a
+    // button all produce that order.
+    surfaceView.holder.addCallback(this)
   }
 
   /** Must be set before [resume]; changing it later takes effect on the next resume. */
@@ -199,10 +211,12 @@ class ScannerView(
     // the first layout pass's `onDraw` on the main thread behind an open running on the
     // worker. That is the stall this change exists to remove, in a second place.
     val holder = surfaceView.holder
+    if (!hasSurface && holder.surface.isValid) {
+      // Already on screen when the host resumed: surfaceCreated has been and gone.
+      hasSurface = true
+    }
     if (hasSurface) {
       openCamera(holder)
-    } else {
-      holder.addCallback(this)
     }
   }
 
@@ -218,9 +232,6 @@ class ScannerView(
     backend?.close()
     backend = null
     viewfinderView.setCamera(null)
-    if (!hasSurface) {
-      surfaceView.holder.removeCallback(this)
-    }
   }
 
   /** After a result has been shown, ask for the next frame. */
@@ -244,12 +255,37 @@ class ScannerView(
       context.checkSelfPermission(Manifest.permission.CAMERA) ==
           PackageManager.PERMISSION_GRANTED
 
-  private fun createBackend(): ScannerCameraBackend =
-      if (options.cameraBackend == ScannerOptions.CameraBackend.CAMERAX) {
-        CameraXBackend(context, options)
-      } else {
-        Camera1Backend(context, options)
-      }
+  private fun createBackend(): ScannerCameraBackend {
+    val created = if (options.cameraBackend == ScannerOptions.CameraBackend.CAMERAX) {
+      CameraXBackend(context, options)
+    } else {
+      Camera1Backend(context, options)
+    }
+    // Before it opens, so the scan rectangle is computed in this view's coordinates from
+    // the first time it is asked for rather than in the display's.
+    created.setViewportSize(width, height)
+    return created
+  }
+
+  override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+    super.onSizeChanged(w, h, oldw, oldh)
+    // A rotation, a split-screen drag, a host resizing the dialog this is in: all of them
+    // change the space the scan rectangle is drawn in, and both of the backend's cached
+    // rectangles are in the old one.
+    backend?.setViewportSize(w, h)
+    viewfinderView.drawViewfinder()
+  }
+
+  /**
+   * Which of the options the running backend actually applies, or null before the camera
+   * is open.
+   *
+   * The two camera stacks honour different settings — the CameraX path leaves focus,
+   * metering, exposure and scene mode to CameraX's own 3A and binds the back camera
+   * whatever `cameraId` says — and a setting that is not honoured is a call that succeeds
+   * and does nothing. The backend logs its own list once per session as well.
+   */
+  fun getCameraCapabilities(): CameraCapabilities? = backend?.capabilities()
 
   private fun openCamera(holder: SurfaceHolder) {
     val camera = backend

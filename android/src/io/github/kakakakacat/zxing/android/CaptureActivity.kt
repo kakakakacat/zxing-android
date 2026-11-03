@@ -298,6 +298,13 @@ class CaptureActivity : Activity(), ScannerView.Listener {
               } else {
                 ScannerOptions.CameraBackend.CAMERA1
               })
+          // This application's only use of a camera is the scanner, so it is free to tell
+          // CameraX that the back camera is the only one that matters -- which is a
+          // process-wide decision the library will not make on an embedder's behalf. It
+          // saves about 5.9 s of CameraX's both-facings validation on a one-camera device
+          // and costs nothing on a two-camera one; the numbers are in
+          // docs/maint/decisions/0001-camera-backend.md.
+          .setCameraXProcessConfiguration(true)
           .setAutoFocus(prefs.getBoolean(PreferencesActivity.KEY_AUTO_FOCUS, true))
           .setContinuousFocusDisabled(
               prefs.getBoolean(PreferencesActivity.KEY_DISABLE_CONTINUOUS_FOCUS, false))

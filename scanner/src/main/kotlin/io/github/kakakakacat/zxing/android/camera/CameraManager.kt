@@ -18,6 +18,7 @@ package io.github.kakakakacat.zxing.android.camera
 
 import android.content.Context
 import android.graphics.Rect
+import android.graphics.Point
 import android.hardware.Camera
 import android.os.Handler
 import android.util.Log
@@ -55,6 +56,18 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
   private var autoFocusManager: AutoFocusManager? = null
   private var framingRect: Rect? = null
   private var framingRectInPreview: Rect? = null
+
+  /**
+   * The scanning view's size, or null until it has been laid out.
+   *
+   * The scan rectangle is drawn by `ViewfinderView` in *its own* coordinates, and it used
+   * to be computed from the display's size. The two are the same thing only when the
+   * scanner fills the screen; embedded in a host they are not, and the rectangle the user
+   * aims with was not the region being decoded. The preview resolution is still negotiated
+   * against the display, because that is what every measurement in this repository was
+   * taken at and the preview is stretched to the view either way.
+   */
+  private var viewportSize: Point? = null
   private var initialized = false
   private var previewing = false
   private var requestedCameraId: Int = this.options.cameraId
@@ -240,7 +253,7 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
         return null
       }
       // Called early, before init even finished
-      val screenResolution = configManager.screenResolution ?: return null
+      val screenResolution = viewport() ?: return null
 
       val (width, height) = FramingRectSizer.sizeFor(screenResolution.x, screenResolution.y)
 
@@ -262,7 +275,8 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
       val rect = getFramingRect() ?: return null
       // Called early, before init even finished
       val cameraResolution = configManager.cameraResolution ?: return null
-      val screenResolution = configManager.screenResolution ?: return null
+      // The space getFramingRect answers in, which is the view's and not the display's.
+      val screenResolution = viewport() ?: return null
       val previewOnScreen = configManager.previewSizeOnScreen ?: return null
       // Upstream scaled x and y independently from screen size to camera resolution,
       // which is only correct when the display-to-camera rotation is 0. See
@@ -277,6 +291,50 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
       framingRectInPreview = Rect(box[0], box[1], box[2], box[3])
     }
     return framingRectInPreview
+  }
+
+  /** The space the scan rectangle lives in: the view, or the display before it is laid out. */
+  private fun viewport(): Point? = viewportSize ?: configManager.screenResolution
+
+  /** See [ScannerCameraBackend.setViewportSize]. Invalidates both cached rectangles. */
+  @Synchronized
+  fun setViewportSize(width: Int, height: Int) {
+    val next = if (width > 0 && height > 0) Point(width, height) else null
+    if (next == viewportSize) {
+      return
+    }
+    viewportSize = next
+    framingRect = null
+    framingRectInPreview = null
+  }
+
+  override fun capabilities(): CameraCapabilities = CameraCapabilities(
+      backendName = "camera1",
+      cameraIdHonoured = true,
+      autoFocusHonoured = true,
+      meteringHonoured = true,
+      exposureHonoured = true,
+      barcodeSceneModeHonoured = true,
+      invertScanHonoured = true,
+      framingRectHonoured = true,
+      torchHonoured = true,
+      torchAvailable = torchAvailable())
+
+  /**
+   * Whether this camera has a flash unit the torch can use.
+   *
+   * Read off the driver rather than assumed: DN-ENG41's back camera reports no flash unit
+   * at all, which is why `AutoFocusManager` and the torch are both unexercised on it.
+   */
+  private fun torchAvailable(): Boolean {
+    val modes = try {
+      camera?.camera?.parameters?.supportedFlashModes
+    } catch (re: RuntimeException) {
+      // Some drivers throw out of getParameters once the camera is going away.
+      null
+    } ?: return false
+    return modes.contains(Camera.Parameters.FLASH_MODE_TORCH) ||
+        modes.contains(Camera.Parameters.FLASH_MODE_ON)
   }
 
   /**

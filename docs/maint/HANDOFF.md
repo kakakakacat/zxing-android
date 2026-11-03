@@ -13,7 +13,7 @@ same content in 简体中文 and English. **Write new detail there, in both lang
 keep the README short.** A change only reaches the README when it changes what the
 project *is* or moves one of the headline numbers.
 
-Last updated at commit `13c3e4221` on branch `maint/android`. **Not pushed yet.**
+Last updated at commit `2f1758f15` plus the embedding commit on branch `maint/android`. **Not pushed yet.**
 
 ---
 
@@ -480,6 +480,33 @@ check on every push. The check was watched failing on purpose before it was comm
 ## Start here if you are new to this file
 
 **Two P0 items from the 2026-11-03 review are done, `3785004b1` and `13c3e4221`.**
+
+**P1 §6, embedding, is done too.** Four things, and the fourth was only found because the
+test host refused to be fooled.
+
+- **`unbindAll()` is gone from the CameraX backend.** It takes down every use case on the
+  process-wide provider, a host application's own preview and capture included. A library
+  has no business doing that, and nothing in a standalone scanner app would ever notice.
+- **`ProcessCameraProvider.configureInstance` is opt-in** — process-wide, once per process,
+  and it was telling CameraX that only the back camera exists on behalf of whatever app
+  embedded this. `ScannerOptions.setCameraXProcessConfiguration(true)`; this fork's own app
+  sets it, so the 5.9 s one-camera validation saving is kept where it was measured.
+- **The scan rectangle comes from the view's size, not the display's.** `ViewfinderView`
+  draws it in the view's own coordinates, so the two were the same rectangle only for a
+  full-screen scanner.
+- **`resume()` on a view already on screen never opened the camera.** The surface callback
+  was added inside `resume()` and only when no surface existed yet, and `SurfaceHolder`
+  does not replay `surfaceCreated` for a callback added later. A tab, a reused dialog or a
+  "scan" button all produce that order. Silent: no error, no camera, no log.
+
+**And the lesson from how that one surfaced.** The first run of the four new embedding
+tests passed three and failed one. The three were passing without a camera ever
+opening — `capabilities()` and `isBound()` both answer perfectly well for a scanner that
+never started. Making the helper *fail* rather than skip when the camera neither opens nor
+reports an error turned three green into three red, and the shared cause was the surface
+callback. **A test that tolerates "nothing happened" is a test that reports nothing
+happened as success.**
+
 
 **The JNI bridge was handing modified UTF-8's function standard UTF-8.** Every string the
 native backend returned went through `NewStringUTF`, which takes *modified* UTF-8, and

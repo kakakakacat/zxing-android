@@ -166,6 +166,12 @@ internal class Camera1Backend(
     return null
   }
 
+  override fun setViewportSize(width: Int, height: Int) {
+    cameraManager.setViewportSize(width, height)
+  }
+
+  override fun capabilities(): CameraCapabilities = cameraManager.capabilities()
+
   override fun stopFrames() {
     onWorkerIfOpening { cameraManager.stopPreview() }
   }

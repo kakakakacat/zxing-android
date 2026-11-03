@@ -50,4 +50,14 @@ interface ScannerCamera {
 
   /** Turns the torch on or off. A device with no flash unit ignores it. */
   fun setTorch(on: Boolean)
+
+  /**
+   * Which of the scanner's options this backend actually applies, and whether there is a
+   * flash unit to turn on.
+   *
+   * Ask before assuming a setting took: the two backends honour different ones, and a
+   * setting the running backend does not honour is a call that succeeds and does nothing.
+   * The backend also logs its own list once per session.
+   */
+  fun capabilities(): CameraCapabilities
 }

@@ -113,6 +113,14 @@ CameraX 不依赖 `camera-view`，直接向扫描器已有的 `SurfaceView` 输�
 
 **什么时候生效。** `setFormats` 对运行中的会话立即生效；`setThumbnailsEnabled` 在下一次 `resume()` 生效——解码线程创建时读取一次。
 
+**作为 AAR 嵌入宿主。** 扫描视图不要求占满屏幕，也不会动宿主自己的相机：
+
+- 扫描框按 **`ScannerView` 自身的尺寸**计算，不再按 `WindowManager` 的显示尺寸。半屏、弹窗、分屏、带偏移的布局下，用户对准的框和实际解码的区域才是同一个。尺寸变化、旋转、分屏拖动都会让缓存失效。
+- CameraX 后端只解绑**自己的** `Preview` 和 `ImageAnalysis`，不再调用 `unbindAll()`——后者会拆掉整个进程里所有 use case，包括宿主自己的预览和拍照。
+- `ProcessCameraProvider.configureInstance` 是进程级、只能调用一次的配置，默认**不由本库调用**。需要时用 `setCameraXProcessConfiguration(true)` 显式开启：单相机设备上可省下约 5.9 秒的 CameraX 双朝向校验，双相机设备上没有差别。宿主若自己用 `CameraXConfig.Provider`，保持关闭即可。
+- `getCameraCapabilities()` 列出当前后端真正会应用哪些选项。CameraX 路径不应用 `cameraId`、对焦、测光、曝光、场景模式和 `invertScan`——这些交给 CameraX 自己的 3A；后端每个会话也会打一条日志说明。需要逐项控制请用 `CameraBackend.CAMERA1`。
+- `resume()` 可以在视图已经显示之后调用。此前回调只在 `resume()` 里、且只在 surface 尚未创建时注册，而 `SurfaceHolder` 不会给后注册的回调补发 `surfaceCreated`，于是从标签页、复用的弹窗或按钮里启动的扫描器不会打开相机，也不报错。
+
 ### 构建
 
 需要 JDK 17+、Android SDK platform 36 和 build-tools 36.0.0。Gradle 与 AGP 版本已固定，wrapper 会自行下载 Gradle。
@@ -434,6 +442,30 @@ continues. `DecoderBackend.AUTO` still falls back to the Java decoder by itself.
 **When a setting takes effect.** `setFormats` reaches a running session.
 `setThumbnailsEnabled` takes effect on the next `resume()`: the decode thread reads it
 once, when it is built.
+
+**Embedding it in a host.** The scanner does not have to fill the screen, and it does not
+touch the host's own camera:
+
+- The scan rectangle is computed from **the `ScannerView`'s own size**, not
+  `WindowManager`'s display size. Half a screen, a dialog, split screen, an offset layout:
+  the rectangle the user aims with and the region actually decoded are the same rectangle.
+  A size change, a rotation or a split-screen drag invalidates the cached rectangles.
+- The CameraX backend unbinds **its own** `Preview` and `ImageAnalysis` and nothing else.
+  It used to call `unbindAll()`, which takes down every use case in the process — a host's
+  own preview or capture included.
+- `ProcessCameraProvider.configureInstance` is process-wide and can be called once, so the
+  library does **not** call it by default. Turn it on with
+  `setCameraXProcessConfiguration(true)` where it is wanted: it saves about 5.9 s of
+  CameraX's both-facings validation on a one-camera device and costs nothing on a
+  two-camera one. A host with its own `CameraXConfig.Provider` should leave it off.
+- `getCameraCapabilities()` says which options the running backend actually applies. The
+  CameraX path does not apply `cameraId`, focus, metering, exposure, scene mode or
+  `invertScan` — those are CameraX's own 3A — and the backend logs the list once per
+  session. Use `CameraBackend.CAMERA1` where they are needed.
+- `resume()` may be called on a view that is already on screen. Until this was fixed the
+  surface callback was registered inside `resume()` and only when no surface existed yet,
+  and `SurfaceHolder` does not replay `surfaceCreated` for a later callback — so a scanner
+  started from a tab, a reused dialog or a button never opened its camera and said nothing.
 
 ## Building
 

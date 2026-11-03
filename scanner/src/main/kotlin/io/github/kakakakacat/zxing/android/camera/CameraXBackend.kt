@@ -42,6 +42,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
+import io.github.kakakakacat.zxing.android.camera.open.OpenCameraInterface
 import io.github.kakakakacat.zxing.android.scanner.ScannerError
 import io.github.kakakakacat.zxing.android.scanner.ScannerOptions
 import java.util.concurrent.ExecutorService
@@ -66,12 +67,22 @@ import java.util.concurrent.atomic.AtomicReference
  * returns. That is [ScanFrame]'s whole contract; break it and the camera runs out of buffer
  * slots and silently stops.
  *
- * **Only the back camera is ever considered.** Without
- * `setAvailableCamerasLimiter(DEFAULT_BACK_CAMERA)`, CameraX checks that both lens facings
- * exist and, on a device with one camera, retries initialisation for about five seconds
- * before carrying on — measured at 5,987 ms against 114 ms with the limiter. Kiosk hardware,
- * scanners and cheap tablets are all single-camera devices and a barcode scanner has no use
- * for the front one anyway.
+ * **Only the back camera is bound**, whatever `cameraId` says: a barcode scanner has no use
+ * for the front one. That is a property of this backend's own use cases and
+ * [capabilities] reports it rather than leaving a caller to find out.
+ *
+ * **Telling CameraX that process-wide is the host's call.**
+ * `setAvailableCamerasLimiter(DEFAULT_BACK_CAMERA)` removes CameraX's check that both lens
+ * facings exist, which otherwise retries initialisation for about five seconds on a
+ * one-camera device — 5,987 ms against 114 ms, and no difference on a two-camera phone. It
+ * goes through `ProcessCameraProvider.configureInstance`, which is process-wide and can be
+ * called once, so a library that does it is deciding for every other part of the host
+ * application. It is therefore off unless
+ * [ScannerOptions.cameraXProcessConfiguration][io.github.kakakakacat.zxing.android.scanner.ScannerOptions.cameraXProcessConfiguration]
+ * asks for it; this fork's own app asks, because the scanner is the only camera in it.
+ *
+ * **Only this scanner's use cases are unbound.** `unbindAll()` takes down every use case
+ * on the process-wide provider, a host application's own preview and capture included.
  *
  * **The preview is stretched over the view, as Camera1's already was.** Nothing here
  * reimplements `PreviewView`'s scale/crop transform; the frame is handed to the surface and
@@ -101,6 +112,7 @@ internal class CameraXBackend(
   private var provider: ProcessCameraProvider? = null
   private var camera: Camera? = null
   private var analysis: ImageAnalysis? = null
+  private var preview: Preview? = null
   private var analysisExecutor: ExecutorService? = null
   private var lifecycleOwner: ScannerLifecycleOwner? = null
   private var holder: SurfaceHolder? = null
@@ -115,6 +127,9 @@ internal class CameraXBackend(
   private var framingRect: Rect? = null
   private var framingRectInPreview: Rect? = null
 
+  /** The scanning view's size, or null until it has been laid out. See [setViewportSize]. */
+  private var viewportSize: Point? = null
+
   override val isOpen: Boolean
     get() = camera != null
 
@@ -125,7 +140,9 @@ internal class CameraXBackend(
       return
     }
     this.holder = holder
-    configureBackCameraOnly(context)
+    if (options.cameraXProcessConfiguration) {
+      configureBackCameraOnly(context)
+    }
 
     val owner = ScannerLifecycleOwner()
     lifecycleOwner = owner
@@ -160,6 +177,10 @@ internal class CameraXBackend(
       owner: ScannerLifecycleOwner,
       executor: ExecutorService
   ) {
+    // Before the new use cases replace the fields that name the old ones: a session that
+    // did not close tidily is the only way there is anything to unbind here at all.
+    unbindOurUseCases(cameraProvider)
+
     val rotation = displayRotation()
     val selector = resolutionSelector()
 
@@ -181,9 +202,14 @@ internal class CameraXBackend(
     analysis = imageAnalysis
 
     owner.resume()
-    cameraProvider.unbindAll()
+    // Only this scanner's own use cases are unbound, and only if a previous session left
+    // some. `unbindAll()` used to be called here: it takes down every use case on the
+    // process-wide provider, including a host application's own preview or capture, which
+    // a library has no business doing. Nothing in a standalone scanner app noticed.
+    this.preview = preview
     camera = cameraProvider.bindToLifecycle(
         owner, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageAnalysis)
+    warnAboutOptionsThisBackendIgnores()
 
     // Binding settles the resolution, so the frame geometry is known here rather than only
     // once a frame has arrived. That matters for more than tidiness: the viewfinder is
@@ -277,7 +303,7 @@ internal class CameraXBackend(
       // answers null before its driver is open for the same reason.
       return null
     }
-    val screen = screenResolution() ?: return null
+    val screen = viewport() ?: return null
     val requestedWidth = options.framingRectWidth
     val requestedHeight = options.framingRectHeight
     val (width, height) = if (requestedWidth > 0 && requestedHeight > 0) {
@@ -297,7 +323,7 @@ internal class CameraXBackend(
     framingRectInPreview?.let { return it }
     val rect = getFramingRect() ?: return null
     val frame = frameSize ?: return null
-    val screen = screenResolution() ?: return null
+    val screen = viewport() ?: return null
     val rotation = frameRotation
     // The frame as it appears on screen: a 90 or 270 degree rotation swaps its axes.
     val onScreen = if (rotation == 90 || rotation == 270) Point(frame.y, frame.x) else frame
@@ -314,6 +340,53 @@ internal class CameraXBackend(
     return mapped
   }
 
+  /** Unbinds this scanner's use cases and no one else's. */
+  private fun unbindOurUseCases(cameraProvider: ProcessCameraProvider) {
+    val ours = ArrayList<androidx.camera.core.UseCase>(2)
+    preview?.let { ours.add(it) }
+    analysis?.let { ours.add(it) }
+    if (ours.isNotEmpty()) {
+      cameraProvider.unbind(*ours.toTypedArray())
+    }
+  }
+
+  /**
+   * Says, once per session, which of the caller's settings this backend is going to
+   * ignore.
+   *
+   * A setting that does nothing and reports nothing is the worst of the three possible
+   * behaviours. [capabilities] is the same information for a caller that would rather ask
+   * than read logcat.
+   */
+  private fun warnAboutOptionsThisBackendIgnores() {
+    val set = ArrayList<String>(6)
+    if (options.cameraId != OpenCameraInterface.NO_REQUESTED_CAMERA) set.add("cameraId")
+    if (!options.isAutoFocus) set.add("autoFocus")
+    if (options.isContinuousFocusDisabled) set.add("continuousFocusDisabled")
+    if (options.isMeteringDisabled) set.add("meteringDisabled")
+    if (options.isExposureDisabled) set.add("exposureDisabled")
+    if (options.isBarcodeSceneModeDisabled) set.add("barcodeSceneModeDisabled")
+    if (options.isInvertScan) set.add("invertScan")
+    if (set.isNotEmpty()) {
+      Log.w(TAG, "The CameraX backend does not apply $set; " +
+          "focus, metering, exposure and scene mode are CameraX's own 3A, and it binds " +
+          "the back camera whatever cameraId says. Use CameraBackend.CAMERA1 for those.")
+    }
+  }
+
+  override fun capabilities(): CameraCapabilities = CameraCapabilities(
+      backendName = "camerax",
+      // Deliberately the back camera, before CameraX initialises; see the class comment.
+      cameraIdHonoured = false,
+      autoFocusHonoured = false,
+      meteringHonoured = false,
+      exposureHonoured = false,
+      barcodeSceneModeHonoured = false,
+      invertScanHonoured = false,
+      framingRectHonoured = true,
+      torchHonoured = true,
+      torchAvailable = camera?.cameraInfo?.hasFlashUnit() ?: false)
+
   override fun setTorch(on: Boolean) {
     val theCamera = camera ?: return
     if (!theCamera.cameraInfo.hasFlashUnit()) {
@@ -321,6 +394,25 @@ internal class CameraXBackend(
     }
     theCamera.cameraControl.enableTorch(on)
   }
+
+  @Synchronized
+  override fun setViewportSize(width: Int, height: Int) {
+    val next = if (width > 0 && height > 0) Point(width, height) else null
+    if (next == viewportSize) {
+      return
+    }
+    viewportSize = next
+    // A rotation, a split-screen drag or a host resizing its dialog all land here, and
+    // both cached rectangles are in the old coordinate space.
+    framingRect = null
+    framingRectInPreview = null
+  }
+
+  /**
+   * The coordinate space the scan rectangle lives in: the scanning view, or the display
+   * when the view has not been laid out yet.
+   */
+  private fun viewport(): Point? = viewportSize ?: screenResolution()
 
   override fun requestFrame(handler: Handler, what: Int) {
     pendingRequest.set(FrameRequest(handler, what))
@@ -336,8 +428,11 @@ internal class CameraXBackend(
     analysis = null
     lifecycleOwner?.destroy()
     lifecycleOwner = null
-    provider?.unbindAll()
+    // Ours, not everything. Destroying the lifecycle owner above already unbinds them;
+    // this is the belt to that's braces, and it is still scoped to this scanner.
+    provider?.let { unbindOurUseCases(it) }
     provider = null
+    preview = null
     camera = null
     holder = null
     // After unbindAll no further frame can arrive, so nothing is still reading the buffers

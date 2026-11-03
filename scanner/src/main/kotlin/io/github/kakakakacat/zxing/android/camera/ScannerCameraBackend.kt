@@ -63,6 +63,22 @@ internal interface ScannerCameraBackend : ScannerCamera {
   fun close()
 
   /**
+   * The size, in pixels, of the view the preview is drawn into.
+   *
+   * **Not the display's size.** The scan rectangle and the mapping between it and the
+   * camera frame were both computed from `WindowManager`'s display size, which is right
+   * only for a scanner that fills the screen. Embedded in a host — half a screen, a
+   * dialog, a split-screen window, a `ScannerView` with an offset — the rectangle the user
+   * aims with and the region actually decoded were two different rectangles.
+   *
+   * Called by [io.github.kakakakacat.zxing.android.scanner.ScannerView] whenever its size
+   * changes, including before the camera opens. A width or height of 0 means "not laid out
+   * yet", and the backend falls back to the display size, which is what it used to do
+   * always.
+   */
+  fun setViewportSize(width: Int, height: Int)
+
+  /**
    * Asks for one frame, delivered to [handler] as a message whose `what` is [what] and
    * whose `obj` is a [ScanFrame].
    *

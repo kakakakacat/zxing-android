@@ -12,6 +12,18 @@ API may still change between minor versions.
 ## [Unreleased]
 
 ### Added
+- **`ScannerCamera.capabilities()` and `ScannerView.getCameraCapabilities()`.** Which of
+  the options the running backend actually applies. The two camera stacks honour different
+  ones — the CameraX path leaves focus, metering, exposure and scene mode to CameraX's own
+  3A and binds the back camera whatever `cameraId` says — and a setting that is not
+  honoured was a call that succeeded and did nothing. The CameraX backend also logs its
+  own list once per session.
+- **`ScannerOptions.setCameraXProcessConfiguration(boolean)`, off by default.** Whether the
+  scanner may call `ProcessCameraProvider.configureInstance`, which is process-wide, can be
+  called once, and tells CameraX that only the back camera exists — for every part of the
+  host application. The scanner used to do it unconditionally. An application whose only
+  camera use is the scanner should turn it on: without the limiter CameraX retries
+  initialisation for about five seconds on a one-camera device.
 - **Decoded results carry their bytes and their metadata.** A `Result` from the native
   backend now has `getRawBytes()` — the decoded standard content, before any character-set
   conversion — and the metadata zxing-cpp reports that this fork has a `ResultMetadataType`
@@ -36,6 +48,22 @@ API may still change between minor versions.
   skipped, not failed, when the publishing secrets are absent.
 
 ### Fixed
+- **The scanner tore down a host's CameraX use cases.** The CameraX backend called
+  `ProcessCameraProvider.unbindAll()` when it bound and when it closed, which takes down
+  every use case in the process — a host application's own preview or capture included. It
+  now unbinds its own two and nothing else.
+- **The scan rectangle was computed from the display's size** while `ViewfinderView` drew
+  it in the view's own coordinates. The same rectangle only when the scanner fills the
+  screen: embedded at half a screen, in a dialog, in split screen or at an offset, the
+  rectangle the user aimed with was not the region being decoded. Both backends now take
+  the scanning view's size, and a layout change, rotation or split-screen drag invalidates
+  the cached rectangles.
+- **`resume()` on a view that was already on screen never opened the camera.** The
+  surface callback was registered inside `resume()` and only when the surface did not
+  exist yet; `SurfaceHolder` does not replay `surfaceCreated` for a callback added after
+  the surface exists, so a host resuming from a tab, a reused dialog or a button got a
+  scanner that never started and said nothing. The callback is now registered for the life
+  of the view, and `resume()` uses a surface that is already valid.
 - **Text crossing the JNI boundary.** The native backend built every string with
   `NewStringUTF`, which takes modified UTF-8, from zxing-cpp's standard UTF-8. A payload
   with an embedded `U+0000` and any supplementary-plane character — emoji, CJK extension B

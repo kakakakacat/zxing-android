@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The test application needs the camera, and an activity to embed a ScannerView in.
+
+  There is no production manifest entry for either: the library declares no activity and
+  asks for no permission, because the host owns both conversations. This file is the test
+  application's own, and is merged only into the test APK.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <uses-permission android:name="android.permission.CAMERA" />
+
+  <application>
+    <activity
+        android:name="io.github.kakakakacat.zxing.android.scanner.ScannerHostActivity"
+        android:exported="false"
+        android:screenOrientation="locked"
+        android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
+        android:theme="@android:style/Theme.Material.NoActionBar" />
+  </application>
+
+</manifest>
