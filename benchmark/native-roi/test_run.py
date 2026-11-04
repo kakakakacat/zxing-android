@@ -7,6 +7,15 @@ import run
 
 
 class ProtocolTest(unittest.TestCase):
+    def test_active_matrix_is_java_cpp_only(self):
+        self.assertEqual(['cpp', 'java', 'jni_cpp'], run.BACKENDS)
+        self.assertEqual(['cpp', 'jni_cpp'], run.NATIVE_BACKENDS)
+
+    def test_active_driver_has_no_rust_build_or_execution_dependency(self):
+        source = Path(run.__file__).read_text().lower()
+        for forbidden in ('rustc', 'jni_rust', 'libroi_rust', 'roi.rs'):
+            self.assertNotIn(forbidden, source)
+
     def test_fixtures_have_identical_logical_roi_across_layouts(self):
         with tempfile.TemporaryDirectory() as folder:
             cases,manifest=run.fixtures(Path(folder))

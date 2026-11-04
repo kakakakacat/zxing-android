@@ -22,13 +22,9 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-      - name: Set up isolated experiment compilers
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y clang-17
-          rustup toolchain install 1.75.0 --profile minimal
-          rustup override set 1.75.0
       - name: Protocol tests
         run: python3 -m unittest discover -s benchmark/native-roi -p 'test_*.py'
-      - name: C++ Rust Java and JNI correctness only
-        run: CXX=clang++-17 python3 benchmark/native-roi/run.py --verify-only
+      - name: Android report protocol tests
+        run: python3 -m unittest discover -s benchmark/tools -p 'test_roi_android_report.py'
+      - name: Java C++ and JNI correctness only
+        run: python3 benchmark/native-roi/run.py --verify-only

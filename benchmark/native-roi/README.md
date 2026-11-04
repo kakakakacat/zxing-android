@@ -1,103 +1,67 @@
-# ROI packing language experiment / ROI 打包语言对照实验
+# Java/C++ ROI packing experiment / Java/C++ ROI 打包实验
 
-A deliberately narrow experiment based on `YPlaneLuminanceSource.copyMatrixTo`: copy a
-cropped, strided luminance plane to a packed ROI. This is not a barcode decoder rewrite.
-The scanner, native default backend, AARs and public API do not depend on this directory.
-基于 `YPlaneLuminanceSource.copyMatrixTo` 的小范围实验：将带步幅的亮度平面裁剪并打包为连续 ROI。
-本实验不重写条码解码器；扫描库、默认 native 后端、AAR 及公开 API 均不依赖本目录。
+A host-side experiment based on `YPlaneLuminanceSource.copyMatrixTo`: copy a cropped,
+strided luminance plane to a packed ROI. This does not change the scanner, shipping native
+backend, AARs or public API. Host results are not Android performance claims.
 
-Recorded exploratory run / 已记录的预实验：
-[2026-11-04 summary / 汇总](reports/2026-11-04-host.md) ·
-[raw samples / 原始样本](reports/2026-11-04-host.json) ·
-[interpretation / 解读与下一步](reports/2026-11-04-interpretation.md)
+基于 `YPlaneLuminanceSource.copyMatrixTo` 的宿主机实验：将带步幅的亮度平面裁剪并打包为连续 ROI。
+不改变扫描库、生产 native 后端、AAR 或公开 API。宿主机结果不代表 Android 性能结论。
 
-## Questions / 问题
+## Active experiment / 当前实验
 
-1. How do these equivalent C++ and Rust kernels perform behind the same C ABI driver?
-2. Does the benefit, if any, survive a Java call through the same JNI bridge and byte-array API?
-3. How do they compare with the existing Java direct-buffer bulk-row/scalar-stride approach?
+The active runner compares the C++ kernel, Java direct-buffer packing, and Java → JNI → C++
+packing. It builds and executes only these three cases. Inputs and expected outputs are
+deterministic; native correctness checks run before timing. Each backend uses a fresh
+process, and process order rotates between rounds. Java uses HotSpot, not ART.
 
-1. 相同 C ABI 驱动下，等价的 C++ 与 Rust 打包函数表现如何？
-2. 如果函数有收益，经过相同 JNI 桥和 Java 字节数组接口后是否仍然存在？
-3. 与现有 Java direct buffer 按行批量读取/跨像素步幅读取相比如何？
+活跃驱动只比较 C++ kernel、Java direct buffer 打包和 Java → JNI → C++ 打包。输入与期望输出固定，计时前
+执行 native 正确性检查。每个 backend 独立进程运行，并在多轮间轮换顺序。Java 使用 HotSpot，而非 ART。
 
-## Protocol / 方法
+The matrix contains VGA, HD and FHD frames, each with packed rows, 32-byte row padding,
+and pixel stride 2 with padding. The centered ROI is 5/8 of the frame dimensions. Work
+buffers are allocated outside timing; JNI array access and any VM copy remain inside it.
+The pure native diagnostic excludes JNI and must not be subtracted from the Java/JNI row
+to estimate an exact JNI cost.
 
-- Three frame resolutions, each with packed rows, padded rows and pixel stride 2: nine cases.
-  The centered ROI is 5/8 of frame width/height, a test choice rather than a live-camera crop claim.
-- Fixed deterministic pixels and expected ROI hashes. C++ and Rust validate all geometry before
-  writing. Source/destination allocations must be valid and nonoverlapping, as declared in `roi.h`.
-- C++ uses restrict pointers, memcpy for stride 1 and a scalar indexing loop otherwise. Rust
-  constructs slices at its unsafe FFI boundary, uses copy_from_slice and safe indexing inside.
-  These implementations need not compile identically; this is not proof of a language-wide ranking.
-- Native calls use the same dynamically resolved C ABI function pointer. Java uses a separate
-  process for each backend; both native backends use the identical C++ JNI bridge. Its ordinary
-  GetByteArrayElements/ReleaseByteArrayElements access may allocate and copy. No critical pinning.
-- Work buffers are allocated outside timing. JNI VM array access and Java duplicate cursors stay
-  inside timing. Fixture loading, correctness comparisons and process startup stay outside timing.
-- Java's pack method is not inlined into the batch loop, preventing whole-batch copy elimination;
-  normal optimization inside the method remains enabled. No such directive is applied to scanner code.
-- Warmup, calibrated batches, multiple fresh processes, rotated backend process order. Raw batch
-  samples and per-process medians are retained. Summary = median of process medians, not pooled samples.
-- C++/Rust native timings exclude JNI; the Java/JNI timings include it. Never subtract cross-table
-  timings to claim an exact JNI cost because the drivers, destinations and runtimes differ.
+矩阵包含 VGA、HD、FHD 三种帧尺寸，各覆盖紧密行、32 字节行 padding、pixel stride=2 且含 padding。ROI 为帧宽高的
+5/8。工作缓冲区在计时外分配；JNI 数组访问及 VM 可能执行的复制计入计时。纯 native 诊断不含 JNI，不能与
+Java/JNI 结果相减来推算精确 JNI 开销。
 
-- 三种帧分辨率，各测紧密行、padding 行、像素步幅 2，共九种；中心 ROI 为帧宽高的 5/8，属于实验选择。
-- 固定像素与 ROI 哈希，写入前校验几何参数；源、目标必须是声明长度内有效且不重叠的真实分配。
-- C++ 使用 restrict 指针、memcpy/索引循环；Rust 在 unsafe FFI 边界建立切片，内部使用批量复制和安全索引。
-  两者未必生成同样的机器码，因此只能比较具体实现，不能据此排名语言。
-- 原生调用共用相同 C ABI 函数指针驱动；Java 各 backend 独立进程，两种 native 共用一个 JNI 桥，保留可能复制
-  或分配的普通数组访问；不使用 critical pinning。
-- 工作缓冲区在计时外分配；JNI 数组访问及 Java 游标复制计时。加载、正确性比较及进程启动不计时。
-- 禁止 Java 打包方法内联到批循环，避免整个批次被合并消除；方法内部正常优化，不修改生产 scanner 的编译策略。
-- 预热、自动批大小、多个独立进程、轮换 backend 顺序；保存原始批样本与进程中位数，汇总取进程中位数的中位数。
-- 原生表不含 JNI，Java/JNI 表包含 JNI；驱动、目标分配和运行时不同，不能跨表相减声称精确 JNI 开销。
+## Historical record / 历史记录
+
+The files `roi.rs` and `reports/2026-11-04-host.*` are retained as historical source and
+results from the original three-language experiment. Their contents and hashes are not
+rewritten. The active runner, its tests and CI do not build, call or rank that historical
+backend. Historical measurements are not Android results.
+
+`roi.rs` 与 `reports/2026-11-04-host.*` 保留原三语言实验的历史源码和结果，内容及哈希不重写。活跃驱动、测试和
+CI 不会构建、调用或排名历史 backend。历史测量不代表 Android 结果。
 
 ## Run / 运行
 
-First driver: **x86_64 Linux**, C++17 compiler, Rust with standard library and a complete JDK 17.
-No Cargo dependencies, Android SDK, NDK or Gradle are required. Clang 17 + Rust 1.75 are the
-reference toolchain family; exact versions and flags are recorded in each result. `CXX`/`RUSTC`
-select executables. A full JDK provides `jni.h` under `$JAVA_HOME/include`.
-首版驱动限定 **x86_64 Linux**，需要 C++17 编译器、带标准库的 Rust、完整 JDK 17，不依赖 Cargo 包、
-Android SDK、NDK 或 Gradle。参考工具链为 Clang 17/Rust 1.75，实际版本及参数会记录；可用 CXX/RUSTC
-指定可执行文件，完整 JDK 的 JAVA_HOME/include 应包含 jni.h。
+Requirements: x86_64 Linux, a C++17 compiler, Python 3 and a complete JDK with `jni.h`.
+No Android SDK, NDK, Gradle or other language toolchain is needed. `CXX` selects the C++
+compiler; exact versions, flags, source hashes and raw batch samples are recorded.
+
+依赖：x86_64 Linux、C++17 编译器、Python 3 和含 `jni.h` 的完整 JDK。不需要 Android SDK、NDK、Gradle 或其他语言工具链。
+通过 `CXX` 指定编译器；结果记录精确版本、参数、源码哈希和原始批次样本。
 
 ```sh
-# Verify bytes, guards, source immutability and rejected geometry; discard timing.
-# 校验输出、哨兵、源数据不变及非法几何参数，丢弃计时数据。
-CXX=clang++-17 python3 benchmark/native-roi/run.py --verify-only
-
-# Exploratory timing. Optionally --cpu <allowed-logical-cpu>; affinity is not clock locking.
-# 探索计时，可选 --cpu <允许使用的逻辑核>；绑核不等于锁频。
-CXX=clang++-17 python3 benchmark/native-roi/run.py \
+python3 -m unittest discover -s benchmark/native-roi -p 'test_*.py'
+python3 benchmark/native-roi/run.py --verify-only
+python3 benchmark/native-roi/run.py \
   --rounds 3 --samples 21 --warmup-ms 500 --batch-ms 10 \
   --out benchmark/native-roi/build/result.json
-
-python3 -m unittest discover -s benchmark/native-roi -p 'test_*.py'
 ```
 
-Outputs include JSON (versions, flags, hashes, process order, batch sizes and raw samples)
-and a bilingual Markdown summary. Build products and regenerated fixtures stay in ignored `build/`.
-CI runs correctness only and publishes no timing verdict from shared runners.
-输出 JSON（版本、参数、哈希、进程顺序、批大小及原始样本）与双语 Markdown；构建与生成数据位于被忽略的 build/。
-CI 仅验证正确性，不用共享 runner 的计时给出性能结论。
+Outputs are local under the ignored `build/` directory. CI runs correctness only; shared
+runner timings are not performance evidence.
 
-## Interpretation / 解读
+结果保存在忽略跟踪的本地 `build/` 目录。CI 仅运行正确性检查；共享 runner 的计时不作为性能证据。
 
-- HotSpot is not ART; x86_64 is not ARM32/ARM64. Shared-host CPU frequency, thermal state,
-  co-tenants and scheduling are uncontrolled. Process median ranges describe variability,
-  not confidence intervals. More rounds or matched compilers do not remove these limits.
-- The already-available native direct Y-plane path can bypass ROI packing. A faster pack
-  function may have zero effect on that path. No camera delivery, recognition, decoder,
-  startup, power or total-app performance is measured here.
-- Use this result to decide which ARM/JNI experiment to run next, not to change shipping
-  defaults or the README performance chart. Android follow-up must keep Java array semantics,
-  inputs, correctness, ABI and compiler options controlled and measure real camera P50/P95.
+The existing native-direct Y-plane path can bypass ROI packing. A faster pack kernel may
+therefore have no effect on that path. Decoder latency, camera delivery, recognition,
+power and ARM performance require separate Android/device experiments.
 
-- HotSpot 不等于 ART，x86_64 不等于 ARM32/ARM64；共享宿主频率、温控、其他任务及调度不可控。
-  进程中位数范围仅描述波动，不是置信区间；增加轮次或匹配编译器也不能消除这些限制。
-- 现有直接 native Y 平面路径可以绕过 ROI 打包；该函数变快可能对这条路径完全没有影响。
-  本实验不测相机送帧、识别率、解码、启动、功耗或整机性能。
-- 结果用于决定下一步 ARM/JNI 实验，不用于修改默认策略或 README 性能图；后续 Android 实验需控制
-  Java 数组接口、输入、正确性、ABI 和编译参数，并测真机相机链路 P50/P95。
+现有 native-direct Y 平面路径可以绕过 ROI 打包，因此打包 kernel 变快不一定影响该路径。解码、相机送帧、识别、功耗及
+ARM 性能需要独立的 Android/真机实验。
