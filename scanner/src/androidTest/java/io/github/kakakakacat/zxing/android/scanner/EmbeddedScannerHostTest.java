@@ -21,8 +21,10 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import android.content.Context;
 import android.graphics.Rect;
 import android.os.ParcelFileDescriptor;
+import android.os.PowerManager;
 import java.io.InputStream;
 import java.io.IOException;
 
@@ -80,6 +82,31 @@ public final class EmbeddedScannerHostTest {
     Assume.assumeTrue("no camera on this device",
                       ApplicationProvider.getApplicationContext().getPackageManager()
                           .hasSystemFeature(android.content.pm.PackageManager.FEATURE_CAMERA_ANY));
+    requireAnAwakeScreen();
+  }
+
+  /**
+   * Fails immediately, and says why, when the device has gone to sleep.
+   *
+   * A SurfaceView gets no surface while the screen is off, so the scanner opens nothing and
+   * reports nothing, and every test in this class fails fifteen seconds later with "the
+   * camera neither opened nor reported an error". That message describes the symptom of a
+   * product defect, so a device that merely dozed off between runs reads as a regression --
+   * it did once here, across all six tests including the two Camera1 ones that touch none
+   * of this. Said plainly it costs a second instead of ninety, and names the fix.
+   *
+   * This asserts rather than assumes. A screen that is off is a fixable state of the
+   * harness, not a property of the device like having no camera, and skipping on it would
+   * let a whole run go quietly green having scanned nothing.
+   */
+  private static void requireAnAwakeScreen() {
+    PowerManager power = (PowerManager) ApplicationProvider.getApplicationContext()
+        .getSystemService(Context.POWER_SERVICE);
+    assertNotNull("no PowerManager", power);
+    assertTrue("the device screen is off, so the scanner's SurfaceView gets no surface and "
+               + "every test here would time out blaming the camera. Wake it and keep it "
+               + "awake: adb shell input keyevent KEYCODE_WAKEUP && adb shell svc power "
+               + "stayon usb", power.isInteractive());
   }
 
   /** Resumes the scanner and waits for the camera to report one way or the other. */
@@ -90,6 +117,7 @@ public final class EmbeddedScannerHostTest {
     awaitLayout(scenario);
     CountDownLatch settled = new CountDownLatch(1);
     AtomicReference<ScannerError> error = new AtomicReference<>();
+    AtomicReference<Exception> cause = new AtomicReference<>();
     scenario.onActivity(activity -> {
       ScannerView view = activity.getScannerView();
       view.setOptions(options);
@@ -100,8 +128,9 @@ public final class EmbeddedScannerHostTest {
         }
 
         @Override
-        public void onScannerError(ScannerError scannerError, Exception cause) {
+        public void onScannerError(ScannerError scannerError, Exception why) {
           error.set(scannerError);
+          cause.set(why);
           settled.countDown();
         }
       });
@@ -123,6 +152,19 @@ public final class EmbeddedScannerHostTest {
       Thread.sleep(100);
     }
     ScannerError reported = error.get();
+    Exception why = cause.get();
+    // The scanner's own invariants failing is not a device limitation, and must not be
+    // skipped over. `bind` reports an IllegalStateException from its own `check` as
+    // CAMERA_UNAVAILABLE, which is indistinguishable here from a camera another app is
+    // holding -- so for a while a real defect read as a skip and the run stayed green.
+    // That is exactly what happened to the separate preview/analysis sizes below: CameraX
+    // negotiated 864x480 against 640x360, an exact aspect comparison refused the pair, and
+    // every run of this class "skipped" on a device whose camera five other tests opened.
+    if (why instanceof IllegalStateException) {
+      throw new AssertionError(
+          "the scanner failed its own invariant rather than the camera being unavailable: "
+          + why, why);
+    }
     // A device that cannot open a camera skips. A device that reports nothing at all and
     // never produces a rectangle fails: that is the shape a vacuous pass has, and three
     // of these tests would otherwise assert their way through a scanner that never ran.
