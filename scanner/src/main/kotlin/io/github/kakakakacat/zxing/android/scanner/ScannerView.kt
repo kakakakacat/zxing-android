@@ -385,6 +385,8 @@ class ScannerView(
 
   private fun stopScanning() {
     isScanning = false
+    // The overlay must not read CameraManager's monitor while worker-side HAL teardown runs.
+    viewfinderView.setCamera(null)
     frameRequestGate?.cancel()
     frameRequestGate = null
     mainHandler.removeCallbacks(nextFrame)
