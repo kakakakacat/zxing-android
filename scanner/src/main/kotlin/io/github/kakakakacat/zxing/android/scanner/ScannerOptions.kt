@@ -85,7 +85,11 @@ class ScannerOptions private constructor(
     /** One smaller region per frame, with a complete scan region at least every fifth frame. */
     val progressiveRoi: Boolean,
     /** Reuse the Java decoder's Y-plane matrix scratch, never its public input matrix. */
-    val javaBufferReuse: Boolean
+    val javaBufferReuse: Boolean,
+    /** Opt-in fixed two-buffer NV21 pool on Camera1; unsupported layouts use one-shot. */
+    val camera1BufferPool: Boolean,
+    /** Request the next miss frame on the decode thread after returning the current frame. */
+    val directFrameScheduling: Boolean
 ) {
 
   /**
@@ -160,6 +164,8 @@ class ScannerOptions private constructor(
       .setAnalysisSize(analysisWidth, analysisHeight)
       .setProgressiveRoi(progressiveRoi)
       .setJavaBufferReuse(javaBufferReuse)
+      .setCamera1BufferPool(camera1BufferPool)
+      .setDirectFrameScheduling(directFrameScheduling)
       .setDecodeIntervalMillis(decodeIntervalMillis)
       .setCameraXProcessConfiguration(cameraXProcessConfiguration)
       .setDecoderBackend(decoderBackend)
@@ -177,6 +183,18 @@ class ScannerOptions private constructor(
       .setFramingRect(framingRectWidth, framingRectHeight)
 
   class Builder {
+
+    private var camera1BufferPool = false
+    private var directFrameScheduling = false
+
+    fun setCamera1BufferPool(enabled: Boolean): Builder {
+      camera1BufferPool = enabled
+      return this
+    }
+    fun setDirectFrameScheduling(enabled: Boolean): Builder {
+      directFrameScheduling = enabled
+      return this
+    }
 
     private var analysisWidth = 0
     private var analysisHeight = 0
@@ -353,7 +371,8 @@ class ScannerOptions private constructor(
         framingRectHeight,
         cameraXProcessConfiguration,
         nativeDirectBuffer, previewWidth, previewHeight, decodeIntervalMillis,
-        analysisWidth, analysisHeight, progressiveRoi, javaBufferReuse)
+        analysisWidth, analysisHeight, progressiveRoi, javaBufferReuse,
+        camera1BufferPool, directFrameScheduling)
   }
 
   companion object {

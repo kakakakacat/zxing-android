@@ -18,6 +18,7 @@ package io.github.kakakakacat.zxing.android.camera
 
 import android.hardware.Camera
 import android.os.Handler
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * @param buildFrame wraps the delivered buffer and the frame size into the [ScanFrame] the
@@ -29,30 +30,19 @@ internal class PreviewCallback(
     private val buildFrame: (ByteArray?, Int, Int) -> ScanFrame
 ) : Camera.PreviewCallback {
 
-  private var previewHandler: Handler? = null
-  private var previewMessage = 0
-
-  fun setHandler(previewHandler: Handler?, previewMessage: Int) {
-    this.previewHandler = previewHandler
-    this.previewMessage = previewMessage
+  private val pending = AtomicReference<FrameRequest?>()
+  fun setHandler(handler: Handler?, what: Int) {
+    pending.getAndSet(handler?.let { FrameRequest(it, what) })?.cancel()
   }
-
-  // Both parameters nullable: the Java original declared no nullability and did no checks,
-  // and a non-null Kotlin parameter compiles to a null check that throws. Drivers have been
-  // seen delivering a null frame, and dropping it is what this always did.
   override fun onPreviewFrame(data: ByteArray?, camera: Camera?) {
-    val cameraResolution = configManager.cameraResolution
-    val thePreviewHandler = previewHandler
-    if (cameraResolution != null && thePreviewHandler != null) {
-      previewHandler = null
-      val frame = buildFrame(data, cameraResolution.x, cameraResolution.y)
-      val message = thePreviewHandler.obtainMessage(previewMessage, frame)
-      // A decode thread that has already quit will not take the message. Nothing is leaked
-      // on this backend either way, but the contract is that whoever holds a ScanFrame
-      // closes it, and after a failed send that is still this method.
-      if (!thePreviewHandler.sendMessage(message)) {
-        frame.close()
-      }
+    val request = pending.getAndSet(null) ?: return
+    val size = configManager.cameraResolution
+    try {
+      request.deliver(if (size == null) Camera1ScanFrame(null)
+          else buildFrame(data, size.x, size.y))
+    } catch (failure: RuntimeException) {
+      request.cancel()
+      throw failure
     }
   }
 }

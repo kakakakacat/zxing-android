@@ -18,9 +18,12 @@ package io.github.kakakakacat.zxing.android.scanner
 
 import android.os.Build
 import android.os.Trace
+import io.github.kakakakacat.zxing.android.camera.ScanFrame
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * The three spans L3 measures, and nothing else.
+ * Startup spans for L3 and opt-in system-trace frame ownership/timing spans.
  *
  * `docs/maint/BENCHMARKS.md` §11 asks how long it takes to get from launch to a camera that
  * is ready, and from there to a frame and to a scan. None of that is visible from outside
@@ -39,8 +42,9 @@ import android.os.Trace
  * measurement on devices this project does not have.
  *
  * Cost when nothing is tracing: one `SDK_INT` comparison and one `Trace.isEnabled()` call,
- * which reads a process-local flag. [FIRST_FRAME] is the only one on a per-frame path and
- * it is ended once per session.
+ * which reads a process-local flag. Startup spans end once per session. Frame request,
+ * queue, decode, hold and release spans are emitted only while system tracing is enabled;
+ * no barcode payload is recorded.
  */
 internal object ScannerTrace {
 
@@ -81,4 +85,50 @@ internal object ScannerTrace {
       Trace.endAsyncSection(name, cookie)
     }
   }
+
+  const val FRAME_REQUEST = "zxing.frame.request"
+  const val FRAME_QUEUE = "zxing.frame.queue"
+  const val FRAME_HOLD = "zxing.frame.hold"
+  const val FRAME_DECODE = "zxing.frame.decode"
+  const val FRAME_RELEASE = "zxing.frame.release"
+  private val cookies = AtomicInteger()
+
+  private fun nextCookie(): Int {
+    val cookie = cookies.incrementAndGet()
+    return if (cookie == 0) cookies.incrementAndGet() else cookie
+  }
+  fun beginFrameRequest(): Int {
+    if (!supported || !Trace.isEnabled()) return 0
+    val cookie = nextCookie()
+    begin(FRAME_REQUEST, cookie)
+    return cookie
+  }
+  fun endFrameRequest(cookie: Int) { if (cookie != 0) end(FRAME_REQUEST, cookie) }
+  fun section(name: String): Boolean {
+    if (!supported || !Trace.isEnabled()) return false
+    Trace.beginSection(name)
+    return true
+  }
+  fun endSection(started: Boolean) { if (started) Trace.endSection() }
+  fun received(frame: ScanFrame): ScanFrame {
+    if (!supported || !Trace.isEnabled()) return frame
+    val cookie = nextCookie()
+    return TracedFrame(frame, cookie)
+  }
+  fun decoding(frame: ScanFrame) { (frame as? TracedFrame)?.started() }
+
+  private class TracedFrame(private val frame: ScanFrame, private val cookie: Int) : ScanFrame {
+    private val queued = AtomicBoolean(true)
+    private val closed = AtomicBoolean()
+    init { begin(FRAME_QUEUE, cookie); begin(FRAME_HOLD, cookie) }
+    override val source get() = frame.source
+    fun started() { if (queued.compareAndSet(true, false)) end(FRAME_QUEUE, cookie) }
+    override fun close() {
+      if (!closed.compareAndSet(false, true)) return
+      started()
+      val releaseSpan = section(FRAME_RELEASE)
+      try { frame.close() } finally { endSection(releaseSpan); end(FRAME_HOLD, cookie) }
+    }
+  }
+
 }

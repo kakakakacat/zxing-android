@@ -67,3 +67,86 @@ attempts. Neither tradeoff is established by emulator success or replay speed al
 修改默认策略前，需真机记录从相机到结果的 P50/P95、超时及误识别率、分配/GC、CPU 时间及持续温度/功耗。
 覆盖中心/边缘、小码/远距、弱光和运动场景。降低分析分辨率可能漏掉小码，渐进 ROI 可能让边缘码多等四次尝试。
 模拟器通过或回放变快都不能单独证明这些取舍可接受。
+
+
+## Frame scheduling and Camera1 buffers / 取帧调度与 Camera1 缓冲池
+
+```kotlin
+val options = ScannerOptions.Builder()
+    .setCameraBackend(ScannerOptions.CameraBackend.CAMERA1)
+    .setCamera1BufferPool(true)
+    .setDirectFrameScheduling(true)
+    .build()
+```
+
+Both switches default to false. Buffering applies only to Camera1; direct miss scheduling
+works with both camera backends. When enabled, a failed attempt closes its frame before
+posting the next request on the decode looper, observing the configured decode interval.
+Success/error callbacks stay on the main thread. A cancelled session gate prevents a
+late retry from rearming a camera after pause/close. Default scheduling retains the
+previous main-thread miss notification path.
+两项开关默认关闭。缓冲池仅用于 Camera1；解码线程直接调度适用于两种相机后端。启用后，失败帧先释放，
+再按配置间隔在解码 Looper 请求下一帧。成功及错误回调仍在主线程；会话取消门禁防止暂停/关闭后的迟到重试
+重新请求相机。默认仍沿用主线程接收失败消息再取帧的路径。
+
+Camera1's backend camera API calls and internal camera callbacks now run on a reference-
+counted camera looper. Close/open operations from consecutive backend instances share
+that queue, so quick pause/resume does not open a replacement camera before the old one
+is released. The looper quits after the last backend finishes cleanup. Public low-level
+CameraManager access remains synchronous and requires the host's own coordination.
+Camera1 后端的相机 API 操作和内部回调现在运行在引用计数的相机 Looper 上；连续后端实例共用队列完成
+关闭再打开，避免快速暂停/恢复时新相机抢在旧相机释放前打开。最后一个后端清理完成后退出线程。
+公开的底层 CameraManager 访问仍为同步调用，需要宿主自行协调。
+
+The pool allocates two NV21 buffers from the actual preview dimensions, only for positive
+even sizes whose byte count fits an array. No buffers are sent to the HAL until a frame
+is requested. A lease is returned after decode/thumbnail generation, once only, to its
+original pool. Stopping retires the pool: late releases cannot feed a replacement camera.
+Unknown layouts, setup failures or rejected callback buffers fall back to one-shot for
+that preview. At 1920x1080 the two NV21 arrays alone occupy 6,220,800 bytes; reduced
+allocation churn can trade for retained memory. This is buffer reuse, not zero-copy.
+缓冲池按实际预览尺寸分配两份 NV21 数组，仅支持正偶数尺寸及可安全分配的字节数；收到请求后才向 HAL
+提交缓冲区。解码/缩略图完成后仅归还一次，且只能归还原池。停止会废弃原池，迟到释放不会进入新相机。
+未知布局、初始化失败或驱动拒绝缓冲区时，本次预览回退单帧回调。1920x1080 下，仅两份 NV21 数组就占
+6,220,800 字节；降低分配频率会增加保留内存。这是复用，并非零拷贝。
+
+The AUTO/MACRO autofocus loop retains its two-second retry delay, replacing AsyncTask
+and sleeping thread-pool work with a cancellable camera-looper timer. Continuous-focus
+modes remain controlled by the camera. Stale completions and cancelled timers cannot
+restart an old loop or complete a newer focus operation.
+AUTO/MACRO 自动对焦保留两秒重试间隔，以可取消的相机 Looper 定时任务替代 AsyncTask 和线程池睡眠。
+连续对焦模式仍由相机控制；旧回调及已取消定时任务不会复活旧循环，也不会误完成新一轮对焦。
+
+## Trace and benchmark / 跟踪与基准
+
+On API 29+, capture an Android system trace/Perfetto with app tracing enabled:
+API 29+ 录制启用应用跟踪的 Android system trace/Perfetto，新增阶段如下：
+
+| Span / 阶段 | Meaning / 含义 |
+| --- | --- |
+| `zxing.frame.request` | Backend requests a frame until callback arrival/cancellation. Camera1 begins on its camera queue. / 后端请求到回调抵达或取消；Camera1 从相机队列执行请求时开始。 |
+| `zxing.frame.queue` | Callback delivery until decode starts or an abandoned frame closes. / 回调投递到解码开始，或废弃帧释放。 |
+| `zxing.frame.decode` | Decoder invocation only, including native decode if selected. / 解码器调用，包括所选 native 解码。 |
+| `zxing.frame.hold` | Received frame until its close call completes, including thumbnail preparation. / 收到帧到 close 调用完成，包括缩略图准备。 |
+| `zxing.frame.release` | The close call; CameraX returns its image, Camera1 returns the lease and schedules camera-queue work. / close 调用：CameraX 归还图像，Camera1 归还租约并调度相机队列。 |
+
+No barcode payload is traced. Existing startup span names remain unchanged. Below API
+29 these optional frame traces are no-ops. Compare close-to-next-request gaps to see camera
+queue delay separately from decoder work. Main-thread contention should not stop the
+opt-in miss/request loop, but UI callbacks may still wait for the main thread.
+不记录条码内容，保留原有启动阶段名；API 29 以下这些可选帧跟踪为空操作。对比释放结束到下次请求之间的
+空隙，可将相机队列等待与解码工作区分。启用直接调度后，主线程繁忙不应阻止失败帧续扫，但 UI 回调仍可能等待主线程。
+
+```sh
+./gradlew :benchmark-android:connectedReleaseAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=io.github.kakakakacat.zxing.benchmark.CallbackBufferBenchmark
+```
+
+This reports raw AndroidX microbenchmark results for fresh NV21-size array allocation
+versus a pool lease/release at VGA/HD/FHD. It excludes HAL delivery, image content, copying,
+decoding and the main thread, and is not an L2 image/golden result. Use the stage traces
+and real-camera P50/P95/timeout, CPU, allocated bytes/GC and thermal/power measurements
+for any end-to-end speed or battery claim.
+该用例报告 VGA/HD/FHD 下新分配 NV21 大小数组与池租借/归还的 AndroidX 原始微基准；不包含 HAL 送帧、
+图像内容、复制、解码及主线程，也不属于 L2 图像/golden 结果。端到端速度或续航结论仍需结合阶段跟踪与
+真机 P50/P95/超时率、CPU、分配/GC、温控及功耗数据。

@@ -17,10 +17,12 @@
 package io.github.kakakakacat.zxing.android.camera
 
 import android.content.Context
+import android.graphics.ImageFormat
 import android.graphics.Rect
 import android.graphics.Point
 import android.hardware.Camera
 import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.SurfaceHolder
 import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource
@@ -52,6 +54,7 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
         Camera1ScanFrame(buildLuminanceSource(data, width, height))
       }
 
+  @Volatile private var bufferedPreview: BufferedPreviewCallback? = null
   private var camera: OpenCamera? = null
   private var autoFocusManager: AutoFocusManager? = null
   private var framingRect: Rect? = null
@@ -157,8 +160,11 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
   fun closeDriver() {
     val theCamera = camera
     if (theCamera != null) {
-      theCamera.camera.release()
-      camera = null
+      try { stopPreview() }
+      finally {
+        try { theCamera.camera.release() }
+        finally { camera = null; initialized = false; previewing = false }
+      }
       // Make sure to clear these each time we close the camera, so that any scanning rect
       // requested by intent is forgotten.
       framingRect = null
@@ -173,6 +179,7 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
   fun startPreview() {
     val theCamera = camera
     if (theCamera != null && !previewing) {
+      if (options.camera1BufferPool) configureBufferPool(theCamera.camera)
       theCamera.camera.startPreview()
       previewing = true
       autoFocusManager = AutoFocusManager(theCamera.camera, options.isAutoFocus)
@@ -186,11 +193,46 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
   fun stopPreview() {
     autoFocusManager?.stop()
     autoFocusManager = null
+    cancelPreviewRequest()
+    bufferedPreview?.close()
+    bufferedPreview = null
     val theCamera = camera
     if (theCamera != null && previewing) {
-      theCamera.camera.stopPreview()
-      previewCallback.setHandler(null, 0)
-      previewing = false
+      try {
+        theCamera.camera.setPreviewCallback(null)
+        theCamera.camera.stopPreview()
+      } finally { previewing = false }
+    }
+  }
+
+  /** Clears message delivery immediately, without waiting for the camera monitor/HAL. */
+  internal fun cancelPreviewRequest() {
+    previewCallback.setHandler(null, 0)
+    bufferedPreview?.cancelRequest()
+  }
+
+  private fun configureBufferPool(target: Camera) {
+    try {
+      val parameters = target.parameters
+      val size = parameters.previewSize
+      val bytes = if (parameters.previewFormat == ImageFormat.NV21)
+        CallbackBufferPool.nv21Size(size.width, size.height) else null
+      if (bytes == null) {
+        Log.w(TAG, "Callback buffers require an even-sized NV21 preview; using one-shot")
+        return
+      }
+      val callback = BufferedPreviewCallback(target,
+          Handler(Looper.myLooper() ?: Looper.getMainLooper()), bytes,
+          { data -> buildLuminanceSource(data, size.width, size.height) },
+          { rejected, failure ->
+            if (bufferedPreview === rejected) bufferedPreview = null
+            Log.w(TAG, "Camera rejected callback buffers; using one-shot for this preview", failure)
+          })
+      bufferedPreview = callback
+      callback.attach()
+    } catch (failure: RuntimeException) {
+      bufferedPreview?.close(); bufferedPreview = null
+      Log.w(TAG, "Could not enable callback buffers; using one-shot", failure)
     }
   }
 
@@ -232,10 +274,15 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
    */
   @Synchronized
   fun requestPreviewFrame(handler: Handler?, message: Int) {
+    if (handler == null) { cancelPreviewRequest(); return }
     val theCamera = camera
     if (theCamera != null && previewing) {
-      previewCallback.setHandler(handler, message)
-      theCamera.camera.setOneShotPreviewCallback(previewCallback)
+      val buffered = bufferedPreview
+      if (buffered != null && handler != null) buffered.request(handler, message)
+      else {
+        previewCallback.setHandler(handler, message)
+        theCamera.camera.setOneShotPreviewCallback(if (handler == null) null else previewCallback)
+      }
     }
   }
 

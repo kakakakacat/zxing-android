@@ -11,6 +11,17 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
+### Frame ownership and scheduling / 帧所有权与调度
+- Add opt-in pull-only Camera1 NV21 callback buffering and decode-thread miss scheduling;
+  stop gates suppress late requests and retired pools never reuse held frames.
+- 新增可选的按需 Camera1 NV21 回调缓冲池和解码线程失败续扫；取消门禁阻止迟到请求，废弃池不复用持有中的帧。
+- Serialize Camera1 teardown/reopen on a reference-counted camera looper and replace the
+  sleeping AsyncTask autofocus loop with cancellable delayed work.
+- Camera1 使用引用计数相机 Looper 串行完成关闭/重开，对焦循环改用可取消延迟任务，移除 AsyncTask 睡眠。
+- Add frame-stage system traces, ownership/allocation microbenchmark and cancellation/
+  lifecycle regressions. Hardware speed and power gains remain unmeasured.
+- 新增帧阶段系统跟踪、所有权/分配微基准及取消/生命周期回归测试；尚未测量真机速度和功耗收益。
+
 ### ABI-specific AARs / 按架构提供 AAR
 - Add ARM64 (`arm64-v8a`) and ARM32 (`armeabi-v7a`) AAR classifiers alongside the
   existing universal AAR, sharing bytecode, resources, POM dependencies and release version.

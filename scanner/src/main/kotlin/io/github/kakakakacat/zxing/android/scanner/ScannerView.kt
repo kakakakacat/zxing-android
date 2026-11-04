@@ -81,6 +81,7 @@ class ScannerView(
   private var formats: Collection<BarcodeFormat>? = null
   private var listener: Listener? = null
   private var thumbnailsEnabled = true
+  private var frameRequestGate: FrameRequestGate? = null
 
   private var backend: ScannerCameraBackend? = null
   private var ambientLightManager: AmbientLightManager? = null
@@ -316,6 +317,10 @@ class ScannerView(
       viewfinderView.setCamera(camera)
       ScannerTrace.begin(ScannerTrace.FIRST_FRAME, sessionId)
       ScannerTrace.begin(ScannerTrace.FIRST_SCAN, sessionId)
+      val gate = if (options.directFrameScheduling) FrameRequestGate { handler ->
+        camera.requestFrame(handler, DecoderThread.MSG_DECODE)
+      } else null
+      frameRequestGate = gate
       val thread = DecoderThread(
           mainHandler, options, formats,
           object : ResultPointCallback {
@@ -323,7 +328,7 @@ class ScannerView(
               viewfinderView.addPossibleResultPoint(point)
             }
           },
-          thumbnailsEnabled, sessionId)
+          thumbnailsEnabled, sessionId, null, gate)
       thread.start()
       decoderThread = thread
 
@@ -373,11 +378,15 @@ class ScannerView(
     val thread = decoderThread ?: return
     // Never blocks: a frame is only ever asked for after the decoder has announced itself.
     val decodeHandler = thread.handlerIfReady() ?: return
-    camera.requestFrame(decodeHandler, DecoderThread.MSG_DECODE)
+    val gate = frameRequestGate
+    if (gate != null) gate.request(decodeHandler)
+    else camera.requestFrame(decodeHandler, DecoderThread.MSG_DECODE)
   }
 
   private fun stopScanning() {
     isScanning = false
+    frameRequestGate?.cancel()
+    frameRequestGate = null
     mainHandler.removeCallbacks(nextFrame)
     // Invalidate the session first: anything still in flight is now stale.
     sessionId++

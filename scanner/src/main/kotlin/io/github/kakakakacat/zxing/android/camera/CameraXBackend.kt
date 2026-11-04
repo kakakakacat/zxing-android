@@ -275,12 +275,7 @@ internal class CameraXBackend(
       return
     }
     val frame = CameraXScanFrame(image, cropFor(image))
-    val message = request.handler.obtainMessage(request.what, frame)
-    if (!request.handler.sendMessage(message)) {
-      // The decode thread has quit. Closing it here is not optional: an ImageProxy nobody
-      // closes holds a buffer slot, and the camera stops delivering once they are all held.
-      frame.close()
-    }
+    request.deliver(frame)
   }
 
   private fun rememberGeometry(image: ImageProxy) {
@@ -383,6 +378,7 @@ internal class CameraXBackend(
     if (options.isExposureDisabled) set.add("exposureDisabled")
     if (options.isBarcodeSceneModeDisabled) set.add("barcodeSceneModeDisabled")
     if (options.isInvertScan) set.add("invertScan")
+    if (options.camera1BufferPool) set.add("camera1BufferPool")
     if (set.isNotEmpty()) {
       Log.w(TAG, "The CameraX backend does not apply $set; " +
           "focus, metering, exposure and scene mode are CameraX's own 3A, and it binds " +
@@ -431,15 +427,15 @@ internal class CameraXBackend(
   private fun viewport(): Point? = viewportSize ?: screenResolution()
 
   override fun requestFrame(handler: Handler, what: Int) {
-    pendingRequest.set(FrameRequest(handler, what))
+    pendingRequest.getAndSet(FrameRequest(handler, what))?.cancel()
   }
 
   override fun stopFrames() {
-    pendingRequest.set(null)
+    pendingRequest.getAndSet(null)?.cancel()
   }
 
   override fun close() {
-    pendingRequest.set(null)
+    pendingRequest.getAndSet(null)?.cancel()
     analysis?.clearAnalyzer()
     analysis = null
     lifecycleOwner?.destroy()
@@ -507,7 +503,6 @@ internal class CameraXBackend(
   }
 
   /** Where a pending [requestFrame] should deliver. */
-  private class FrameRequest(val handler: Handler, val what: Int)
 
   /**
    * CameraX binds use cases to a `LifecycleOwner`, and `ScannerView` is a plain `View` whose

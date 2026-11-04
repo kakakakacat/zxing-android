@@ -148,6 +148,18 @@ public final class EmbeddedScannerHostTest {
   }
 
   @Test
+  public void aCamera1HostCanPauseAndReopenWithBufferedDirectScheduling() throws Exception {
+    try (ActivityScenario<ScannerHostActivity> scenario = ActivityScenario.launch(ScannerHostActivity.class)) {
+      ScannerOptions options = new ScannerOptions.Builder()
+          .setCamera1BufferPool(true).setDirectFrameScheduling(true).build();
+      resumeAndWait(scenario, options);
+      scenario.onActivity(activity -> activity.getScannerView().pause());
+      resumeAndWait(scenario, options);
+      scenario.onActivity(activity -> assertNotNull(activity.getScannerView().getFramingRect()));
+    }
+  }
+
+  @Test
   public void aCameraXHostCanRequestSeparatePreviewAndAnalysisSizes() throws Exception {
     try (ActivityScenario<ScannerHostActivity> scenario =
              ActivityScenario.launch(ScannerHostActivity.class)) {

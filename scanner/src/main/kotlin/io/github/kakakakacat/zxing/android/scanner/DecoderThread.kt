@@ -68,7 +68,8 @@ internal class DecoderThread @JvmOverloads constructor(
      * decode that throws and a format change that throws are all states this thread has to
      * have an answer for, and none of them can be produced on demand by a real decoder.
      */
-    private val decoderFactory: DecoderFactory? = null
+    private val decoderFactory: DecoderFactory? = null,
+    private val frameRequester: FrameRequester? = null
 ) : Thread("zxing-decode-$sessionId") {
 
   /**
@@ -77,6 +78,11 @@ internal class DecoderThread @JvmOverloads constructor(
    * A `fun interface` rather than a Kotlin function type so the tests, which are written
    * in Java on purpose, can pass a lambda.
    */
+  internal fun interface FrameRequester {
+    /** Must enqueue quickly, and suppress requests after its owning scan session is cancelled. */
+    fun request(handler: Handler)
+  }
+
   internal fun interface DecoderFactory {
     fun create(formats: Collection<@JvmSuppressWildcards BarcodeFormat>?): FrameDecoder
   }
@@ -96,6 +102,7 @@ internal class DecoderThread @JvmOverloads constructor(
     STOPPED
   }
 
+  private val decodeInterval = options.decodeIntervalMillis
   private val directBuffer = options.nativeDirectBuffer
   private val reuseJavaBuffers = options.javaBufferReuse
   private val progressiveRegion = if (options.progressiveRoi) ProgressiveRegion() else null
@@ -312,6 +319,12 @@ internal class DecoderThread @JvmOverloads constructor(
   ) : Handler(Looper.myLooper()!!) {
 
     private var running = true
+    private val requestAgain = Runnable {
+      if (running && synchronized(lock) { !quitRequested }) {
+        try { frameRequester?.request(this) }
+        catch (failure: RuntimeException) { stop(failure) }
+      }
+    }
 
     /** L3's FIRST_FRAME span ends here, where the frame actually arrives, and ends once. */
     private var firstFrameTraced = false
@@ -357,6 +370,7 @@ internal class DecoderThread @JvmOverloads constructor(
      */
     private fun stop(failure: Throwable?) {
       running = false
+      removeCallbacks(requestAgain)
       // The backend may hold memory the garbage collector will not take.
       decoder.close()
       if (failure != null) {
@@ -385,10 +399,14 @@ internal class DecoderThread @JvmOverloads constructor(
         // and folding the first decode into that would answer a different one.
         ScannerTrace.end(ScannerTrace.FIRST_FRAME, sessionId)
       }
+      var retry = false
+      ScannerTrace.decoding(frame)
       try {
         val source = frame.source
         val rawResult = try {
-          if (source == null) null else decoder.decode(source)
+          val span = ScannerTrace.section(ScannerTrace.FRAME_DECODE)
+          try { if (source == null) null else decoder.decode(source) }
+          finally { ScannerTrace.endSection(span) }
         } catch (e: RuntimeException) {
           // A frame the decoder threw on. Not a miss -- a miss is a frame that was read
           // and held nothing -- so it is counted and reported rather than hidden among
@@ -400,14 +418,18 @@ internal class DecoderThread @JvmOverloads constructor(
             stop(e)
             return
           }
-          replyTo.obtainMessage(ScannerView.MSG_DECODE_FAILED, sessionId, 0).sendToTarget()
+          if (frameRequester == null)
+            replyTo.obtainMessage(ScannerView.MSG_DECODE_FAILED, sessionId, 0).sendToTarget()
+          else retry = true
           return
         }
         consecutiveFailures = 0
 
         if (rawResult == null) {
           // arg1 carries the session id so a reply from a torn-down session can be dropped.
-          replyTo.obtainMessage(ScannerView.MSG_DECODE_FAILED, sessionId, 0).sendToTarget()
+          if (frameRequester == null)
+            replyTo.obtainMessage(ScannerView.MSG_DECODE_FAILED, sessionId, 0).sendToTarget()
+          else retry = true
           return
         }
 
@@ -431,6 +453,9 @@ internal class DecoderThread @JvmOverloads constructor(
         reply.sendToTarget()
       } finally {
         frame.close()
+        if (retry && running && synchronized(lock) { !quitRequested }) {
+          postDelayed(requestAgain, decodeInterval)
+        }
       }
     }
 

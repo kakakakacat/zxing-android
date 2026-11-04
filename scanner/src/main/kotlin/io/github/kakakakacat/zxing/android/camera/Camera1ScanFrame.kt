@@ -18,17 +18,11 @@ package io.github.kakakakacat.zxing.android.camera
 
 import io.github.kakakakacat.zxing.LuminanceSource
 
-/**
- * A Camera1 preview frame.
- *
- * `setOneShotPreviewCallback` delivers a `byte[]` the driver has finished with, so there is
- * nothing to hand back and [close] does nothing. The whole frame is already in the heap;
- * [PlanarYUVLuminanceSource][io.github.kakakakacat.zxing.PlanarYUVLuminanceSource] reads the
- * scan rectangle straight out of it.
- */
-internal class Camera1ScanFrame(override val source: LuminanceSource?) : ScanFrame {
-
-  override fun close() {
-    // Nothing to release: the array belongs to the caller once the driver has delivered it.
-  }
+/** Heap frame with an optional buffer lease, released only after decoding/thumbnail creation. */
+internal class Camera1ScanFrame @JvmOverloads constructor(
+    override val source: LuminanceSource?,
+    private val release: (() -> Unit)? = null
+) : ScanFrame {
+  private val closed = java.util.concurrent.atomic.AtomicBoolean()
+  override fun close() { if (closed.compareAndSet(false, true)) release?.invoke() }
 }

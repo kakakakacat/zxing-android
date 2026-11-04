@@ -40,7 +40,7 @@ import io.github.kakakakacat.zxing.android.scanner.ScannerError
  * accumulating a queue of stale frames behind it, and on CameraX it is also what keeps
  * `ImageProxy` slots from being held by frames nobody is going to decode.
  *
- * Every method is called from the main thread.
+ * Lifecycle methods are called from the main thread. requestFrame is also safe on the decode thread.
  */
 internal interface ScannerCameraBackend : ScannerCamera {
 
