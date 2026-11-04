@@ -78,7 +78,14 @@ class ScannerOptions private constructor(
     val previewWidth: Int,
     val previewHeight: Int,
     /** Minimum delay between decode requests, not a camera frame-rate guarantee. */
-    val decodeIntervalMillis: Long
+    val decodeIntervalMillis: Long,
+    /** CameraX analysis size, 0/0 follows preview; Camera1 has one shared stream. */
+    val analysisWidth: Int,
+    val analysisHeight: Int,
+    /** One smaller region per frame, with a complete scan region at least every fifth frame. */
+    val progressiveRoi: Boolean,
+    /** Reuse the Java decoder's Y-plane matrix scratch, never its public input matrix. */
+    val javaBufferReuse: Boolean
 ) {
 
   /**
@@ -150,6 +157,9 @@ class ScannerOptions private constructor(
       .setCameraBackend(cameraBackend)
       .setNativeDirectBuffer(nativeDirectBuffer)
       .setPreviewSize(previewWidth, previewHeight)
+      .setAnalysisSize(analysisWidth, analysisHeight)
+      .setProgressiveRoi(progressiveRoi)
+      .setJavaBufferReuse(javaBufferReuse)
       .setDecodeIntervalMillis(decodeIntervalMillis)
       .setCameraXProcessConfiguration(cameraXProcessConfiguration)
       .setDecoderBackend(decoderBackend)
@@ -167,6 +177,29 @@ class ScannerOptions private constructor(
       .setFramingRect(framingRectWidth, framingRectHeight)
 
   class Builder {
+
+    private var analysisWidth = 0
+    private var analysisHeight = 0
+    private var progressiveRoi = false
+    private var javaBufferReuse = false
+
+    /** CameraX only. Use the preview's aspect ratio; negotiated sizes are checked at bind. */
+    fun setAnalysisSize(width: Int, height: Int): Builder {
+      require((width == 0 && height == 0) || (width > 0 && height > 0))
+      analysisWidth = width
+      analysisHeight = height
+      return this
+    }
+
+    fun setProgressiveRoi(enabled: Boolean): Builder {
+      progressiveRoi = enabled
+      return this
+    }
+
+    fun setJavaBufferReuse(enabled: Boolean): Builder {
+      javaBufferReuse = enabled
+      return this
+    }
 
     private var nativeDirectBuffer = false
     private var previewWidth = 0
@@ -319,7 +352,8 @@ class ScannerOptions private constructor(
         framingRectWidth,
         framingRectHeight,
         cameraXProcessConfiguration,
-        nativeDirectBuffer, previewWidth, previewHeight, decodeIntervalMillis)
+        nativeDirectBuffer, previewWidth, previewHeight, decodeIntervalMillis,
+        analysisWidth, analysisHeight, progressiveRoi, javaBufferReuse)
   }
 
   companion object {

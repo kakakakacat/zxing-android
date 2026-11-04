@@ -18,6 +18,7 @@ package io.github.kakakakacat.zxing.android.scanner
 
 import io.github.kakakakacat.zxing.BarcodeFormat
 import io.github.kakakakacat.zxing.DecodeHintType
+import io.github.kakakakacat.zxing.ResultPointCallback
 import java.util.EnumMap
 
 /**
@@ -41,6 +42,10 @@ object FrameDecoders {
 
   /** Experimental direct-buffer path; a distinct benchmark identity. */
   const val NATIVE_DIRECT: String = "zxing-cpp-direct"
+  const val JAVA_REUSE: String = "zxing-java-reuse"
+  const val JAVA_PROGRESSIVE: String = "progressive:zxing-java"
+  const val NATIVE_PROGRESSIVE: String = "progressive:zxing-cpp"
+  const val FORMAT_AWARE: String = "format-aware"
 
   /** Short spelling of [JAVA], for a command line or an instrumentation argument. */
   const val JAVA_ALIAS: String = "java"
@@ -62,6 +67,10 @@ object FrameDecoders {
   @JvmStatic
   fun canonical(name: String?): String {
     if (name == NATIVE_DIRECT || name == "native-direct") return NATIVE_DIRECT
+    if (name == JAVA_REUSE || name == "java-reuse") return JAVA_REUSE
+    if (name == JAVA_PROGRESSIVE || name == "java-progressive") return JAVA_PROGRESSIVE
+    if (name == NATIVE_PROGRESSIVE || name == "native-progressive") return NATIVE_PROGRESSIVE
+    if (name == FORMAT_AWARE) return FORMAT_AWARE
     if (JAVA == name || JAVA_ALIAS == name) {
       return JAVA
     }
@@ -87,7 +96,30 @@ object FrameDecoders {
       formats: Collection<@JvmSuppressWildcards BarcodeFormat>?
   ): FrameDecoder {
     val name = canonical(rawName)
-    if (JAVA == name) {
+    if (name == JAVA_PROGRESSIVE || name == NATIVE_PROGRESSIVE) {
+      val region = ProgressiveRegion()
+      val adjusted: MutableMap<DecodeHintType, Any?> = EnumMap(DecodeHintType::class.java)
+      hints?.let { adjusted.putAll(it) }
+      val callback = adjusted[DecodeHintType.NEED_RESULT_POINT_CALLBACK] as? ResultPointCallback
+      if (callback != null) adjusted[DecodeHintType.NEED_RESULT_POINT_CALLBACK] =
+          ResultPointCallback { point -> callback.foundPossibleResultPoint(region.toSource(point)) }
+      return ProgressiveFrameDecoder(create(
+          if (name == JAVA_PROGRESSIVE) JAVA else NATIVE, adjusted, formats), region)
+    }
+    if (name == FORMAT_AWARE) {
+      val fixed: MutableMap<DecodeHintType, Any?> = EnumMap(DecodeHintType::class.java)
+      hints?.let { fixed.putAll(it) }
+      fixed.remove(DecodeHintType.POSSIBLE_FORMATS)
+      return FormatAwareDecoder(fixed, formats,
+          { JavaFrameDecoder(fixed, it) }, { selection ->
+            if (!NativeFrameDecoder.isAvailable()) JavaFrameDecoder(fixed, selection) else {
+              try { NativeFrameDecoder(fixed, selection, true) }
+              catch (e: RuntimeException) { JavaFrameDecoder(fixed, selection) }
+              catch (e: UnsatisfiedLinkError) { JavaFrameDecoder(fixed, selection) }
+            }
+          })
+    }
+    if (JAVA == name || JAVA_REUSE == name) {
       // Any?, not Any: this is a copy of the caller's map and a null value has to survive
       // it. Presence is what means true to MultiFormatReader, so dropping a null-valued
       // hint would turn it off.
@@ -96,7 +128,7 @@ object FrameDecoders {
         fixed.putAll(hints)
       }
       fixed.remove(DecodeHintType.POSSIBLE_FORMATS)
-      return JavaFrameDecoder(fixed, formats)
+      return JavaFrameDecoder(fixed, formats, name == JAVA_REUSE)
     }
     if (name == NATIVE_DIRECT) return NativeFrameDecoder(hints, formats, true, true)
     if (NATIVE == name) {
@@ -119,7 +151,8 @@ object FrameDecoders {
   @JvmStatic
   fun isAvailable(rawName: String?): Boolean {
     val name = canonical(rawName)
-    return JAVA == name || NativeFrameDecoder.isAvailable()
+    return name == JAVA || name == JAVA_REUSE || name == JAVA_PROGRESSIVE ||
+        name == FORMAT_AWARE || NativeFrameDecoder.isAvailable()
   }
 
   /**
@@ -131,9 +164,12 @@ object FrameDecoders {
   @JvmStatic
   fun buildInfo(rawName: String?): String {
     val name = canonical(rawName)
-    if (JAVA == name) {
-      return "backend=zxing-java"
+    if (name == JAVA || name == JAVA_REUSE || name == JAVA_PROGRESSIVE) {
+      return "backend=$name"
     }
+    if (name == NATIVE_PROGRESSIVE) return "backend=$name;" + NativeFrameDecoder.buildInfo()
+    if (name == FORMAT_AWARE) return "backend=$name;fallback=zxing-java;" +
+        if (NativeFrameDecoder.isAvailable()) NativeFrameDecoder.buildInfo() else "native=unavailable"
     if (name == NATIVE_DIRECT) return "backend=$NATIVE_DIRECT;" + NativeFrameDecoder.buildInfo()
     if (NATIVE == name) {
       return "backend=zxing-cpp;" + NativeFrameDecoder.buildInfo()

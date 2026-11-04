@@ -10,15 +10,23 @@ class PerformanceOptionsTest {
   @Test fun defaultsPreserveExistingBehaviorAndCopiesPreserveOptIns() {
     val defaults = ScannerOptions.defaults()
     assertFalse(defaults.nativeDirectBuffer)
+    assertFalse(defaults.progressiveRoi)
+    assertFalse(defaults.javaBufferReuse)
+    assertEquals(0, defaults.analysisWidth)
     assertEquals(0L, defaults.decodeIntervalMillis)
     assertEquals(0, defaults.previewWidth)
     assertEquals(ScannerOptions.DecoderBackend.AUTO, defaults.decoderBackend)
     val copy = defaults.buildUpon().setNativeDirectBuffer(true).setPreviewSize(1280, 720)
+        .setAnalysisSize(640, 360).setProgressiveRoi(true).setJavaBufferReuse(true)
         .setDecodeIntervalMillis(50).setDecoderBackend(ScannerOptions.DecoderBackend.FORMAT_AWARE)
         .build().buildUpon().build()
     assertTrue(copy.nativeDirectBuffer)
     assertEquals(1280, copy.previewWidth)
     assertEquals(720, copy.previewHeight)
+    assertEquals(640, copy.analysisWidth)
+    assertEquals(360, copy.analysisHeight)
+    assertTrue(copy.progressiveRoi)
+    assertTrue(copy.javaBufferReuse)
     assertEquals(50L, copy.decodeIntervalMillis)
   }
   @Test fun optionsSnapshotMutableInputs() {
@@ -53,6 +61,16 @@ class PerformanceOptionsTest {
     assertTrue(FormatAwareDecoder.prefersJava(mapOf(DecodeHintType.CHARACTER_SET to "UTF-8"), null))
     assertFalse(FormatAwareDecoder.prefersJava(emptyMap<DecodeHintType, Any>(), null))
   }
+  @Test(expected = IllegalArgumentException::class)
+  fun rejectsHalfSpecifiedAnalysisSize() { ScannerOptions.Builder().setAnalysisSize(640, 0) }
+
+  @Test fun namedBenchmarkStrategiesAreReachableAndRespectJavaHints() {
+    assertEquals(FrameDecoders.JAVA_REUSE, FrameDecoders.canonical("java-reuse"))
+    assertEquals(FrameDecoders.JAVA_PROGRESSIVE, FrameDecoders.canonical("java-progressive"))
+    val decoder = FrameDecoders.create("format-aware", mapOf(DecodeHintType.CHARACTER_SET to "UTF-8"), null)
+    try { assertEquals("format-aware:zxing-java", decoder.name()) } finally { decoder.close() }
+  }
+
   @Test(expected = IllegalArgumentException::class)
   fun rejectsHalfSpecifiedStreamSize() { ScannerOptions.Builder().setPreviewSize(640, 0) }
   @Test(expected = IllegalArgumentException::class)

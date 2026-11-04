@@ -108,6 +108,9 @@ internal class Camera1Backend(
   }
 
   override fun open(holder: SurfaceHolder, callback: ScannerCameraBackend.Callback) {
+    if (options.analysisWidth > 0) {
+      Log.w(TAG, "Camera1 has one stream; analysis size is ignored, use setPreviewSize instead")
+    }
     if (pendingOpen != null || opened) {
       // Open, or still opening. `isOpen` cannot answer this on its own: it is false for the
       // whole of the window between asking for the camera and getting it.

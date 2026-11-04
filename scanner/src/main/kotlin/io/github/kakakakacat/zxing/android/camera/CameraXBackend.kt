@@ -182,16 +182,22 @@ internal class CameraXBackend(
     unbindOurUseCases(cameraProvider)
 
     val rotation = displayRotation()
-    val selector = resolutionSelector()
+    val previewWidth = options.previewWidth.takeIf { it > 0 } ?: TARGET_WIDTH
+    val previewHeight = options.previewHeight.takeIf { it > 0 } ?: TARGET_HEIGHT
+    val analysisWidth = options.analysisWidth.takeIf { it > 0 } ?: previewWidth
+    val analysisHeight = options.analysisHeight.takeIf { it > 0 } ?: previewHeight
+    require(StreamGeometry.sameAspect(previewWidth, previewHeight, analysisWidth, analysisHeight)) {
+      "Preview and analysis requests must have the same aspect ratio"
+    }
 
     val preview = Preview.Builder()
-        .setResolutionSelector(selector)
+        .setResolutionSelector(resolutionSelector(previewWidth, previewHeight))
         .setTargetRotation(rotation)
         .build()
     preview.setSurfaceProvider { request -> provideSurface(request) }
 
     val imageAnalysis = ImageAnalysis.Builder()
-        .setResolutionSelector(selector)
+        .setResolutionSelector(resolutionSelector(analysisWidth, analysisHeight))
         .setTargetRotation(rotation)
         // One frame at a time, and the newest one. The decoder pulls, so anything that
         // arrives while it is busy is closed immediately rather than queued behind it.
@@ -209,6 +215,16 @@ internal class CameraXBackend(
     this.preview = preview
     camera = cameraProvider.bindToLifecycle(
         owner, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageAnalysis)
+    if (options.analysisWidth > 0) {
+      val previewInfo = preview.resolutionInfo
+      val analysisInfo = imageAnalysis.resolutionInfo
+      check(previewInfo != null && analysisInfo != null && StreamGeometry.sameAspect(
+          previewInfo.resolution.width, previewInfo.resolution.height,
+          analysisInfo.resolution.width, analysisInfo.resolution.height)) {
+        "Camera negotiated different preview/analysis aspect ratios; use a shared stream size"
+      }
+      Log.i(TAG, "Negotiated preview=${previewInfo.resolution}, analysis=${analysisInfo.resolution}")
+    }
     warnAboutOptionsThisBackendIgnores()
 
     // Binding settles the resolution, so the frame geometry is known here rather than only
@@ -455,18 +471,15 @@ internal class CameraXBackend(
    * devices while the Camera1 path negotiated 1920x1080: 38% more pixels per frame, decoded
    * every frame, for no gain.
    */
-  private fun resolutionSelector(): ResolutionSelector = ResolutionSelector.Builder()
+  private fun resolutionSelector(width: Int, height: Int): ResolutionSelector = ResolutionSelector.Builder()
       .setAspectRatioStrategy(
           AspectRatioStrategy(
-              if (options.previewWidth > 0 &&
-                  kotlin.math.abs(options.previewWidth.toDouble() / options.previewHeight - 4.0 / 3) <
-                  kotlin.math.abs(options.previewWidth.toDouble() / options.previewHeight - 16.0 / 9))
+              if (kotlin.math.abs(maxOf(width, height).toDouble() / minOf(width, height) - 4.0 / 3) <
+                  kotlin.math.abs(maxOf(width, height).toDouble() / minOf(width, height) - 16.0 / 9))
                 AspectRatio.RATIO_4_3 else AspectRatio.RATIO_16_9,
               AspectRatioStrategy.FALLBACK_RULE_AUTO))
       .setResolutionStrategy(
-          ResolutionStrategy(Size(
-                                  options.previewWidth.takeIf { it > 0 } ?: TARGET_WIDTH,
-                                  options.previewHeight.takeIf { it > 0 } ?: TARGET_HEIGHT),
+          ResolutionStrategy(Size(width, height),
                              ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER))
       .build()
 

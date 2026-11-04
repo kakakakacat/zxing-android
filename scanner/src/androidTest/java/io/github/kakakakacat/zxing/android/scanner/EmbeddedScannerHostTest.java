@@ -148,6 +148,25 @@ public final class EmbeddedScannerHostTest {
   }
 
   @Test
+  public void aCameraXHostCanRequestSeparatePreviewAndAnalysisSizes() throws Exception {
+    try (ActivityScenario<ScannerHostActivity> scenario =
+             ActivityScenario.launch(ScannerHostActivity.class)) {
+      resumeAndWait(scenario, new ScannerOptions.Builder()
+          .setCameraBackend(ScannerOptions.CameraBackend.CAMERAX)
+          .setPreviewSize(1280, 720).setAnalysisSize(640, 360)
+          .setProgressiveRoi(true).setJavaBufferReuse(true)
+          .setDecoderBackend(ScannerOptions.DecoderBackend.JAVA).build());
+      scenario.onActivity(activity -> {
+        ScannerView view = activity.getScannerView();
+        Rect rect = view.getFramingRect();
+        assertNotNull(rect);
+        assertTrue(rect.left >= 0 && rect.top >= 0);
+        assertTrue(rect.right <= view.getWidth() && rect.bottom <= view.getHeight());
+      });
+    }
+  }
+
+  @Test
   public void theScanRectangleIsInTheViewAndNotOnTheDisplay() throws Exception {
     try (ActivityScenario<ScannerHostActivity> scenario =
              ActivityScenario.launch(ScannerHostActivity.class)) {

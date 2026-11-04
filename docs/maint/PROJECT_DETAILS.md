@@ -794,3 +794,12 @@ No new performance percentage should be placed in the README before those measur
 
 真机性能、前置相机切换、预览宽高比渲染、Compose/Dialog 集成和系统分屏仍需专项验证；
 嵌入视图边界测试不能代表上述场景已全部支持。获得实测证据前，README 不新增性能百分比。
+
+
+## Scanning performance controls / 扫描性能控制
+
+Independent CameraX analysis size, progressive ROI and Java Y-plane matrix reuse are
+available as opt-ins. Behavior, tradeoffs and benchmark commands:
+[PERFORMANCE_CONTROLS.md](PERFORMANCE_CONTROLS.md).
+CameraX 独立分析尺寸、渐进 ROI 和 Java Y 平面矩阵复用均可显式启用；行为、取舍与基准命令见
+[PERFORMANCE_CONTROLS.md](PERFORMANCE_CONTROLS.md)。

@@ -11,6 +11,14 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
+### Scanning controls / 扫描控制
+- Add opt-in independent CameraX analysis resolution, bounded progressive ROI with
+  coordinate restoration, and lazy decoder-owned Java Y-plane matrix reuse.
+- 新增可选的 CameraX 独立分析分辨率、带坐标还原的有界渐进 ROI、按需复制的 Java Y 平面矩阵工作区复用。
+- Add session replay and named routing/reuse/ROI benchmark backends. Keep timing claims
+  pending physical-device evidence; document recognition and edge-latency tradeoffs.
+- 新增会话回放及路由/复用/ROI 命名基准 backend；性能结论等待真机证据，并说明识别率与边缘延迟取舍。
+
 ### Added / 新增
 - Opt-in direct Y-plane JNI decoding, format-aware backend routing, requested preview
   resolution and decode request intervals. Defaults are unchanged; new strategies carry

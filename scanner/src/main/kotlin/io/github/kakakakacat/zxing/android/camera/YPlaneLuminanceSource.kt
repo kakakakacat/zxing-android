@@ -132,10 +132,23 @@ class YPlaneLuminanceSource(
     // accessible array, and padded rows would not be contiguous anyway.
     require(width.toLong() * height <= Int.MAX_VALUE) { "ROI is too large" }
     val matrix = ByteArray(width * height)
-    for (y in 0 until height) {
-      readRow(y, matrix, y * width)
-    }
+    copyMatrixTo(matrix)
     return matrix
+  }
+
+  /** Decoder-owned scratch only. Public getMatrix() continues to return a fresh array. */
+  internal fun copyMatrixTo(destination: ByteArray) {
+    require(width.toLong() * height <= destination.size) { "destination is smaller than ROI" }
+    // One cursor per matrix, rather than one per row on direct camera buffers.
+    val cursor = if (pixelStride == 1 && !plane.hasArray()) plane.duplicate() else null
+    for (y in 0 until height) {
+      if (cursor != null) {
+        cursor.position((top + y) * rowStride + left)
+        cursor.get(destination, y * width, width)
+      } else {
+        readRow(y, destination, y * width)
+      }
+    }
   }
 
   /** One row of the scan rectangle into [out], starting at [outOffset]. */

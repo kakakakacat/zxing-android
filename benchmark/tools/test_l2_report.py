@@ -49,6 +49,12 @@ def microbenchmark(name, time_runs, alloc_runs=None, **context):
 
 class CaseNameTest(unittest.TestCase):
 
+    def test_session_stage_is_separate_from_single_frame_latency(self):
+        case = l2_report.convert_case({
+            "name": "sessionEndToEnd[HD_HIT_QR_DEFAULT]",
+            "metrics": {"timeNs": {"runs": [100, 110]}}})
+        self.assertEqual("sessionEndToEnd", case["stage"])
+
     def test_direct_plane_stage_keeps_a_distinct_case_identity(self):
         case = l2_report.convert_case({
             "name": "directPlaneEndToEnd[HD_HIT_QR_DEFAULT]",

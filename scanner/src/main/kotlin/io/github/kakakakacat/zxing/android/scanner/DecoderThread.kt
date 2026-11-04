@@ -97,11 +97,20 @@ internal class DecoderThread @JvmOverloads constructor(
   }
 
   private val directBuffer = options.nativeDirectBuffer
+  private val reuseJavaBuffers = options.javaBufferReuse
+  private val progressiveRegion = if (options.progressiveRoi) ProgressiveRegion() else null
 
   private val backendPreference: ScannerOptions.DecoderBackend = options.decoderBackend
 
   /** Everything except `POSSIBLE_FORMATS`, which the host may change per scan. */
-  private val fixedHints: Map<DecodeHintType, Any> = fixedHints(options, resultPointCallback)
+  private val fixedHints: Map<DecodeHintType, Any> = fixedHints(options, resultPointCallback).let { hints ->
+    val callback = hints[DecodeHintType.NEED_RESULT_POINT_CALLBACK] as? ResultPointCallback
+    if (progressiveRegion == null || callback == null) hints else EnumMap(hints).apply {
+      put(DecodeHintType.NEED_RESULT_POINT_CALLBACK, ResultPointCallback { point ->
+        callback.foundPossibleResultPoint(progressiveRegion.toSource(point))
+      })
+    }
+  }
 
   private val readyLatch = CountDownLatch(1)
 
@@ -211,9 +220,14 @@ internal class DecoderThread @JvmOverloads constructor(
    * should ask for [ScannerOptions.DecoderBackend.JAVA].
    */
   private fun createDecoder(formats: Collection<BarcodeFormat>?): FrameDecoder {
+    val decoder = createConfiguredDecoder(formats)
+    return progressiveRegion?.let { ProgressiveFrameDecoder(decoder, it) } ?: decoder
+  }
+
+  private fun createConfiguredDecoder(formats: Collection<BarcodeFormat>?): FrameDecoder {
     decoderFactory?.let { return it.create(formats) }
     if (backendPreference == ScannerOptions.DecoderBackend.JAVA) {
-      return JavaFrameDecoder(fixedHints, formats)
+      return JavaFrameDecoder(fixedHints, formats, reuseJavaBuffers)
     }
     if (backendPreference == ScannerOptions.DecoderBackend.NATIVE) {
       // Deliberately not caught: an explicit NATIVE that cannot be honoured is reported to
@@ -222,7 +236,7 @@ internal class DecoderThread @JvmOverloads constructor(
     }
     if (backendPreference == ScannerOptions.DecoderBackend.FORMAT_AWARE) {
       return FormatAwareDecoder(fixedHints, formats,
-          { JavaFrameDecoder(fixedHints, it) }, { createAutoDecoder(it) })
+          { JavaFrameDecoder(fixedHints, it, reuseJavaBuffers) }, { createAutoDecoder(it) })
     }
     return createAutoDecoder(formats)
   }
@@ -231,7 +245,7 @@ internal class DecoderThread @JvmOverloads constructor(
     if (!NativeFrameDecoder.isAvailable()) {
       Log.i(TAG, "No native decoder for this ABI; using the Java decoder",
             NativeFrameDecoder.loadFailure())
-      return JavaFrameDecoder(fixedHints, formats)
+      return JavaFrameDecoder(fixedHints, formats, reuseJavaBuffers)
     }
     return try {
       NativeFrameDecoder(fixedHints, formats, true, directBuffer)
@@ -241,10 +255,10 @@ internal class DecoderThread @JvmOverloads constructor(
       // selection is carried over unchanged, so nothing the caller asked for is dropped
       // along with the backend.
       Log.w(TAG, "The native decoder could not be created; using the Java decoder", e)
-      JavaFrameDecoder(fixedHints, formats)
+      JavaFrameDecoder(fixedHints, formats, reuseJavaBuffers)
     } catch (e: UnsatisfiedLinkError) {
       Log.w(TAG, "The native decoder could not be created; using the Java decoder", e)
-      JavaFrameDecoder(fixedHints, formats)
+      JavaFrameDecoder(fixedHints, formats, reuseJavaBuffers)
     }
   }
 
