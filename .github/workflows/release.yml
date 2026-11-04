@@ -92,6 +92,10 @@ jobs:
           mkdir -p dist
           cp scanner/build/outputs/aar/scanner-release.aar \
              dist/zxing-android-scanner-${{ steps.version.outputs.value }}.aar
+          cp scanner/build/outputs/aar/scanner-release-arm64-v8a.aar \
+             dist/zxing-android-scanner-${{ steps.version.outputs.value }}-arm64-v8a.aar
+          cp scanner/build/outputs/aar/scanner-release-armeabi-v7a.aar \
+             dist/zxing-android-scanner-${{ steps.version.outputs.value }}-armeabi-v7a.aar
           cp android/build/outputs/apk/debug/app-debug.apk \
              dist/barcode-scanner-community-${{ steps.version.outputs.value }}-debug.apk
           cd dist && sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt

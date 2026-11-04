@@ -15,6 +15,14 @@ types are this fork's own and are not interchangeable with upstream's.
 > This is a community maintenance fork. It is **not** an official ZXing release and the
 > coordinates deliberately do not reuse `com.google.zxing`.
 
+## ARM-specific distributions / ARM 架构分类包
+
+The scanner publication also carries `arm64-v8a` and `armeabi-v7a` AAR classifiers;
+the default AAR still includes both. Build commands, dependency examples and compatibility:
+[ABI_AARS.md](ABI_AARS.md).
+scanner publication 新增 `arm64-v8a` 与 `armeabi-v7a` AAR classifier，默认 AAR 仍包含两者。
+构建、依赖示例及兼容说明见 [ABI_AARS.md](ABI_AARS.md)。
+
 ## Releasing
 
 Tag the commit and let CI do it:
@@ -27,11 +35,11 @@ git push origin v0.1.0
 `.github/workflows/release.yml` then:
 
 1. builds `:scanner:assembleRelease` and `:app:assembleDebug` at that version,
-2. writes `SHA256SUMS.txt` for both artifacts,
+2. writes `SHA256SUMS.txt` for all three AAR distributions and the APK,
 3. publishes both Maven artifacts to **GitHub Packages**,
 4. uploads both to **Maven Central**, as one signed Portal deployment, when the
    publishing secrets are present,
-5. creates a GitHub Release with the AAR, the APK and the checksums attached.
+5. creates a GitHub Release with all three AAR distributions, the APK and checksums attached.
 
 `workflow_dispatch` runs the same thing with a version typed in, for a dry run.
 

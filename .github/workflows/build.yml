@@ -29,6 +29,18 @@ jobs:
       - name: Assemble the scanner AAR
         run: ./gradlew :scanner:assembleRelease
 
+      - name: ABI packaging checker tests
+        run: python3 tools/maint/test_check_abi_aars.py
+
+      - name: Publish all AAR classifiers locally and verify consumer resolution
+        run: |
+          ./gradlew :core:publishMavenPublicationToMavenLocal :scanner:publishMavenPublicationToMavenLocal \
+            -PscannerVersion=0.0.0-abicheck
+          ./gradlew -p tools/maint/abi-consumer verifyAbiDependency \
+            -PscannerVersion=0.0.0-abicheck -PscannerAbi=arm64-v8a
+          ./gradlew -p tools/maint/abi-consumer verifyAbiDependency \
+            -PscannerVersion=0.0.0-abicheck -PscannerAbi=armeabi-v7a
+
       - name: Assemble the app
         run: ./gradlew :app:assembleDebug
 

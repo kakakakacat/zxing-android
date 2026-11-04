@@ -1,3 +1,6 @@
+import org.gradle.api.publish.maven.MavenPublication
+import org.gradle.api.tasks.bundling.Zip
+
 // zxing-android-scanner: the reusable barcode scanning pipeline, published as an AAR.
 //
 // Everything an app needs to put a working scanner on screen — camera ownership,
@@ -287,4 +290,59 @@ val verifyNativeAlignment = tasks.register("verifyNativeAlignment") {
 
 tasks.matching { it.name == "mergeReleaseNativeLibs" }.configureEach {
   finalizedBy(verifyNativeAlignment)
+}
+
+
+// ABI-specific distributions share the universal AAR's bytecode, resources and POM.
+// Build the release once; filter only the other ABI's JNI directory.
+val releaseAar = layout.buildDirectory.file("outputs/aar/scanner-release.aar")
+fun abiAar(taskName: String, abi: String) = tasks.register<Zip>(taskName) {
+  group = "build"
+  description = "Builds a release AAR containing only $abi native libraries."
+  dependsOn("bundleReleaseAar")
+  from(releaseAar.map { zipTree(it.asFile) }) {
+    exclude("jni/**")
+  }
+  from(releaseAar.map { zipTree(it.asFile) }) {
+    include("jni/$abi/**")
+  }
+  destinationDirectory.set(layout.buildDirectory.dir("outputs/aar"))
+  archiveFileName.set("scanner-release-$abi.aar")
+  archiveExtension.set("aar")
+  isPreserveFileTimestamps = false
+  isReproducibleFileOrder = true
+}
+
+val arm64Aar = abiAar("assembleArm64Aar", "arm64-v8a")
+val arm32Aar = abiAar("assembleArm32Aar", "armeabi-v7a")
+
+val verifyAbiAars = tasks.register<Exec>("verifyAbiAars") {
+  group = "verification"
+  description = "Verifies split AAR ABIs, ELF headers and unchanged common payload."
+  dependsOn(arm64Aar, arm32Aar, verifyNativeAlignment)
+  commandLine("python3", rootProject.file("tools/maint/check_abi_aars.py"),
+      "--universal", releaseAar.get().asFile,
+      "--arm64", arm64Aar.get().archiveFile.get().asFile,
+      "--arm32", arm32Aar.get().archiveFile.get().asFile)
+}
+
+tasks.register("assembleAbiAars") {
+  group = "build"
+  description = "Builds and verifies both single-ABI release AARs."
+  dependsOn(verifyAbiAars)
+}
+
+tasks.matching { it.name == "assembleRelease" }.configureEach {
+  dependsOn(verifyAbiAars)
+}
+
+publishing.publications.withType<MavenPublication>().configureEach {
+  artifact(arm64Aar) { classifier = "arm64-v8a"; extension = "aar" }
+  artifact(arm32Aar) { classifier = "armeabi-v7a"; extension = "aar" }
+}
+
+// Publishing directly (without assembleRelease) must run the same validation gate.
+// Keep POM generation independent so the existing structural publish check stays fast.
+tasks.withType<org.gradle.api.publish.maven.tasks.AbstractPublishToMaven>().configureEach {
+  dependsOn(verifyAbiAars)
 }

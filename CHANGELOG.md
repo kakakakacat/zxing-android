@@ -11,6 +11,15 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
+### ABI-specific AARs / 按架构提供 AAR
+- Add ARM64 (`arm64-v8a`) and ARM32 (`armeabi-v7a`) AAR classifiers alongside the
+  existing universal AAR, sharing bytecode, resources, POM dependencies and release version.
+- 在原完整 AAR 之外新增 ARM64（`arm64-v8a`）和 ARM32（`armeabi-v7a`）分类包，
+  共用字节码、资源、POM 依赖及版本。
+- Verify package contents, ELF identity and local Maven consumer resolution in CI;
+  attach all three AARs and checksums to future releases.
+- CI 校验包内容、ELF 架构及 Maven 消费依赖解析；后续发布同时附带三份 AAR 和校验值。
+
 ### Scanning controls / 扫描控制
 - Add opt-in independent CameraX analysis resolution, bounded progressive ROI with
   coordinate restoration, and lazy decoder-owned Java Y-plane matrix reuse.

@@ -36,7 +36,7 @@
 
 **后续重点：** 扩大 Android 16、低端及非高通真机覆盖，继续优化一维码性能、真实首扫和持续扫描开销。
 
-[集成与构建说明、历史进度](docs/maint/PROJECT_DETAILS.md#简体中文) · [发布与获取](docs/maint/PUBLISHING.md)
+[集成与构建说明、历史进度](docs/maint/PROJECT_DETAILS.md#简体中文) · [发布与获取](docs/maint/PUBLISHING.md) · [ARM 32/64 位 AAR](docs/maint/ABI_AARS.md)
 
 ---
 
@@ -74,7 +74,7 @@ Conditions: DN-ENG41, Android 14, locked clocks and standing warm thermal condit
 
 **Next priorities:** broaden Android 16, low-end and non-Qualcomm hardware coverage; improve 1D performance, real-camera first-scan latency and sustained-scanning cost.
 
-[Integration, building and historical progress](docs/maint/PROJECT_DETAILS.md#english) · [Releases and distribution](docs/maint/PUBLISHING.md)
+[Integration, building and historical progress](docs/maint/PROJECT_DETAILS.md#english) · [Releases and distribution](docs/maint/PUBLISHING.md) · [ARM 32/64-bit AARs](docs/maint/ABI_AARS.md)
 
 ---
 
