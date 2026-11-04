@@ -1,0 +1,832 @@
+{
+  "schema": "roi-pack-android-v1",
+  "stage": "roiPack",
+  "commit": "0f08a40c8e6d46d894677ddad6ee4043710bc344",
+  "datasetHash": "a33845cac1d8a5ed3cd78d91a530028edad56897c4c8bbcd2389caad2c4f8004",
+  "device": {
+    "alias": "DN-ENG41",
+    "model": "DN-ENG41",
+    "api": 34,
+    "abi": "arm64-v8a",
+    "process64Bit": true,
+    "cpuLocked": true,
+    "cpuMaxFreqHz": 2400000000,
+    "buildType": "release"
+  },
+  "toolchain": {
+    "ndk": "29.0.14206865",
+    "cmake": "3.22.1",
+    "cppStandard": "C++17",
+    "cppFlags": "-O3 -DNDEBUG"
+  },
+  "protocol": {
+    "roundsPerBackend": 4,
+    "samplesPerCasePerProcess": 50,
+    "bootstrapResamples": 10000,
+    "bootstrapSeed": 20261104,
+    "clusterUnit": "independent instrumentation process",
+    "threshold": "C++ 95% bootstrap delta interval excludes zero and effect exceeds observed Java A/A maximum relative deviation",
+    "jniArrayCopyProbe": false,
+    "warnings": [
+      "AndroidX cooldown wait disabled; thermal status remained severe",
+      "Memory bus frequency lock and vendor thermal service stop were refused by device"
+    ]
+  },
+  "fixtures": [
+    {
+      "case": "VGA_packed",
+      "frameWidth": 640,
+      "frameHeight": 480,
+      "width": 400,
+      "height": 300,
+      "left": 120,
+      "top": 90,
+      "rowStride": 640,
+      "pixelStride": 1,
+      "sourceSha256": "6974923ef4d1c8ec2be20945fcabfbd0de6232a0399ee95a7b195f1598b0ef43",
+      "expectedSha256": "6a785ea21d606f3f10cab110657448cbf8eed679db7d667edf5377eb861996ec",
+      "outputBytes": 120000
+    },
+    {
+      "case": "VGA_padded",
+      "frameWidth": 640,
+      "frameHeight": 480,
+      "width": 400,
+      "height": 300,
+      "left": 120,
+      "top": 90,
+      "rowStride": 672,
+      "pixelStride": 1,
+      "sourceSha256": "ff806022a31e33a6981f49a44b533b72e3d3253f23aac2c18ed162082e9b7fa7",
+      "expectedSha256": "6a785ea21d606f3f10cab110657448cbf8eed679db7d667edf5377eb861996ec",
+      "outputBytes": 120000
+    },
+    {
+      "case": "VGA_pixel2",
+      "frameWidth": 640,
+      "frameHeight": 480,
+      "width": 400,
+      "height": 300,
+      "left": 120,
+      "top": 90,
+      "rowStride": 1312,
+      "pixelStride": 2,
+      "sourceSha256": "cd04b01cf01eb980bffd9279e6b34409e0da0de10b5e034f181b1add9dc9624d",
+      "expectedSha256": "6a785ea21d606f3f10cab110657448cbf8eed679db7d667edf5377eb861996ec",
+      "outputBytes": 120000
+    },
+    {
+      "case": "HD_packed",
+      "frameWidth": 1280,
+      "frameHeight": 720,
+      "width": 800,
+      "height": 450,
+      "left": 240,
+      "top": 135,
+      "rowStride": 1280,
+      "pixelStride": 1,
+      "sourceSha256": "4f5a469b790f16faea93c3b958d5d29ffac9e4891babf9c41ab10796876b994c",
+      "expectedSha256": "69b69cc72a5e7f5281c554db6ca65439eb2a8c3c70484ff9ffacd47336df4db4",
+      "outputBytes": 360000
+    },
+    {
+      "case": "HD_padded",
+      "frameWidth": 1280,
+      "frameHeight": 720,
+      "width": 800,
+      "height": 450,
+      "left": 240,
+      "top": 135,
+      "rowStride": 1312,
+      "pixelStride": 1,
+      "sourceSha256": "17fa0bd97df4c048de2488ff583eb7507513476e4a368481bdbe9bf84c72beaa",
+      "expectedSha256": "69b69cc72a5e7f5281c554db6ca65439eb2a8c3c70484ff9ffacd47336df4db4",
+      "outputBytes": 360000
+    },
+    {
+      "case": "HD_pixel2",
+      "frameWidth": 1280,
+      "frameHeight": 720,
+      "width": 800,
+      "height": 450,
+      "left": 240,
+      "top": 135,
+      "rowStride": 2592,
+      "pixelStride": 2,
+      "sourceSha256": "d5c22350f0d25625db5180ed9c259165b9016ba1c2b3cfe43ab21f4f1b80886a",
+      "expectedSha256": "69b69cc72a5e7f5281c554db6ca65439eb2a8c3c70484ff9ffacd47336df4db4",
+      "outputBytes": 360000
+    },
+    {
+      "case": "FHD_packed",
+      "frameWidth": 1920,
+      "frameHeight": 1080,
+      "width": 1200,
+      "height": 675,
+      "left": 360,
+      "top": 202,
+      "rowStride": 1920,
+      "pixelStride": 1,
+      "sourceSha256": "f3077f163f99fe96b6af3bd0544fc9bb5af934e354a5e7456d53a4b098affe3a",
+      "expectedSha256": "dc81dc97e05d5d9a4068b6f8a4f4f6a1ce13d62cee17113b00ec98cc964c0d4e",
+      "outputBytes": 810000
+    },
+    {
+      "case": "FHD_padded",
+      "frameWidth": 1920,
+      "frameHeight": 1080,
+      "width": 1200,
+      "height": 675,
+      "left": 360,
+      "top": 202,
+      "rowStride": 1952,
+      "pixelStride": 1,
+      "sourceSha256": "b465d3a9f86eb50b973fce68b2dea99b7e00e140c47665cc4c79066c6cb9667f",
+      "expectedSha256": "dc81dc97e05d5d9a4068b6f8a4f4f6a1ce13d62cee17113b00ec98cc964c0d4e",
+      "outputBytes": 810000
+    },
+    {
+      "case": "FHD_pixel2",
+      "frameWidth": 1920,
+      "frameHeight": 1080,
+      "width": 1200,
+      "height": 675,
+      "left": 360,
+      "top": 202,
+      "rowStride": 3872,
+      "pixelStride": 2,
+      "sourceSha256": "71d86b5bdf9ea21a3e930cb0408816cee4d17d9fe7f783c45cc5b5f18679626c",
+      "expectedSha256": "dc81dc97e05d5d9a4068b6f8a4f4f6a1ce13d62cee17113b00ec98cc964c0d4e",
+      "outputBytes": 810000
+    }
+  ],
+  "cases": [
+    {
+      "case": "VGA_packed",
+      "frameWidth": 640,
+      "frameHeight": 480,
+      "width": 400,
+      "height": 300,
+      "left": 120,
+      "top": 90,
+      "rowStride": 640,
+      "pixelStride": 1,
+      "sourceSha256": "6974923ef4d1c8ec2be20945fcabfbd0de6232a0399ee95a7b195f1598b0ef43",
+      "expectedSha256": "6a785ea21d606f3f10cab110657448cbf8eed679db7d667edf5377eb861996ec",
+      "outputBytes": 120000,
+      "javaProcessMedianNs": [
+        81528.59190231364,
+        81800.59840201851,
+        81512.83124477862,
+        81604.15365239294
+      ],
+      "jniCppProcessMedianNs": [
+        50002.76164970541,
+        49992.45851409978,
+        50017.884284176536
+      ],
+      "javaProcessP90Ns": [
+        81821.30976863753,
+        81937.94701429772,
+        81676.58730158731,
+        81767.9034424853
+      ],
+      "jniCppProcessP90Ns": [
+        50117.445634708085,
+        50110.69143167028,
+        50133.544133476855
+      ],
+      "javaMedianOfProcessMediansNs": 81566.37277735329,
+      "jniCppMedianOfProcessMediansNs": 50002.76164970541,
+      "observedAaNoiseFloor": 0.0028715954466257353,
+      "relativeEffect": 0.386968428935845,
+      "comparison": {
+        "deltaCi95LowNs": -31797.836752313102,
+        "deltaCi95HighNs": -31502.82728936959,
+        "medianDeltaNs": -31563.611127647877
+      },
+      "status": "cpp_faster",
+      "javaIterations": [
+        50,
+        50,
+        50,
+        50
+      ],
+      "jniCppIterations": [
+        50,
+        50,
+        50
+      ],
+      "javaAllocationCountMedian": [
+        1.0025706940874035,
+        1.001682085786375,
+        1.001670843776107,
+        1.0016792611251049
+      ],
+      "jniCppAllocationCountMedian": [
+        0.0010712372790573112,
+        0.0010845986984815619,
+        0.001076426264800861
+      ]
+    },
+    {
+      "case": "VGA_padded",
+      "frameWidth": 640,
+      "frameHeight": 480,
+      "width": 400,
+      "height": 300,
+      "left": 120,
+      "top": 90,
+      "rowStride": 672,
+      "pixelStride": 1,
+      "sourceSha256": "ff806022a31e33a6981f49a44b533b72e3d3253f23aac2c18ed162082e9b7fa7",
+      "expectedSha256": "6a785ea21d606f3f10cab110657448cbf8eed679db7d667edf5377eb861996ec",
+      "outputBytes": 120000,
+      "javaProcessMedianNs": [
+        81547.57809847197,
+        81556.08781512605,
+        81528.43713080169,
+        81635.21289228159
+      ],
+      "jniCppProcessMedianNs": [
+        49764.23598258029,
+        49762.60774228479,
+        49737.37707641196
+      ],
+      "javaProcessP90Ns": [
+        81738.77843803057,
+        81737.43865546219,
+        81719.93670886075,
+        81813.19762510603
+      ],
+      "jniCppProcessP90Ns": [
+        49857.50081654872,
+        49858.780184082294,
+        49879.45238095238
+      ],
+      "javaMedianOfProcessMediansNs": 81551.83295679901,
+      "jniCppMedianOfProcessMediansNs": 49762.60774228479,
+      "observedAaNoiseFloor": 0.0010224164492629428,
+      "relativeEffect": 0.38980393281110115,
+      "comparison": {
+        "deltaCi95LowNs": -31872.6051499968,
+        "deltaCi95HighNs": -31765.829388516897,
+        "medianDeltaNs": -31789.225214514227
+      },
+      "status": "cpp_faster",
+      "javaIterations": [
+        50,
+        50,
+        50,
+        50
+      ],
+      "jniCppIterations": [
+        50,
+        50,
+        50
+      ],
+      "javaAllocationCountMedian": [
+        1.0016977928692699,
+        1.0016806722689076,
+        1.00168776371308,
+        1.001696352841391
+      ],
+      "jniCppAllocationCountMedian": [
+        0.0010887316276537834,
+        0.0010828370330265296,
+        0.0011074197120708748
+      ]
+    },
+    {
+      "case": "VGA_pixel2",
+      "frameWidth": 640,
+      "frameHeight": 480,
+      "width": 400,
+      "height": 300,
+      "left": 120,
+      "top": 90,
+      "rowStride": 1312,
+      "pixelStride": 2,
+      "sourceSha256": "cd04b01cf01eb980bffd9279e6b34409e0da0de10b5e034f181b1add9dc9624d",
+      "expectedSha256": "6a785ea21d606f3f10cab110657448cbf8eed679db7d667edf5377eb861996ec",
+      "outputBytes": 120000,
+      "javaProcessMedianNs": [
+        3999278.4375,
+        3999454.208333333,
+        3999809.0416666665,
+        4246827.434782609
+      ],
+      "jniCppProcessMedianNs": [
+        233323.8125,
+        233602.35011709604,
+        233397.61358313815
+      ],
+      "javaProcessP90Ns": [
+        4009587.6666666665,
+        4008572.0416666665,
+        4006525.625,
+        4257674.391304348
+      ],
+      "jniCppProcessP90Ns": [
+        233565.25235849057,
+        233891.85714285713,
+        233633.63700234191
+      ],
+      "javaMedianOfProcessMediansNs": 3999631.625,
+      "jniCppMedianOfProcessMediansNs": 233397.61358313815,
+      "observedAaNoiseFloor": 0.06180464426711031,
+      "relativeEffect": 0.9416452224939245,
+      "comparison": {
+        "deltaCi95LowNs": -4013429.821199471,
+        "deltaCi95HighNs": -3765763.9727995703,
+        "medianDeltaNs": -3766234.011416862
+      },
+      "status": "cpp_faster",
+      "javaIterations": [
+        50,
+        50,
+        50,
+        50
+      ],
+      "jniCppIterations": [
+        50,
+        50,
+        50
+      ],
+      "javaAllocationCountMedian": [
+        0.08333333333333333,
+        0.08333333333333333,
+        0.08333333333333333,
+        0.08695652173913043
+      ],
+      "jniCppAllocationCountMedian": [
+        0.0047169811320754715,
+        0.00468384074941452,
+        0.00468384074941452
+      ]
+    },
+    {
+      "case": "HD_packed",
+      "frameWidth": 1280,
+      "frameHeight": 720,
+      "width": 800,
+      "height": 450,
+      "left": 240,
+      "top": 135,
+      "rowStride": 1280,
+      "pixelStride": 1,
+      "sourceSha256": "4f5a469b790f16faea93c3b958d5d29ffac9e4891babf9c41ab10796876b994c",
+      "expectedSha256": "69b69cc72a5e7f5281c554db6ca65439eb2a8c3c70484ff9ffacd47336df4db4",
+      "outputBytes": 360000,
+      "javaProcessMedianNs": [
+        156505.61919504643,
+        156585.1664,
+        156498.87081339714,
+        156775.45047923323
+      ],
+      "jniCppProcessMedianNs": [
+        93032.94417475729,
+        92914.82833655705,
+        92928.96844181459
+      ],
+      "javaProcessP90Ns": [
+        157125.5,
+        156890.6656,
+        157033.4928229665,
+        157290.75079872203
+      ],
+      "jniCppProcessP90Ns": [
+        93366.40388349515,
+        93118.85493230174,
+        93129.10848126233
+      ],
+      "javaMedianOfProcessMediansNs": 156545.3927975232,
+      "jniCppMedianOfProcessMediansNs": 92928.96844181459,
+      "observedAaNoiseFloor": 0.001469590880950299,
+      "relativeEffect": 0.40637685478224517,
+      "comparison": {
+        "deltaCi95LowNs": -63846.48203741864,
+        "deltaCi95HighNs": -63469.30082946451,
+        "medianDeltaNs": -63616.424355708616
+      },
+      "status": "cpp_faster",
+      "javaIterations": [
+        50,
+        50,
+        50,
+        50
+      ],
+      "jniCppIterations": [
+        50,
+        50,
+        50
+      ],
+      "javaAllocationCountMedian": [
+        1.0030959752321982,
+        1.0032,
+        1.003189792663477,
+        1.0031948881789137
+      ],
+      "jniCppAllocationCountMedian": [
+        0.001941747572815534,
+        0.0019342359767891683,
+        0.0019723865877712033
+      ]
+    },
+    {
+      "case": "HD_padded",
+      "frameWidth": 1280,
+      "frameHeight": 720,
+      "width": 800,
+      "height": 450,
+      "left": 240,
+      "top": 135,
+      "rowStride": 1312,
+      "pixelStride": 1,
+      "sourceSha256": "17fa0bd97df4c048de2488ff583eb7507513476e4a368481bdbe9bf84c72beaa",
+      "expectedSha256": "69b69cc72a5e7f5281c554db6ca65439eb2a8c3c70484ff9ffacd47336df4db4",
+      "outputBytes": 360000,
+      "javaProcessMedianNs": [
+        156297.92332268372,
+        156337.7895962733,
+        156128.997611465,
+        156240.64308426072
+      ],
+      "jniCppProcessMedianNs": [
+        93303.47104247104,
+        93330.61897738447,
+        93280.33088235295
+      ],
+      "javaProcessP90Ns": [
+        156724.40734824282,
+        156741.88043478262,
+        156533.4729299363,
+        156644.97297297296
+      ],
+      "jniCppProcessP90Ns": [
+        93465.55308880309,
+        93679.63421828908,
+        93430.45294117647
+      ],
+      "javaMedianOfProcessMediansNs": 156269.2832034722,
+      "jniCppMedianOfProcessMediansNs": 93303.47104247104,
+      "observedAaNoiseFloor": 0.0008977169993450182,
+      "relativeEffect": 0.40293147104934124,
+      "comparison": {
+        "deltaCi95LowNs": -63037.52557712555,
+        "deltaCi95HighNs": -62825.526568993955,
+        "medianDeltaNs": -62965.81216100117
+      },
+      "status": "cpp_faster",
+      "javaIterations": [
+        50,
+        50,
+        50,
+        50
+      ],
+      "jniCppIterations": [
+        50,
+        50,
+        50
+      ],
+      "javaAllocationCountMedian": [
+        1.0031948881789137,
+        1.0031055900621118,
+        1.0031847133757963,
+        1.0031796502384738
+      ],
+      "jniCppAllocationCountMedian": [
+        0.0019305019305019305,
+        0.0019665683382497543,
+        0.00196078431372549
+      ]
+    },
+    {
+      "case": "HD_pixel2",
+      "frameWidth": 1280,
+      "frameHeight": 720,
+      "width": 800,
+      "height": 450,
+      "left": 240,
+      "top": 135,
+      "rowStride": 2592,
+      "pixelStride": 2,
+      "sourceSha256": "d5c22350f0d25625db5180ed9c259165b9016ba1c2b3cfe43ab21f4f1b80886a",
+      "expectedSha256": "69b69cc72a5e7f5281c554db6ca65439eb2a8c3c70484ff9ffacd47336df4db4",
+      "outputBytes": 360000,
+      "javaProcessMedianNs": [
+        12015364.5625,
+        11964248.0625,
+        11931259.75,
+        12003955.0625
+      ],
+      "jniCppProcessMedianNs": [
+        701621.8706293707,
+        716110.3723404255,
+        715515.40625
+      ],
+      "javaProcessP90Ns": [
+        12040911.375,
+        12002187.5,
+        11968209.625,
+        12028313.75
+      ],
+      "jniCppProcessP90Ns": [
+        703903.3356643356,
+        717442.7446808511,
+        716749.4930555555
+      ],
+      "javaMedianOfProcessMediansNs": 11984101.5625,
+      "jniCppMedianOfProcessMediansNs": 715515.40625,
+      "observedAaNoiseFloor": 0.004409326158028378,
+      "relativeEffect": 0.9402946142838983,
+      "comparison": {
+        "deltaCi95LowNs": -11308037.94187063,
+        "deltaCi95HighNs": -11215744.34375,
+        "medianDeltaNs": -11268586.15625
+      },
+      "status": "cpp_faster",
+      "javaIterations": [
+        50,
+        50,
+        50,
+        50
+      ],
+      "jniCppIterations": [
+        50,
+        50,
+        50
+      ],
+      "javaAllocationCountMedian": [
+        0.25,
+        0.25,
+        0.25,
+        0.25
+      ],
+      "jniCppAllocationCountMedian": [
+        0.013986013986013986,
+        0.014184397163120567,
+        0.013888888888888888
+      ]
+    },
+    {
+      "case": "FHD_packed",
+      "frameWidth": 1920,
+      "frameHeight": 1080,
+      "width": 1200,
+      "height": 675,
+      "left": 360,
+      "top": 202,
+      "rowStride": 1920,
+      "pixelStride": 1,
+      "sourceSha256": "f3077f163f99fe96b6af3bd0544fc9bb5af934e354a5e7456d53a4b098affe3a",
+      "expectedSha256": "dc81dc97e05d5d9a4068b6f8a4f4f6a1ce13d62cee17113b00ec98cc964c0d4e",
+      "outputBytes": 810000,
+      "javaProcessMedianNs": [
+        397656.5801687764,
+        402554.6268292683,
+        393151.2470119522,
+        398455.9142259414
+      ],
+      "jniCppProcessMedianNs": [
+        313138.8167202572,
+        318818.423566879,
+        307974.0273311897
+      ],
+      "javaProcessP90Ns": [
+        405977.7172995781,
+        480940.5463414634,
+        398618.235059761,
+        410013.949790795
+      ],
+      "jniCppProcessP90Ns": [
+        320118.40192926046,
+        323750.49681528663,
+        315688.1350482315
+      ],
+      "javaMedianOfProcessMediansNs": 398056.24719735887,
+      "jniCppMedianOfProcessMediansNs": 313138.8167202572,
+      "observedAaNoiseFloor": 0.012322379613287967,
+      "relativeEffect": 0.21333022927033485,
+      "comparison": {
+        "deltaCi95LowNs": -92531.24319641513,
+        "deltaCi95HighNs": -76585.49002348527,
+        "medianDeltaNs": -84917.43047710165
+      },
+      "status": "cpp_faster",
+      "javaIterations": [
+        50,
+        50,
+        50,
+        50
+      ],
+      "jniCppIterations": [
+        50,
+        50,
+        50
+      ],
+      "javaAllocationCountMedian": [
+        1.0084388185654007,
+        1.0097560975609756,
+        1.0079681274900398,
+        1.00836820083682
+      ],
+      "jniCppAllocationCountMedian": [
+        0.006430868167202572,
+        0.006369426751592357,
+        0.006430868167202572
+      ]
+    },
+    {
+      "case": "FHD_padded",
+      "frameWidth": 1920,
+      "frameHeight": 1080,
+      "width": 1200,
+      "height": 675,
+      "left": 360,
+      "top": 202,
+      "rowStride": 1952,
+      "pixelStride": 1,
+      "sourceSha256": "b465d3a9f86eb50b973fce68b2dea99b7e00e140c47665cc4c79066c6cb9667f",
+      "expectedSha256": "dc81dc97e05d5d9a4068b6f8a4f4f6a1ce13d62cee17113b00ec98cc964c0d4e",
+      "outputBytes": 810000,
+      "javaProcessMedianNs": [
+        412725.04375,
+        412714.68292682926,
+        425238.2215909091,
+        409846.68181818177
+      ],
+      "jniCppProcessMedianNs": [
+        319029.8265682657,
+        297334.19650655024,
+        303706.8307692307
+      ],
+      "javaProcessP90Ns": [
+        417366.75,
+        424087.26829268294,
+        433848.25,
+        413617.87445887446
+      ],
+      "jniCppProcessP90Ns": [
+        323266.45387453877,
+        302929.63318777294,
+        308687.9
+      ],
+      "javaMedianOfProcessMediansNs": 412719.86333841464,
+      "jniCppMedianOfProcessMediansNs": 303706.8307692307,
+      "observedAaNoiseFloor": 0.03033136847651527,
+      "relativeEffect": 0.26413323479853296,
+      "comparison": {
+        "deltaCi95LowNs": -121647.43616390432,
+        "deltaCi95HighNs": -92250.85580423987,
+        "medianDeltaNs": -109013.03256918391
+      },
+      "status": "cpp_faster",
+      "javaIterations": [
+        50,
+        50,
+        50,
+        50
+      ],
+      "jniCppIterations": [
+        50,
+        50,
+        50
+      ],
+      "javaAllocationCountMedian": [
+        1.0083333333333333,
+        1.008130081300813,
+        1.0113636363636365,
+        1.0086580086580086
+      ],
+      "jniCppAllocationCountMedian": [
+        0.007380073800738007,
+        0.008733624454148471,
+        0.007692307692307693
+      ]
+    },
+    {
+      "case": "FHD_pixel2",
+      "frameWidth": 1920,
+      "frameHeight": 1080,
+      "width": 1200,
+      "height": 675,
+      "left": 360,
+      "top": 202,
+      "rowStride": 3872,
+      "pixelStride": 2,
+      "sourceSha256": "71d86b5bdf9ea21a3e930cb0408816cee4d17d9fe7f783c45cc5b5f18679626c",
+      "expectedSha256": "dc81dc97e05d5d9a4068b6f8a4f4f6a1ce13d62cee17113b00ec98cc964c0d4e",
+      "outputBytes": 810000,
+      "javaProcessMedianNs": [
+        28869713.5,
+        27086944.333333336,
+        27060555.666666664,
+        27082934.0
+      ],
+      "jniCppProcessMedianNs": [
+        1731444.652542373,
+        1712603.279661017,
+        1717009.9454545456
+      ],
+      "javaProcessP90Ns": [
+        28926927.0,
+        27150989.666666668,
+        27153455.0,
+        27173663.333333332
+      ],
+      "jniCppProcessP90Ns": [
+        1740585.2711864407,
+        1719992.0508474577,
+        1728130.690909091
+      ],
+      "javaMedianOfProcessMediansNs": 27084939.166666668,
+      "jniCppMedianOfProcessMediansNs": 1717009.9454545456,
+      "observedAaNoiseFloor": 0.06589545290653069,
+      "relativeEffect": 0.9366064684550718,
+      "comparison": {
+        "deltaCi95LowNs": -27152703.554545455,
+        "deltaCi95HighNs": -25340300.18079096,
+        "medianDeltaNs": -25367929.221212123
+      },
+      "status": "cpp_faster",
+      "javaIterations": [
+        50,
+        50,
+        50,
+        50
+      ],
+      "jniCppIterations": [
+        50,
+        50,
+        50
+      ],
+      "javaAllocationCountMedian": [
+        0.6666666666666666,
+        0.6666666666666666,
+        0.6666666666666666,
+        0.6666666666666666
+      ],
+      "jniCppAllocationCountMedian": [
+        0.03389830508474576,
+        0.03389830508474576,
+        0.03636363636363636
+      ]
+    }
+  ],
+  "runMetadata": {
+    "java": [
+      {
+        "model": "DN-ENG41",
+        "api": 34,
+        "cpuLocked": true,
+        "cpuMaxFreqHz": 2400000000,
+        "source": "final-r01-java/androidx-benchmark.json"
+      },
+      {
+        "model": "DN-ENG41",
+        "api": 34,
+        "cpuLocked": true,
+        "cpuMaxFreqHz": 2400000000,
+        "source": "final-r02-java/androidx-benchmark.json"
+      },
+      {
+        "model": "DN-ENG41",
+        "api": 34,
+        "cpuLocked": true,
+        "cpuMaxFreqHz": 2400000000,
+        "source": "final-r03-java/androidx-benchmark.json"
+      },
+      {
+        "model": "DN-ENG41",
+        "api": 34,
+        "cpuLocked": true,
+        "cpuMaxFreqHz": 2400000000,
+        "source": "final-r05-java/androidx-benchmark.json"
+      }
+    ],
+    "jni_cpp": [
+      {
+        "model": "DN-ENG41",
+        "api": 34,
+        "cpuLocked": true,
+        "cpuMaxFreqHz": 2400000000,
+        "source": "final-r01-jni_cpp/androidx-benchmark.json"
+      },
+      {
+        "model": "DN-ENG41",
+        "api": 34,
+        "cpuLocked": true,
+        "cpuMaxFreqHz": 2400000000,
+        "source": "final-r02-jni_cpp/androidx-benchmark.json"
+      },
+      {
+        "model": "DN-ENG41",
+        "api": 34,
+        "cpuLocked": true,
+        "cpuMaxFreqHz": 2400000000,
+        "source": "final-r03-jni_cpp/androidx-benchmark.json"
+      }
+    ]
+  }
+}
