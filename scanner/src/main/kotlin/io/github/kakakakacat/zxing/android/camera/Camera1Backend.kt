@@ -70,7 +70,7 @@ import java.util.concurrent.RejectedExecutionException
  */
 internal class Camera1Backend(
     context: Context,
-    options: ScannerOptions
+    private val options: ScannerOptions
 ) : ScannerCameraBackend {
 
   /** Exposed so `ScannerView.getCameraManager()` can still hand it to a caller. */

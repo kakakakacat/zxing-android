@@ -57,7 +57,8 @@ internal class JavaFrameDecoder @JvmOverloads constructor(
         if (!filled) {
           val size = width.toLong() * height
           require(size <= Int.MAX_VALUE) { "ROI is too large" }
-          if (matrixScratch.size != size.toInt()) matrixScratch = ByteArray(size.toInt())
+          // LuminanceSource allows a larger backing array. Grow only across ROI phases.
+          if (matrixScratch.size < size.toInt()) matrixScratch = ByteArray(size.toInt())
           source.copyMatrixTo(matrixScratch)
           filled = true
         }

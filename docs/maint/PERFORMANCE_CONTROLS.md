@@ -1,8 +1,8 @@
 # Experimental scanning controls / 实验性扫描性能控制
 
 These controls are opt-in and carry no measured speedup claim. The default camera,
-decoder, ROI and allocation path are unchanged. Change one variable per A/B run.
-这些控制项均需显式启用，不代表已测得加速；默认相机、解码器、ROI 和分配路径保持不变。
+decoder and ROI policy are unchanged. Change one variable per A/B run.
+这些控制项均需显式启用，不代表已测得加速；默认相机、解码器和 ROI 策略保持不变。
 每次 A/B 只修改一个变量。
 
 ```kotlin
@@ -20,7 +20,7 @@ val options = ScannerOptions.Builder()
 | Analysis size / 分析尺寸 | CameraX requests it separately from preview; 0/0 follows preview. Requested and negotiated stream aspect ratios must agree. Actual resolutions are logged and can differ from requests. Camera1 logs that this setting is ignored because it has one shared stream. / CameraX 独立请求分析尺寸；0/0 跟随预览。请求及协商后的宽高比须一致。日志记录实际尺寸，可能与请求不同。Camera1 只有一个共享流，会记录忽略此选项。 |
 | Progressive ROI / 渐进式 ROI | One decode per frame: two attempts at half width/height, two at three quarters, then one over the complete configured scan rectangle. Never expands beyond the host rectangle. Success, format changes and size changes reset the cycle. Sources without crop support use the whole rectangle. / 每帧一次解码：半宽半高两次、四分之三宽高两次、完整取景框一次；不越过宿主取景范围。成功、码制及尺寸变化后重置；不支持裁剪的输入使用完整区域。 |
 | Coordinates / 坐标 | Result points and candidate callbacks are offset back to the original scan region. Result payload, bits, metadata and timestamp are preserved; thumbnails still show the original scan region. / 结果点和候选点还原到原始取景区域；保留内容、位数、元数据及时间戳；缩略图仍使用原始取景区域。 |
-| Java buffer reuse / Java 缓冲区复用 | A decoder owns one exact-size matrix scratch for Y-plane input and replaces it on area changes. Copying remains lazy so 1D readers need not copy a matrix. Public getMatrix() returns independent arrays; scratch is released on close. Threshold arrays and BitMatrix are not reused. / 解码器独占一个与 Y 平面 ROI 面积匹配的矩阵缓冲区，面积变化时替换。延迟复制保留一维码按行读取路径。公开 getMatrix() 仍返回独立数组，关闭时释放工作区；本次不复用阈值数组和 BitMatrix。 |
+| Java buffer reuse / Java 缓冲区复用 | A decoder owns one matrix scratch for Y-plane input and grows it only when capacity is insufficient. A smaller ROI uses its prefix, as permitted by LuminanceSource. Copying remains lazy so 1D readers need not copy a matrix. Public getMatrix() returns independent arrays; scratch is released on close. Threshold arrays and BitMatrix are not reused. / 解码器独占一个 Y 平面矩阵缓冲区，仅在容量不足时扩容，小 ROI 使用前缀，符合 LuminanceSource 契约。延迟复制保留一维码按行读取路径。公开 getMatrix() 仍返回独立数组，关闭时释放工作区；本次不复用阈值数组和 BitMatrix。 |
 
 ## Reproduce / 复现
 
