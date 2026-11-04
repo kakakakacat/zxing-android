@@ -28,6 +28,12 @@ android {
   testInstrumentationRunnerArguments["l2.matrix"] =
       (project.findProperty("l2.matrix") as String?) ?: "ci"
 
+  testInstrumentationRunnerArguments["roi.backend"] =
+    (project.findProperty("roi.backend") as String?) ?: "java"
+
+  testInstrumentationRunnerArguments["roi.decodeBackend"] =
+    (project.findProperty("roi.decodeBackend") as String?) ?: "java"
+
     // -Pl2.throttleWait=0 stops Microbenchmark waiting for a cool-down between
     // benchmarks. On a device that is permanently above its skin threshold the wait
     // buys nothing — measured on DN-ENG41: 270s slept per benchmark, SEVERE before and
@@ -78,7 +84,10 @@ android {
   // androidTest asset is how the device run gets to the same copy.
   sourceSets {
     getByName("androidTest") {
-      assets.srcDir("goldens")
+      assets.directories.add("goldens")
+      // The ROI JNI library is generated under androidTest only and is never in this
+      // module's main/AAR native source set.
+      jniLibs.directories.add(layout.buildDirectory.dir("generated/roi-native").get().asFile.path)
     }
   }
 
@@ -94,6 +103,41 @@ android {
   lint {
     abortOnError = false
   }
+}
+
+// Build the isolated ROI kernel into the instrumentation APK only. The experiment uses
+// the same pinned NDK/CMake versions as the scanner, but its .so cannot enter scanner's AAR.
+val buildRoiNative = tasks.register("buildRoiNative") {
+  val generated = layout.buildDirectory.dir("generated/roi-native")
+  val nativeBuild = layout.buildDirectory.dir("roi-native-build")
+  inputs.files(fileTree("src/androidTest/cpp"))
+  outputs.dir(generated)
+  doLast {
+    val sdk = androidComponents.sdkComponents.sdkDirectory.get().asFile
+    val ndk = sdk.resolve("ndk/${libs.versions.ndk.get()}")
+    val cmake = sdk.resolve("cmake/3.22.1/bin/cmake")
+    check(cmake.isFile) { "Pinned CMake 3.22.1 is missing: $cmake" }
+    val abi = "arm64-v8a"
+    val buildDir = nativeBuild.get().asFile.resolve(abi)
+    val libDir = buildDir.resolve("lib")
+    fun runNativeCommand(vararg args: String) {
+      val process = ProcessBuilder(*args).inheritIO().start()
+      check(process.waitFor() == 0) { "Native experiment build failed: ${args.joinToString(" ")}" }
+    }
+    runNativeCommand(cmake.absolutePath, "-S", file("src/androidTest/cpp").absolutePath,
+      "-B", buildDir.absolutePath,
+      "-DCMAKE_TOOLCHAIN_FILE=${ndk.resolve("build/cmake/android.toolchain.cmake")}",
+      "-DANDROID_ABI=$abi", "-DANDROID_PLATFORM=android-23",
+      "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${libDir.absolutePath}")
+    runNativeCommand(cmake.absolutePath, "--build", buildDir.absolutePath,
+      "--config", "Release", "--parallel")
+    val destination = generated.get().asFile.resolve("$abi/libroiPack.so")
+    destination.parentFile.mkdirs()
+    libDir.resolve("libroiPack.so").copyTo(destination, overwrite = true)
+  }
+}
+tasks.matching { it.name.contains("AndroidTestJniLibFolders") }.configureEach {
+  dependsOn(buildRoiNative)
 }
 
 // What protocol a run was made under is part of its result, not something a reader should

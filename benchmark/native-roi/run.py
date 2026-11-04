@@ -15,9 +15,8 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent
 CXX_FLAGS = ['-O3', '-DNDEBUG', '-std=c++17', '-march=x86-64']
-RUST_FLAGS = ['--edition=2021', '--crate-type=cdylib', '-C', 'opt-level=3',
-              '-C', 'codegen-units=1', '-C', 'panic=abort', '-C', 'target-cpu=x86-64']
-BACKENDS = ['cpp', 'rust', 'java', 'jni_cpp', 'jni_rust']
+BACKENDS = ['cpp', 'java', 'jni_cpp']
+NATIVE_BACKENDS = ['cpp', 'jni_cpp']
 
 
 def run(command, **kwargs):
@@ -27,22 +26,19 @@ def run(command, **kwargs):
 def build(directory, include):
     directory.mkdir(parents=True, exist_ok=True)
     cxx = os.environ.get('CXX', 'clang++')
-    rustc = os.environ.get('RUSTC', 'rustc')
     if platform.machine() not in ('x86_64', 'AMD64'):
         raise SystemExit('This first driver is explicitly x86_64 Linux; add a separately recorded ARM target before running there')
     if sys.platform != 'linux':
         raise SystemExit('This first driver uses Linux JNI headers and dlopen')
     run([cxx, *CXX_FLAGS, '-fPIC', '-shared', ROOT/'roi.cpp', '-o', directory/'libroi_cpp.so'])
-    run([rustc, *RUST_FLAGS, ROOT/'roi.rs', '-o', directory/'libroi_rust.so'])
     run([cxx, *CXX_FLAGS, ROOT/'driver.cpp', '-ldl', '-o', directory/'driver'])
     run([cxx, *CXX_FLAGS, '-fPIC', '-shared', '-I'+str(include), '-I'+str(include/'linux'),
          ROOT/'jni.cpp', '-ldl', '-o', directory/'libroi_jni.so'])
     run(['java', '-m', 'jdk.compiler/com.sun.tools.javac.Main', '-d', directory, ROOT/'RoiPackExperiment.java'])
-    rust_version = run([rustc, '-vV']).strip()
     cpp_version = run([cxx, '--version']).splitlines()[0]
     java_version = subprocess.run(['java', '-version'], text=True, capture_output=True, check=True).stderr.strip()
-    return {'cpp': cpp_version, 'rust': rust_version, 'java': java_version,
-            'cpp_flags': CXX_FLAGS, 'rust_flags': RUST_FLAGS,
+    return {'cpp': cpp_version, 'java': java_version,
+            'cpp_flags': CXX_FLAGS,
             'java_flags': ['-Xms128m', '-Xmx128m', '-XX:CompileCommand=dontinline,RoiPackExperiment::packJava'],
             'jni_array_access': 'GetByteArrayElements + ReleaseByteArrayElements(mode=0); VM may copy'}
 
@@ -81,7 +77,7 @@ def fixtures(directory):
 def check_libraries(directory, cases):
     """Exact outputs, untouched source, output guards, nulls and adversarial geometry."""
     count = 0
-    for backend in ('cpp','rust'):
+    for backend in ('cpp',):
         library = ctypes.CDLL(str(directory/f'libroi_{backend}.so'))
         pack = library.roi_pack
         pack.argtypes = [ctypes.c_void_p,ctypes.c_size_t,ctypes.c_void_p,ctypes.c_size_t]+[ctypes.c_size_t]*6
@@ -118,7 +114,7 @@ def check_libraries(directory, cases):
 
 
 def collect(directory, manifest, backend, args):
-    if backend in ('cpp','rust'):
+    if backend == 'cpp':
         command=[directory/'driver',directory/f'libroi_{backend}.so',manifest,
                  args.samples,args.warmup_ms,args.batch_ms]
     else:
@@ -140,7 +136,7 @@ def metadata(versions):
     if info.exists():
         cpu=next((s.split(':',1)[1].strip() for s in info.read_text().splitlines() if s.startswith('model name')),cpu)
     source_hashes={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in ROOT.iterdir()
-                   if p.suffix in ('.py','.cpp','.rs','.h','.java')}
+                   if p.suffix in ('.py','.cpp','.h','.java')}
     return {'utc':datetime.datetime.now(datetime.timezone.utc).isoformat(),
             'scope':'shared x86_64 Linux host; not Android, no HAL/camera/decoder; no clock/thermal control',
             'machine':platform.machine(), 'os':platform.platform(), 'cpu_model':cpu,
@@ -165,24 +161,24 @@ def summary(report):
 
 
 def markdown(report):
-    text=['# ROI packing language experiment / ROI 打包语言对照实验','',
+    text=['# Java/C++ ROI packing experiment / Java/C++ ROI 打包实验','',
           'Host-only exploratory data; **not an Android speedup claim**. / 仅为宿主机探索数据，**不代表 Android 提速**。','',
           f"CPU: {report['environment']['cpu_model']}; {report['environment']['machine']}.",
           f"{report['protocol']['rounds']} fresh processes per backend; {report['protocol']['samples']} batch samples per case/process.",
           'Cells show the median of process medians, in microseconds per copy. / 单元格为各进程中位数的中位数，单位微秒/次。','',
           '## Native call, without JNI / 不含 JNI 的原生调用','',
-          '| Case | C++ µs | Rust µs | Rust / C++ |','| --- | ---: | ---: | ---: |']
+          '| Case | C++ native µs |','| --- | ---: |']
     for row in report['summary']:
-        cpp=row['cpp']['median_ns']; rust=row['rust']['median_ns']
-        text.append(f"| {row['case']} | {cpp/1000:.3f} | {rust/1000:.3f} | {rust/cpp:.3f}× |")
+        cpp=row['cpp']['median_ns']
+        text.append(f"| {row['case']} | {cpp/1000:.3f} |")
     text+=['','## Java API call, including JNI where used / Java API 调用，包含相应 JNI 开销','',
-           '| Case | Java µs | JNI → C++ µs | JNI → Rust µs |','| --- | ---: | ---: | ---: |']
+           '| Case | Java µs | JNI → C++ µs |','| --- | ---: | ---: |']
     for row in report['summary']:
-        text.append(f"| {row['case']} | {row['java']['median_ns']/1000:.3f} | {row['jni_cpp']['median_ns']/1000:.3f} | {row['jni_rust']['median_ns']/1000:.3f} |")
+        text.append(f"| {row['case']} | {row['java']['median_ns']/1000:.3f} | {row['jni_cpp']['median_ns']/1000:.3f} |")
     text+=['','## Limits / 局限','',
       '- Input, expected bytes and source hashes are recorded in JSON; output is checked before timing and after every batch. / JSON 记录输入、期望输出及源代码哈希；计时前及每批后校验输出。',
-      '- Native rows include a shared C ABI dispatch; Java rows include direct-buffer-to-byte-array copying. Both JNI implementations use the identical bridge and array access, which may copy. / 原生表包含相同 C ABI 分派；Java 表为 direct buffer 到 byte[] 的复制；两种 JNI 实现共用桥接及可能复制的数组访问。',
-      '- Java runs on HotSpot, not ART. Rust safe indexing and C++ restrict pointers express the same nonoverlap contract but need not optimize identically. / Java 使用 HotSpot 而非 ART；Rust 安全索引与 C++ restrict 表达相同不重叠约定，但优化结果可能不同。',
+      '- Native rows include a shared C ABI dispatch; Java rows include direct-buffer-to-byte-array copying. The JNI row includes array access that may copy. / 原生表包含相同 C ABI 分派；Java 表为 direct buffer 到 byte[] 的复制；JNI 行包含可能复制数组的访问。',
+      '- Java runs on HotSpot, not ART. This compares these implementations, not a language-wide ranking. / Java 使用 HotSpot 而非 ART；此处比较的是具体实现，不是语言整体排名。',
       '- Shared-host frequency, scheduling and temperature are uncontrolled. Process order is rotated; raw samples and process medians are included. No statistical significance or language-wide ranking is claimed. / 共享宿主的频率、调度、温度不可控；轮换进程顺序并保留原始样本与进程中位数，不宣称统计显著性或语言整体排名。',
       '- This kernel is ROI packing only. The existing direct native Y-plane path can bypass packing. Full decoder latency, correctness, battery and ARM32/ARM64 remain unmeasured. / 本实验仅测 ROI 打包；现有直接 native Y 平面路径可绕过此操作，完整解码、识别率、功耗及 ARM32/ARM64 尚未测量。','']
     return '\n'.join(text)
