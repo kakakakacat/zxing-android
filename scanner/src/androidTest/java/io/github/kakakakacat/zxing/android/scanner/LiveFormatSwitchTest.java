@@ -18,10 +18,10 @@ package io.github.kakakakacat.zxing.android.scanner;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertFalse;
 
 import android.os.Handler;
 import android.os.HandlerThread;
-import android.os.Looper;
 import android.os.Message;
 
 import androidx.test.ext.junit.runners.AndroidJUnit4;
@@ -97,25 +97,35 @@ public final class LiveFormatSwitchTest {
   }
 
   @After
-  public void tearDown() {
-    if (decodeHandler != null) {
-      decodeHandler.obtainMessage(DecoderThread.MSG_QUIT).sendToTarget();
+  public void tearDown() throws InterruptedException {
+    if (decoder != null) {
+      decoder.requestQuit();
+      decoder.join(5000L);
+      assertFalse("decoder thread did not terminate", decoder.isAlive());
     }
     if (replyThread != null) {
       replyThread.quitSafely();
+      replyThread.join(5000L);
     }
   }
 
   private int decodeOnce(byte[] frame) throws InterruptedException {
-    replies.clear();
     // The decode thread takes a ScanFrame now, already cropped: the crop belongs to the
     // camera backend, which knows the frame geometry, and not to the decoder.
     Camera1ScanFrame scanFrame = new Camera1ScanFrame(
         new PlanarYUVLuminanceSource(frame, SIZE, SIZE, 0, 0, SIZE, SIZE, false));
     decodeHandler.obtainMessage(DecoderThread.MSG_DECODE, scanFrame).sendToTarget();
-    Integer what = replies.poll(TIMEOUT_SECONDS, TimeUnit.SECONDS);
-    assertNotNull("the decode thread never answered", what);
-    return what;
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(TIMEOUT_SECONDS);
+    while (true) {
+      long remaining = deadline - System.nanoTime();
+      Integer what = remaining > 0 ? replies.poll(remaining, TimeUnit.NANOSECONDS) : null;
+      assertNotNull("the decode thread never answered", what);
+      // awaitReady publishes its latch before READY reaches this separate reply looper.
+      // A late READY is a lifecycle notification, never the answer to this frame.
+      if (what != ScannerView.MSG_DECODER_READY) {
+        return what; // Includes failures: an unexpected terminal error still fails the test.
+      }
+    }
   }
 
   private void setFormats(Collection<BarcodeFormat> formats) throws InterruptedException {
