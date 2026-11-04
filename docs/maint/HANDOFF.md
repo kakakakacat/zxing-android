@@ -425,6 +425,16 @@ check on every push. The check was watched failing on purpose before it was comm
   `io.github.kakakakacat.zxing`, and published. Nothing at runtime depends on an upstream
   ZXing artifact. Upstream fixes come in through
   `tools/maint/sync-core-from-upstream.sh`.
+- **`core/` stays Java, and is not deleted now that native is the default.** The reasoning
+  is in `decisions/0002-core-language-and-upstream-sync.md`: it is the `api` surface of the
+  AAR, the only decoder on ABIs with no native build, and the only implementation of result
+  parsing and encoding. Converting it to Kotlin would cost ~35 upstream fixes a year, most
+  of them hardening on an attacker-controlled path, and buy nothing else.
+- **Sync `core/` from upstream quarterly, and on any upstream release.** Run
+  `tools/maint/sync-core-from-upstream.sh`; it records the upstream SHA in the commit
+  message. As of 2026-11-04 this fork is **0 commits behind** `upstream/master`
+  (`56b8a9a7b`, 2026-10-28) and 149 ahead. A sync that finds nothing is cheap; a sync never
+  run is how a vendored fork becomes a permanent one.
 - **Namespace:** everything is `io.github.kakakakacat.zxing.**`; `applicationId` is
   `io.github.kakakakacat.zxing.android`. Publishing `com.google.zxing.*` class names from
   a second groupId is a duplicate-class build failure for consumers.
