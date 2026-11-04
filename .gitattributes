@@ -11,3 +11,13 @@
 # Denote all files that are truly binary and should not be modified.
 *.png binary
 *.jpg binary
+# `core/` is not code this project writes. It is upstream zxing/zxing's core,
+# renamed into io.github.kakakakacat.zxing and replayed over this tree by
+# tools/maint/sync-core-from-upstream.sh -- these are exactly the paths that
+# script syncs. Marking them vendored keeps the language statistic describing
+# the code this fork actually maintains, which is Kotlin-first, instead of
+# reporting the decoder library as if it were written here. See
+# docs/maint/decisions/0002-core-language-and-upstream-sync.md.
+core/src/main/java/** linguist-vendored
+core/src/test/java/** linguist-vendored
+core/src/test/resources/** linguist-vendored
