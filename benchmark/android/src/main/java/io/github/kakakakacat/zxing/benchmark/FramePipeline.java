@@ -19,7 +19,9 @@ package io.github.kakakakacat.zxing.benchmark;
 import io.github.kakakakacat.zxing.BinaryBitmap;
 import io.github.kakakakacat.zxing.MultiFormatReader;
 import io.github.kakakakacat.zxing.android.scanner.FrameDecoder;
+import io.github.kakakakacat.zxing.android.scanner.FrameDataDecoder;
 import io.github.kakakakacat.zxing.android.scanner.FrameDecoders;
+import io.github.kakakakacat.zxing.android.camera.LumaFrameData;
 import io.github.kakakakacat.zxing.NotFoundException;
 import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource;
 import io.github.kakakakacat.zxing.ReaderException;
@@ -108,6 +110,12 @@ public final class FramePipeline {
   public static Result endToEnd(FrameDecoder decoder, FrameFactory.Frame frame) {
     int[] crop = crop(frame.width, frame.height);
     PlanarYUVLuminanceSource source = luminanceSource(frame, crop);
+    if (decoder instanceof FrameDataDecoder) {
+      LumaFrameData data = LumaFrameData.Companion.array(frame.luminance, frame.width,
+          frame.height, frame.width, 1, crop[0], crop[1], crop[2] - crop[0],
+          crop[3] - crop[1], 0, 0L);
+      return ((FrameDataDecoder) decoder).decode(data, source);
+    }
     return decoder.decode(source);
   }
 
