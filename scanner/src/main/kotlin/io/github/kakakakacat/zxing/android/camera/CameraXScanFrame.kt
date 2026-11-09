@@ -32,7 +32,8 @@ import io.github.kakakakacat.zxing.LuminanceSource
  */
 internal class CameraXScanFrame(
     private val image: ImageProxy,
-    override val source: LuminanceSource?
+    override val source: LuminanceSource?,
+    override val data: LumaFrameData?
 ) : ScanFrame {
 
   private var closed = false

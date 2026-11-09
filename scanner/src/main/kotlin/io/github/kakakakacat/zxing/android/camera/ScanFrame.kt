@@ -34,6 +34,10 @@ import io.github.kakakakacat.zxing.LuminanceSource
  */
 internal interface ScanFrame {
 
+  /** Raw luma storage and camera metadata, valid until [close], when available. */
+  val data: LumaFrameData?
+    get() = null
+
   /**
    * The scan rectangle, ready to decode, or null when the crop could not be worked out —
    * which happens for the first frames of a session, before the frame size is known.

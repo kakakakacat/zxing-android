@@ -403,9 +403,15 @@ internal class DecoderThread @JvmOverloads constructor(
       ScannerTrace.decoding(frame)
       try {
         val source = frame.source
+        val frameData = frame.data
         val rawResult = try {
           val span = ScannerTrace.section(ScannerTrace.FRAME_DECODE)
-          try { if (source == null) null else decoder.decode(source) }
+          try {
+            if (source == null) null
+            else if (decoder is FrameDataDecoder && frameData != null)
+              decoder.decode(frameData, source)
+            else decoder.decode(source)
+          }
           finally { ScannerTrace.endSection(span) }
         } catch (e: RuntimeException) {
           // A frame the decoder threw on. Not a miss -- a miss is a frame that was read

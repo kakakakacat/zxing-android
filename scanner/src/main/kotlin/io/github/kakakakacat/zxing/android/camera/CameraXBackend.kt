@@ -274,7 +274,7 @@ internal class CameraXBackend(
       image.close()
       return
     }
-    val frame = CameraXScanFrame(image, cropFor(image))
+    val frame = frameFor(image)
     request.deliver(frame)
   }
 
@@ -292,17 +292,23 @@ internal class CameraXBackend(
     Log.i(TAG, "Frame ${image.width}x${image.height}, rotation $frameRotation")
   }
 
-  private fun cropFor(image: ImageProxy): YPlaneLuminanceSource? {
-    val rect = getFramingRectInPreview() ?: return null
+  private fun frameFor(image: ImageProxy): CameraXScanFrame {
+    val rect = getFramingRectInPreview() ?: return CameraXScanFrame(image, null, null)
     val plane = image.planes[0]
     return try {
-      YPlaneLuminanceSource(plane.buffer, plane.rowStride, plane.pixelStride,
-                            rect.left, rect.top, rect.width(), rect.height())
+      val source = YPlaneLuminanceSource(plane.buffer, plane.rowStride, plane.pixelStride,
+                                        rect.left, rect.top, rect.width(), rect.height())
+      val data = LumaFrameData.direct(
+          plane.buffer, image.width, image.height, plane.rowStride, plane.pixelStride,
+          rect.left, rect.top, rect.width(), rect.height(),
+          PreviewCoordinateMapper.normalizeRotation(image.imageInfo.rotationDegrees),
+          System.nanoTime())
+      CameraXScanFrame(image, source, data)
     } catch (iae: IllegalArgumentException) {
       // The crop did not fit the buffer this frame actually carries. Dropping the frame
       // beats decoding a region that is not the one the user is aiming at.
       Log.w(TAG, "Scan rectangle does not fit the frame", iae)
-      null
+      CameraXScanFrame(image, null, null)
     }
   }
 

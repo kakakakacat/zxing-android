@@ -32,6 +32,7 @@ import io.github.kakakakacat.zxing.BarcodeFormat;
 import io.github.kakakakacat.zxing.LuminanceSource;
 import io.github.kakakakacat.zxing.Result;
 import io.github.kakakakacat.zxing.android.camera.ScanFrame;
+import io.github.kakakakacat.zxing.android.camera.LumaFrameData;
 
 import org.junit.After;
 import org.junit.Before;
@@ -126,6 +127,11 @@ public final class DecoderThreadLifecycleTest {
 
   /** A frame that counts its own closes, because "exactly once" is the contract. */
   private static final class CountingFrame implements ScanFrame {
+    @Override
+    public LumaFrameData getData() {
+      return null;
+    }
+
     final AtomicInteger closes = new AtomicInteger();
 
     /**

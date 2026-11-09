@@ -23,6 +23,7 @@ import io.github.kakakakacat.zxing.LuminanceSource
 import io.github.kakakakacat.zxing.Result
 import io.github.kakakakacat.zxing.ResultMetadataType
 import io.github.kakakakacat.zxing.ResultPoint
+import io.github.kakakakacat.zxing.android.camera.LumaFrameData
 import java.util.Collections
 import java.util.EnumMap
 
@@ -85,7 +86,7 @@ internal class NativeFrameDecoder
     private val compatibilityRendering: Boolean,
     private val directBuffer: Boolean = false,
     private val decodeCall: DecodeCall? = null
-) : FrameDecoder {
+) : FrameDecoder, FrameDataDecoder {
 
   /** Test seam at the native-call boundary; absent in normal operation. */
   internal fun interface DecodeCall {
@@ -127,20 +128,29 @@ internal class NativeFrameDecoder
   /** Frames whose decode threw rather than missing. Read through [diagnostics]. */
   private var decodeFailures: Long = 0
 
-  override fun decode(source: LuminanceSource): Result? {
+  override fun decode(source: LuminanceSource): Result? = decodeInternal(source, null)
+
+  override fun decode(data: LumaFrameData, fallback: LuminanceSource): Result? =
+      decodeInternal(fallback, data)
+
+  private fun decodeInternal(source: LuminanceSource, data: LumaFrameData?): Result? {
     check(handle != 0L) { "decoder already closed" }
     // getMatrix() is the scan rectangle, not the frame. Handing the native side a
     // greyscale plane rather than a BinaryBitmap is the point of the seam: zxing-cpp
     // does its own thresholding.
     val decoded = try {
-      val plane = if (directBuffer)
+      // Compatibility for direct FrameDecoder callers and source-transforming wrappers.
+      val plane = if (directBuffer && data == null)
         source as? io.github.kakakakacat.zxing.android.camera.YPlaneLuminanceSource else null
-      val buffer = plane?.directBuffer()
+      val buffer = if (directBuffer) data?.directRoiBuffer() ?: plane?.directBuffer() else null
+      val width = data?.cropWidth ?: source.width
+      val height = data?.cropHeight ?: source.height
+      val rowStride = data?.rowStride ?: plane?.planeRowStride()
+      val pixelStride = data?.pixelStride ?: plane?.planePixelStride()
       if (decodeCall != null) {
         decodeCall.decode(handle, source.matrix, source.width, source.height)
-      } else if (plane != null && buffer != null) {
-        nativeDecodeDirect(handle, buffer, source.width, source.height,
-            plane.planeRowStride(), plane.planePixelStride())
+      } else if (buffer != null && rowStride != null && pixelStride != null) {
+        nativeDecodeDirect(handle, buffer, width, height, rowStride, pixelStride)
       } else {
         nativeDecode(handle, source.matrix, source.width, source.height)
       }
@@ -370,7 +380,7 @@ internal class NativeFrameDecoder
 
     /**
      * What the loaded library was compiled with, for example
-     * `abi=arm64-v8a;neon=1;zxingcpp=3.1.1`.
+     * `abi=arm64-v8a;neon=1;cxx=20;zxingcpp=3.1.1`.
      *
      * Compile-time facts, not a runtime CPU probe. zxing-cpp has no NEON intrinsics: it
      * relies on the auto-vectorizer and tests `__ARM_NEON` to decide whether a strided column

@@ -5,7 +5,6 @@ package io.github.kakakakacat.zxing.android.camera
 import android.hardware.Camera
 import android.os.Handler
 import android.os.Looper
-import io.github.kakakakacat.zxing.LuminanceSource
 import java.util.concurrent.atomic.AtomicReference
 
 /** Pull-only callback buffering: free buffers stay in the pool until a frame is requested. */
@@ -14,7 +13,7 @@ internal class BufferedPreviewCallback(
     private val camera: Camera,
     private val owner: Handler,
     size: Int,
-    private val buildSource: (ByteArray) -> LuminanceSource?,
+    private val buildFrame: (ByteArray, () -> Unit) -> ScanFrame,
     private val rejected: (BufferedPreviewCallback, RuntimeException) -> Unit
 ) : Camera.PreviewCallback {
   private val pending = AtomicReference<FrameRequest?>()
@@ -47,7 +46,7 @@ internal class BufferedPreviewCallback(
     }
     val request = pending.getAndSet(null)
     if (request == null) { lease.close(); return }
-    try { request.deliver(Camera1ScanFrame(buildSource(lease.bytes)) { lease.close() }) }
+    try { request.deliver(buildFrame(lease.bytes) { lease.close() }) }
     catch (failure: RuntimeException) { lease.close(); fail(failure, request) }
   }
   private fun fail(failure: RuntimeException, taken: FrameRequest? = null) {

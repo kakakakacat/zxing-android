@@ -19,10 +19,16 @@ package io.github.kakakakacat.zxing.android.camera
 import io.github.kakakakacat.zxing.LuminanceSource
 
 /** Heap frame with an optional buffer lease, released only after decoding/thumbnail creation. */
-internal class Camera1ScanFrame @JvmOverloads constructor(
+internal class Camera1ScanFrame(
     override val source: LuminanceSource?,
-    private val release: (() -> Unit)? = null
+    override val data: LumaFrameData?,
+    private val release: (() -> Unit)?
 ) : ScanFrame {
+  constructor(source: LuminanceSource?) : this(source, null, null)
+
+  /** Preserves the source/release constructor and Kotlin trailing lambda calls. */
+  constructor(source: LuminanceSource?, release: (() -> Unit)?) : this(source, null, release)
+
   private val closed = java.util.concurrent.atomic.AtomicBoolean()
   override fun close() { if (closed.compareAndSet(false, true)) release?.invoke() }
 }

@@ -45,14 +45,15 @@ be compiled out. Check for an -mfpu flag that drops NEON."
 
 #include <cstdint>
 #include <exception>
-#include <memory>
+#include <limits>
 #include <string>
 #include <vector>
 
 #include "BarcodeFormat.h"
-#include "Version.h"
 #include "ReadBarcode.h"
-#include "ReaderOptions.h"
+#include "native_decoder.h"
+#include "jni_support.h"
+#include "luma_frame.h"
 
 namespace {
 
@@ -60,29 +61,7 @@ namespace {
 constexpr const char* kDecodeExceptionClass =
     "io/github/kakakakacat/zxing/android/scanner/NativeDecodeException";
 
-/**
- * One decoder's state. Owned by the Java object through a long handle.
- *
- * The counters exist so that the four things a frame can do -- decode, hold nothing,
- * hold something this decoder could not finish reading, and fail inside the decoder --
- * stay distinguishable after the fact. Before them every one of the last three left the
- * same trace: `nativeDecode` returned null and the frame was a miss.
- *
- * Only the decode thread touches them (see FrameDecoder's contract: one frame at a time,
- * never concurrently), so they are plain integers and not atomics.
- */
-struct NativeDecoder {
-  ZXing::ReaderOptions options;
-  uint64_t hits = 0;
-  uint64_t misses = 0;
-  uint64_t formatErrors = 0;
-  uint64_t checksumErrors = 0;
-  uint64_t unsupportedErrors = 0;
-  uint64_t internalErrors = 0;
-  /** The last error message, from zxing-cpp or from a C++ exception. Never scan content. */
-  std::string lastError;
-};
-
+using scanner_native::NativeDecoder;
 NativeDecoder* fromHandle(jlong handle) {
   return reinterpret_cast<NativeDecoder*>(static_cast<uintptr_t>(handle));
 }
@@ -192,50 +171,18 @@ jstring newJavaString(JNIEnv* env, const std::string& utf8) {
                         static_cast<jsize>(out.size()));
 }
 
-/**
- * Holds Java array elements for the call, releasing a pin or VM copy on every exit.
- *
- * Uses the ordinary array API: decoding and result allocation must not run inside a
- * GetPrimitiveArrayCritical section. The VM may copy; JNI_ABORT avoids copying back.
- */
-class PinnedBytes {
- public:
-  PinnedBytes(JNIEnv* env, jbyteArray array) : env_(env), array_(array) {
-    pixels_ = reinterpret_cast<uint8_t*>(env->GetByteArrayElements(array, nullptr));
-  }
-
-  ~PinnedBytes() {
-    if (pixels_ != nullptr) {
-      // JNI_ABORT: nothing was written, so there is nothing to copy back.
-      env_->ReleaseByteArrayElements(array_, reinterpret_cast<jbyte*>(pixels_), JNI_ABORT);
-    }
-  }
-
-  PinnedBytes(const PinnedBytes&) = delete;
-  PinnedBytes& operator=(const PinnedBytes&) = delete;
-
-  const uint8_t* get() const { return pixels_; }
-  bool ok() const { return pixels_ != nullptr; }
-
- private:
-  JNIEnv* env_;
-  jbyteArray array_;
-  uint8_t* pixels_;
-};
-
 /** Throws, and says so, so a caller can tell a refusal from a frame that held nothing. */
 void throwJava(JNIEnv* env, const char* className, const std::string& message) {
   if (env->ExceptionCheck()) {
     // Something already failed; that exception is the first cause and stays.
     return;
   }
-  jclass cls = env->FindClass(className);
-  if (cls == nullptr) {
+  scanner_native::LocalRef<jclass> cls(env, env->FindClass(className));
+  if (cls.get() == nullptr) {
     // FindClass left a NoClassDefFoundError pending, which is itself a fine answer.
     return;
   }
-  env->ThrowNew(cls, message.c_str());
-  env->DeleteLocalRef(cls);
+  env->ThrowNew(cls.get(), message.c_str());
 }
 
 /** A Java int[] from a span of ints, or null with a pending exception. */
@@ -280,64 +227,15 @@ extern "C" {
 JNIEXPORT jstring JNICALL
 Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeBuildInfo(
     JNIEnv* env, jclass) {
-  std::string info;
-#if defined(__aarch64__)
-  info += "abi=arm64-v8a";
-#elif defined(__arm__)
-  info += "abi=armeabi-v7a";
-#elif defined(__x86_64__)
-  info += "abi=x86_64";
-#else
-  info += "abi=other";
-#endif
-#if defined(__ARM_NEON)
-  info += ";neon=1";
-#else
-  info += ";neon=0";
-#endif
-#if defined(__ARM_FEATURE_CRC32)
-  info += ";crc32=1";
-#endif
-  info += ";zxingcpp=";
-  info += ZXING_VERSION_STR;
+  const std::string info = scanner_native::nativeBuildInfo();
   return env->NewStringUTF(info.c_str());
 }
 
 JNIEXPORT jlong JNICALL
 Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeCreate(
     JNIEnv*, jclass) {
-  auto* decoder = new (std::nothrow) NativeDecoder();
-  if (decoder == nullptr) {
-    return 0;
-  }
-  // Configured to attempt the same work the Java backend attempts, which is the only way
-  // a comparison between them measures the decoders rather than their defaults.
-  //
-  // zxing-cpp defaults tryHarder, tryRotate, tryInvert and tryDownscale all to true: it
-  // will look for codes at 90/180/270 degrees, for inverted codes, and in downscaled
-  // copies of the image. This fork's Java reader does none of that -- L2Config.DEFAULT is
-  // explicitly "no TRY_HARDER", and the preview path rotates frames itself rather than
-  // asking the decoder to search rotations. Leaving these on is not neutrality; it hands
-  // the native side several times the work and then reports it as slower.
-  //
-  // This is the effort level, not an optimisation. A caller that wants rotation or
-  // inversion search should get it through the hint set on both backends alike.
-  decoder->options.setTryHarder(false);
-  decoder->options.setTryRotate(false);
-  decoder->options.setTryInvert(false);
-  decoder->options.setTryDownscale(false);
-  // How bytes become a String. zxing-cpp defaults to TextMode::HRI, which replaces every
-  // non-graphical character with a symbolic stand-in -- ASCII 29 comes back as "<GS>" or
-  // "\u241d". This library has always returned the character itself, and a host that
-  // parses a GS1 separator or a MaxiCode structured message gets a string it cannot
-  // parse. Measured before and after on the corpus: 11 of the 61 samples that the native
-  // backend rendered differently are this and nothing else (BENCHMARKS.md section 9.1).
-  //
-  // Plain is zxing-cpp's own pre-2.0 default and transcodes by ECI or guessed charset,
-  // which is what MultiFormatReader does.
-  decoder->options.setTextMode(ZXing::TextMode::Plain);
-  decoder->options.setMaxNumberOfSymbols(1);
-  return static_cast<jlong>(reinterpret_cast<uintptr_t>(decoder));
+  auto decoder = scanner_native::createNativeDecoder();
+  return static_cast<jlong>(reinterpret_cast<uintptr_t>(decoder.release()));
 }
 
 /**
@@ -589,10 +487,17 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode
     return nullptr;
   }
 
-  PinnedBytes pixels(env, luminance);
+  scanner_native::PinnedBytes pixels(env, luminance);
   if (!pixels.ok()) return nullptr; // JVM allocation exception remains pending.
-  const ZXing::ImageView image(pixels.get(), width, height, ZXing::ImageFormat::Lum);
-  return decodeImage(env, decoder, image);
+  std::string error;
+  auto frame = LumaFrameView::create(
+      std::span<const uint8_t>(pixels.get(), static_cast<size_t>(length)),
+      width, height, width, 1, error);
+  if (!frame) {
+    throwJava(env, "java/lang/IllegalArgumentException", error);
+    return nullptr;
+  }
+  return decodeImage(env, decoder, frame->image());
 }
 
 JNIEXPORT jobjectArray JNICALL
@@ -607,20 +512,20 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode
   auto* pixels = buffer == nullptr ? nullptr :
       static_cast<const uint8_t*>(env->GetDirectBufferAddress(buffer));
   const jlong capacity = buffer == nullptr ? -1 : env->GetDirectBufferCapacity(buffer);
-  const int64_t rowBytes = width > 0 && pixelStride > 0 ?
-      static_cast<int64_t>(width - 1) * pixelStride + 1 : 0;
-  const int64_t required = height > 0 && rowStride > 0 ?
-      static_cast<int64_t>(height - 1) * rowStride + rowBytes : 0;
-  // Also bound offsets to int: ImageView's coordinate arithmetic uses int.
-  if (pixels == nullptr || width <= 0 || height <= 0 || pixelStride <= 0 ||
-      rowStride <= 0 || rowBytes > rowStride || required <= 0 ||
-      required > capacity || required > INT32_MAX) {
+  if (pixels == nullptr || capacity <= 0 ||
+      static_cast<uint64_t>(capacity) > std::numeric_limits<size_t>::max()) {
     throwJava(env, "java/lang/IllegalArgumentException", "invalid direct luma plane bounds or strides");
     return nullptr;
   }
-  const ZXing::ImageView image(pixels, width, height, ZXing::ImageFormat::Lum,
-                               rowStride, pixelStride);
-  return decodeImage(env, decoder, image);
+  std::string error;
+  auto frame = LumaFrameView::create(
+      std::span<const uint8_t>(pixels, static_cast<size_t>(capacity)),
+      width, height, rowStride, pixelStride, error);
+  if (!frame) {
+    throwJava(env, "java/lang/IllegalArgumentException", error);
+    return nullptr;
+  }
+  return decodeImage(env, decoder, frame->image());
 }
 
 /**
@@ -660,17 +565,7 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDiagno
   if (decoder == nullptr) {
     return newJavaString(env, "closed=1");
   }
-  std::string out;
-  out += "hits=" + std::to_string(decoder->hits);
-  out += ";misses=" + std::to_string(decoder->misses);
-  out += ";formatErrors=" + std::to_string(decoder->formatErrors);
-  out += ";checksumErrors=" + std::to_string(decoder->checksumErrors);
-  out += ";unsupportedErrors=" + std::to_string(decoder->unsupportedErrors);
-  out += ";internalErrors=" + std::to_string(decoder->internalErrors);
-  if (!decoder->lastError.empty()) {
-    out += ";lastError=" + decoder->lastError;
-  }
-  return newJavaString(env, out);
+  return newJavaString(env, decoder->diagnostics());
 }
 
 }  // extern "C"

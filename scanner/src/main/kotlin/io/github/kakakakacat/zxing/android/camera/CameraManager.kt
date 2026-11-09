@@ -51,7 +51,7 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
    */
   private val previewCallback: PreviewCallback =
       PreviewCallback(configManager) { data, width, height ->
-        Camera1ScanFrame(buildLuminanceSource(data, width, height))
+        buildFrame(data, width, height)
       }
 
   @Volatile private var bufferedPreview: BufferedPreviewCallback? = null
@@ -223,7 +223,7 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
       }
       val callback = BufferedPreviewCallback(target,
           Handler(Looper.myLooper() ?: Looper.getMainLooper()), bytes,
-          { data -> buildLuminanceSource(data, size.width, size.height) },
+          { data, release -> buildFrame(data, size.width, size.height, release) },
           { rejected, failure ->
             if (bufferedPreview === rejected) bufferedPreview = null
             Log.w(TAG, "Camera rejected callback buffers; using one-shot for this preview", failure)
@@ -433,6 +433,23 @@ class CameraManager(context: Context, options: ScannerOptions?) : ScannerCamera 
     // Go ahead and assume it's YUV rather than die.
     return PlanarYUVLuminanceSource(data, width, height, rect.left, rect.top,
                                     rect.width(), rect.height(), false)
+  }
+
+  /** Builds both the legacy source and the backend-neutral frame description. */
+  private fun buildFrame(data: ByteArray?, width: Int, height: Int,
+      release: (() -> Unit)? = null): Camera1ScanFrame {
+    val rect = getFramingRectInPreview()
+    val source = if (rect == null) null else PlanarYUVLuminanceSource(
+        data, width, height, rect.left, rect.top, rect.width(), rect.height(), false)
+    val frameData = if (data == null || rect == null) null else try {
+      LumaFrameData.array(data, width, height, width, 1,
+          rect.left, rect.top, rect.width(), rect.height(), 0, System.nanoTime())
+    } catch (invalid: IllegalArgumentException) {
+      // Keep the legacy decode failure path for malformed vendor buffers.
+      Log.w(TAG, "Camera1 frame metadata does not fit its preview buffer", invalid)
+      null
+    }
+    return Camera1ScanFrame(source, frameData, release)
   }
 
   private companion object {

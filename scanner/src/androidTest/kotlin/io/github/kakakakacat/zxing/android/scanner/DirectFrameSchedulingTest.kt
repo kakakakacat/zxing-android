@@ -7,6 +7,7 @@ import android.os.HandlerThread
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.github.kakakakacat.zxing.*
 import io.github.kakakakacat.zxing.android.camera.Camera1ScanFrame
+import io.github.kakakakacat.zxing.android.camera.LumaFrameData
 import io.github.kakakakacat.zxing.android.camera.ScanFrame
 import io.github.kakakakacat.zxing.android.camera.Camera1Worker
 import org.junit.Assert.*
@@ -18,6 +19,41 @@ import java.util.concurrent.atomic.AtomicInteger
 
 @RunWith(AndroidJUnit4::class)
 class DirectFrameSchedulingTest {
+  @Test fun backendNeutralFrameMetadataReachesCapableDecoder() {
+    val replies = HandlerThread("frame-data-replies").apply { start() }
+    val pixels = ByteArray(64)
+    val source = PlanarYUVLuminanceSource(pixels, 8, 8, 0, 0, 8, 8, false)
+    val data = LumaFrameData.array(pixels, 8, 8, 8, 1, 0, 0, 8, 8, 0, 123L)
+    val decoded = CountDownLatch(1)
+    val fake = object : FrameDecoder, FrameDataDecoder {
+      override fun decode(source: LuminanceSource): Result? {
+        fail("legacy source path used despite frame metadata")
+        return null
+      }
+      override fun decode(data: LumaFrameData, fallback: LuminanceSource): Result? {
+        assertEquals(123L, data.receivedAtNanos)
+        assertSame(source, fallback)
+        decoded.countDown()
+        return null
+      }
+      override fun setFormats(formats: Collection<BarcodeFormat>?) {}
+      override fun close() {}
+      override fun name() = "frame-data-fake"
+    }
+    val thread = DecoderThread(Handler(replies.looper), ScannerOptions.defaults(), null, null,
+        false, 2, DecoderThread.DecoderFactory { fake })
+    try {
+      thread.start()
+      val handler = thread.awaitReady(5000)!!
+      handler.obtainMessage(DecoderThread.MSG_DECODE,
+          Camera1ScanFrame(source, data, null)).sendToTarget()
+      assertTrue("frame metadata was not decoded", decoded.await(5, TimeUnit.SECONDS))
+    } finally {
+      thread.requestQuit(); thread.join(5000)
+      replies.quitSafely(); replies.join(5000)
+    }
+  }
+
   @Test fun cameraWorkersAreSharedUntilTheLastCleanupAndThenTerminate() {
     val first = Camera1Worker.acquire()
     val second = Camera1Worker.acquire()

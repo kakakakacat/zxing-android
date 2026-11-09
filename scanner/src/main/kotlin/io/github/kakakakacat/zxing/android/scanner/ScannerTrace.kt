@@ -122,6 +122,7 @@ internal object ScannerTrace {
     private val closed = AtomicBoolean()
     init { begin(FRAME_QUEUE, cookie); begin(FRAME_HOLD, cookie) }
     override val source get() = frame.source
+    override val data get() = frame.data
     fun started() { if (queued.compareAndSet(true, false)) end(FRAME_QUEUE, cookie) }
     override fun close() {
       if (!closed.compareAndSet(false, true)) return

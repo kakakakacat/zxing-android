@@ -246,6 +246,7 @@ public final class NativeFrameDecoderTest {
     // fact confirmed on the artifact that actually loaded.
     String info = NativeFrameDecoder.buildInfo();
     assertTrue("unexpected build info: " + info, info.contains("abi="));
+    assertTrue("C++20 build marker missing: " + info, info.contains("cxx=20"));
     assertTrue("no zxing-cpp version in: " + info, info.contains("zxingcpp=3.1.1"));
     if (info.contains("abi=arm64-v8a") || info.contains("abi=armeabi-v7a")) {
       assertTrue("built without NEON on an ARM ABI: " + info, info.contains("neon=1"));

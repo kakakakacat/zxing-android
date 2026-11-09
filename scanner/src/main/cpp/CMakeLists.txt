@@ -9,6 +9,7 @@ project(zxingnative CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(ZXING_CPP_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/zxing-cpp")
 if (NOT EXISTS "${ZXING_CPP_DIR}/core/CMakeLists.txt")
@@ -29,7 +30,11 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
 add_subdirectory("${ZXING_CPP_DIR}/core" "${CMAKE_CURRENT_BINARY_DIR}/zxing-cpp-core")
 
-add_library(zxingnative SHARED zxing_native.cpp)
+add_library(zxingnative SHARED
+    jni_support.cpp
+    luma_frame.cpp
+    native_decoder.cpp
+    zxing_native.cpp)
 
 target_link_libraries(zxingnative PRIVATE ZXing::ZXing log)
 
