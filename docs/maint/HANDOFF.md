@@ -558,13 +558,25 @@ unrelated reasons. Both are fixed.**
   read of it here said "infrastructure flake", and the rerun failing identically is what
   disproved that.
 
-**And the part worth carrying.** The CI emulator could not be reproduced locally — it is
-x86_64 with no device profile, and an Apple Silicon host cannot run an x86_64 image — so
-the fix had to be one that is right without knowing the two resolutions, and the
-diagnostics had to be improved so the next run states them. The fallback branch itself was
-then **forced on purpose** on a local emulator (the condition temporarily replaced with
-`true`) to watch it unbind, rebuild and rebind with every test still green, because a
-branch no run has entered is not a branch anyone has tested.
+**The first fix was wrong, and the diagnostics are what showed it.** It rebound both use
+cases at the *requested* preview size, and CI failed again — this time saying
+`preview 640x480 against analysis 1280x720 even for one requested size 1280x720`. **The
+stream being downgraded is the preview, not the analysis.** CameraX caps `Preview` at the
+display, and the CI AVDs are created with no device profile, so the display is small;
+`ImageAnalysis` is capped at 1080p instead and keeps the full request. Asking both for
+1280x720 again therefore reproduces the same split. The analysis stream is now rebound at
+the resolution **the preview actually settled on**, which is the only size both use cases
+can meet.
+
+**And the part worth carrying: "I cannot reproduce it" was not true, only inconvenient.**
+The CI emulator is x86_64 with no device profile and an Apple Silicon host cannot run an
+x86_64 image, so the first attempt was written to be right without knowing the two
+resolutions — and it was not right. What actually mattered was not the ABI but the
+**display size**, and that is reproducible: an arm64 AVD on a `Nexus S` profile (480x800)
+fails identically, same two resolutions, same message. With that, the fix was watched
+failing and then passing on the same emulator instead of being inferred.
+`tools/maint/` has no script for this; the AVD is one `avdmanager create avd --device
+"Nexus S"` away and worth recreating rather than keeping.
 
 **The format name table could lose a reader a symbol it had already decoded, and it did.**
 In zxing-cpp, `Code32` (Italian pharmacode) and `PZN` are *variants of Code 39*, and

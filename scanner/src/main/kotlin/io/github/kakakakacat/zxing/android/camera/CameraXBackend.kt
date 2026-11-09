@@ -221,18 +221,26 @@ internal class CameraXBackend(
       // asked for a smaller analysis stream as an optimisation, not as a condition of
       // scanning, and a scanner that will not open is worse for it than one running at
       // the preview's size. The stretched preview mapper does require one field of view,
-      // so the fix is to take the preview's size for both rather than to accept the pair.
+      // so the fix is to make both streams take the preview's, not to accept the pair.
       //
-      // This is not vendor rounding -- StreamGeometry already allows 5% for that. It is
-      // a camera whose size list has nothing matching the request in the preview's
-      // aspect, so CameraX satisfied each use case from a different bucket.
+      // **Match what the preview was actually given, not what it was asked for.** The
+      // first version of this rebound both use cases at the requested preview size and
+      // the CI emulators still failed, with the resolutions this message now carries:
+      // preview 640x480 against analysis 1280x720, for one requested size of 1280x720.
+      // The stream being downgraded is the *preview* -- CameraX caps it at the display,
+      // and an AVD created with no device profile has a small one -- while ImageAnalysis
+      // is capped at 1080p and keeps the full request. Asking both for 1280x720 again
+      // therefore reproduces the same split. The preview's negotiated size is the only
+      // one both use cases can actually meet.
+      val target = preview.resolutionInfo?.resolution
+      checkNotNull(target) { "the preview bound without a resolution" }
       Log.w(TAG, "Camera negotiated preview ${resolutionOf(preview)} against analysis " +
           "${resolutionOf(imageAnalysis)}, which are different fields of view; rebinding " +
-          "with the preview size for both and ignoring the requested analysis size " +
-          "${options.analysisWidth}x${options.analysisHeight}")
+          "the analysis stream at the preview's own $target and ignoring the requested " +
+          "analysis size ${options.analysisWidth}x${options.analysisHeight}")
       unbindOurUseCases(cameraProvider)
       val shared = ImageAnalysis.Builder()
-          .setResolutionSelector(resolutionSelector(previewWidth, previewHeight))
+          .setResolutionSelector(resolutionSelector(target.width, target.height))
           .setTargetRotation(rotation)
           .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
           .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
@@ -242,12 +250,11 @@ internal class CameraXBackend(
       imageAnalysis = shared
       camera = cameraProvider.bindToLifecycle(
           owner, CameraSelector.DEFAULT_BACK_CAMERA, preview, shared)
-      // Both use cases now carry the same request, so a camera that still answers with
-      // two fields of view is one this backend cannot drive at all.
+      // Both use cases now carry the size the preview itself settled on, so a camera that
+      // still answers with two fields of view is one this backend cannot drive at all.
       check(negotiatedAspectsAgree(preview, shared)) {
         "Camera negotiated preview ${resolutionOf(preview)} against analysis " +
-            "${resolutionOf(shared)} even for one requested size " +
-            "${previewWidth}x${previewHeight}"
+            "${resolutionOf(shared)} even when both asked for $target"
       }
     }
     if (options.analysisWidth > 0) {
