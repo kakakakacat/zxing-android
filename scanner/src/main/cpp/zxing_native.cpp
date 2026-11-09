@@ -258,6 +258,8 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeSetTry
   }
   decoder->options.setTryHarder(tryHarder == JNI_TRUE);
   decoder->options.setTryRotate(tryHarder == JNI_TRUE);
+  // tryHarder also reorders MultiFormatReader's readers, so the cached ones are stale.
+  decoder->optionsChanged();
 }
 
 JNIEXPORT void JNICALL
@@ -279,6 +281,7 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeSetFor
     return;
   }
   const std::string names = toStdString(env, formats);
+  decoder->optionsChanged();
   try {
     decoder->options.setFormats(names.empty() ? ZXing::BarcodeFormats{}
                                               : ZXing::BarcodeFormatsFromString(names));
@@ -322,7 +325,7 @@ static jobjectArray decodeImage(JNIEnv* env, NativeDecoder* decoder, const ZXing
   ZXing::Barcode barcode;
   std::string internalError;
   try {
-    barcode = ZXing::ReadBarcode(image, decoder->options);
+    barcode = decoder->read(image);
   } catch (const std::exception& e) {
     internalError = e.what();
   } catch (...) {
@@ -376,8 +379,12 @@ static jobjectArray decodeImage(JNIEnv* env, NativeDecoder* decoder, const ZXing
   // RSS14Reader returns the bare 14 digits, and the AI prefix is removed in Java.
   const bool gs1Parentheses = barcode.format() == ZXing::BarcodeFormat::DataBarExp
       || barcode.format() == ZXing::BarcodeFormat::DataBarExpStk;
+  // Named rather than left to Barcode::text(), which reads the mode back out of the
+  // ReaderOptions a Barcode only carries when ZXing::ReadBarcodes attached them --
+  // setReaderOptions is private, so the cached-reader path in NativeDecoder::read cannot.
+  // A default-constructed Barcode would say HRI and escape every control character.
   const std::string text = gs1Parentheses ? barcode.text(ZXing::TextMode::HRI)
-                                          : barcode.text();
+                                          : barcode.text(decoder->options.textMode());
   const std::string format = ZXing::ToString(barcode.format());
   decoder->hits++;
 
@@ -589,6 +596,7 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeSetRet
     return;
   }
   decoder->options.setReturnErrors(returnErrors == JNI_TRUE);
+  decoder->optionsChanged();
 }
 
 /**

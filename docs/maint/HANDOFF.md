@@ -518,6 +518,24 @@ callback. **A test that tolerates "nothing happened" is a test that reports noth
 happened as success.**
 
 
+**`Barcode::setReaderOptions` is private, and only `ZXing::ReadBarcodes` is its friend.**
+That matters to anything that drives `MultiFormatReader` itself rather than going through
+`ReadBarcodes` — which the decoder now does, to stop rebuilding the readers on every
+frame. The only thing those options carry into a result is the `TextMode`, and a result
+without them answers `text()` with zxing-cpp's default **HRI**, which replaces every
+non-graphical character with a stand-in. So the symptom would not have been a crash or a
+miss: it would have been every GS1 separator and every control character quietly coming
+back as `<GS>`, on the exact payloads this fork spent §9.1 getting right. The text mode is
+passed explicitly at the JNI boundary now, so no path depends on that state.
+`aGs1SeparatorSurvivesInTheText` is the test that would have caught it, and did run.
+
+**The paired run is the measurement; the committed result from last session is not.**
+Comparing the reader-reuse change against the previous session's committed native result
+made every 2D case look 4–5% *slower*. Re-running the unchanged code in the same session
+reproduced those same elevated numbers, so it was session drift. On this device a
+before/after taken across two sessions is not a before/after — and the trap is that the
+drift was small enough to read as a real regression rather than as noise.
+
 **The JNI bridge was handing modified UTF-8's function standard UTF-8.** Every string the
 native backend returned went through `NewStringUTF`, which takes *modified* UTF-8, and
 zxing-cpp produces the standard kind. The two differ in exactly the two places a payload
@@ -1170,10 +1188,23 @@ The user's stated direction (route 1 of the screenshot they sent): zxing-cpp + A
     - zxing-cpp is **56–82% faster on everything 2D and on all-format misses**, which is
       the path a scanner spends almost every frame on: `FHD_MISS_DEFAULT` 81.3 ms →
       18.7 ms.
-    - The Java decoder wins **1D hits** by 5–20×, because `HybridBinarizer` is lazy and
-      the 1D readers scan rows outward from the middle, so a centred 1D hit binarizes a
-      few rows. zxing-cpp binarizes the whole frame first. Absolute gap: **1.7 ms, once**,
-      against tens of milliseconds saved on every miss frame before it.
+    - The Java decoder wins **1D hits** by 5–20×. Absolute gap: **1.7 ms, once**, against
+      tens of milliseconds saved on every miss frame before it.
+
+      **The reason first recorded here was wrong, and both real ones are now fixed.** It
+      said zxing-cpp binarizes the whole frame first while `HybridBinarizer` is lazy. It
+      does not: zxing-cpp's `HybridBinarizer::getPatternRow` delegates to
+      `GlobalHistogramBinarizer`, so its 1D path thresholds one row at a time exactly as
+      the Java one does. What the 5–20× actually was: a full copy of the ROI before the
+      JNI call, and a `MultiFormatReader` — with every format reader the options ask for —
+      constructed on every single frame inside `ZXing::ReadBarcode`. Both are gone
+      (2026-11-09). **A mechanism nobody measured is a guess with a citation**; this one
+      survived in this file because it was plausible and the number it explained was real.
+    - **Where the 1D hit stands now**, paired against Java in one session on DN-ENG41:
+      VGA +44.5%, HD +21.9%, FHD no longer resolvable, and every other case in the matrix
+      63–91% the other way. Still fixed-cost dominated — the native 1D hit barely moves
+      between VGA and FHD — so what is left to find is more fixed cost, not pixel work.
+      `reports/l2-native-cached-reader-DN-ENG41-20261109.md`.
 
     **Decided: zxing-cpp is now the default** (`ebe1708b4`), with Java as the fallback
     where there is no native build for the ABI. `ScannerOptions.setDecoderBackend(JAVA)`

@@ -46,6 +46,17 @@ do not measure real-camera first-scan time, battery life or other devices.
 原始字节和元数据；scanner 的 57 项 instrumentation 测试全部通过。生成帧的
 L2 测量不能推断真实相机首扫、续航或其他设备表现。
 
+**Superseded in one respect.** The 39% figure above compares against a Java run from a
+different session. A paired Java run on 2026-11-09 puts the same case at 21.9% after the
+reader-reuse change: see
+[l2-native-cached-reader-DN-ENG41-20261109.md](l2-native-cached-reader-DN-ENG41-20261109.md).
+The native before/after measured here is unaffected.
+
+**其中一点已被取代。** 上面的 39% 是与另一场次的 Java 轮相比得出的。2026-11-09 的同场次配对 Java 轮
+在复用 reader 改动后将同一 case 测为 21.9%，见
+[l2-native-cached-reader-DN-ENG41-20261109.md](l2-native-cached-reader-DN-ENG41-20261109.md)。
+本文记录的原生前后对比不受影响。
+
 Data / 数据： [27-case CSV](l2-native-array-roi-DN-ENG41-20261109-cases.csv),
 [verdict JSON](l2-native-array-roi-DN-ENG41-20261109-verdict.json),
 [native baseline](l2-native-array-roi-baseline-DN-ENG41-20261109.json),

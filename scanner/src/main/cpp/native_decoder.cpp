@@ -2,6 +2,11 @@
  * SPDX-License-Identifier: Apache-2.0 */
 #include "native_decoder.h"
 #include <new>
+#include <utility>
+#include "BinaryBitmap.h"
+#include "GlobalHistogramBinarizer.h"
+#include "HybridBinarizer.h"
+#include "ReadBarcode.h"
 #include "Version.h"
 
 namespace scanner_native {
@@ -33,6 +38,49 @@ NativeDecoder::NativeDecoder() {
   // which is what MultiFormatReader does.
   options.setTextMode(ZXing::TextMode::Plain);
   options.setMaxNumberOfSymbols(1);
+}
+
+namespace {
+/** The binarizer `ReadBarcode` would build, for the two this decoder can be set to. */
+std::unique_ptr<ZXing::BinaryBitmap> createBitmap(ZXing::Binarizer binarizer,
+                                                  const ZXing::ImageView& image) {
+  if (binarizer == ZXing::Binarizer::GlobalHistogram) {
+    return std::make_unique<ZXing::GlobalHistogramBinarizer>(image);
+  }
+  return std::make_unique<ZXing::HybridBinarizer>(image);
+}
+
+/**
+ * Whether `read` may take the cached-reader path for this frame and these options.
+ *
+ * Everything `ReadBarcodes` does between the image and `MultiFormatReader::read` has to
+ * be a no-op for that to be the same decode: no luminance extraction (a dense greyscale
+ * plane is already what the binarizers want), no downscale pyramid, no inversion pass,
+ * and not the single-line `isPure` shortcut.
+ */
+bool canReuseReader(const ZXing::ReaderOptions& options, const ZXing::ImageView& image) {
+  return image.format() == ZXing::ImageFormat::Lum && image.pixStride() == 1 &&
+         !options.isPure() && !options.tryInvert() && !options.tryDownscale() &&
+         // setReaderOptions is private; the text mode it carries is passed explicitly at
+         // the JNI boundary instead, and a character set has no such second route.
+         options.characterSet() == ZXing::CharacterSet::Unknown &&
+         (options.binarizer() == ZXing::Binarizer::LocalAverage ||
+          options.binarizer() == ZXing::Binarizer::GlobalHistogram);
+}
+}  // namespace
+
+ZXing::Barcode NativeDecoder::read(const ZXing::ImageView& image) {
+  if (!canReuseReader(options, image)) {
+    // maxNumberOfSymbols is already 1, so this is ReadBarcode without its options copy.
+    auto barcodes = ZXing::ReadBarcodes(image, options);
+    return barcodes.empty() ? ZXing::Barcode() : std::move(barcodes.front());
+  }
+  if (!reader) {
+    reader = std::make_unique<ZXing::MultiFormatReader>(options);
+  }
+  auto bitmap = createBitmap(options.binarizer(), image);
+  auto barcodes = reader->read(*bitmap, 1);
+  return barcodes.empty() ? ZXing::Barcode() : std::move(barcodes.front());
 }
 
 std::unique_ptr<NativeDecoder> createNativeDecoder() noexcept {
