@@ -11,6 +11,21 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
+### Fixed / 修复
+- The native backend could not read an ordinary Code 39 symbol whose content parses as
+  Code 32 or PZN — zxing-cpp makes those variants of Code 39 and reports them ahead of it,
+  and this fork can name neither, so the result was dropped and the frame reported as
+  empty. About 9.3% of six-character Code 39 contents over Code 32's alphabet are affected.
+  Code 39 is now asked for as its two nameable variants, and a request with no format
+  selection asks for every format this fork can name instead of all the formats zxing-cpp
+  can read. No change on the 1168-sample corpus; no L2 case slower, and all-format QR hits
+  3.4–4.0% faster.
+- 原生 backend 读不出内容恰好能解析为 Code 32 或 PZN 的普通 Code 39 符号——zxing-cpp 把这两者
+  作为 Code 39 的变体并优先报告，而本 fork 两者都无法命名，结果被丢弃、整帧报告为空。在 Code 32
+  的字母表上，约 9.3% 的六字符 Code 39 内容受影响。现在 Code 39 按其两个可命名变体请求，未指定
+  格式的请求改为请求本 fork 能命名的全部格式，而非 zxing-cpp 能读的全部格式。1168 张语料结果不变；
+  L2 无一用例变慢，全码制 QR 命中快 3.4–4.0%。
+
 ### Native decoder reader reuse / 原生解码器复用 reader
 - Keep the native decoder's `MultiFormatReader` across frames instead of letting
   `ZXing::ReadBarcode` rebuild it, and every format reader with it, on every call. Rebuilt

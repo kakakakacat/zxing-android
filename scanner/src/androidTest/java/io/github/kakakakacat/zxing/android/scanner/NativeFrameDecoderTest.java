@@ -252,6 +252,70 @@ public final class NativeFrameDecoderTest {
     assertNull(NativeFrameDecoder.formatFromNativeName("NotAFormat"));
   }
 
+  /**
+   * The payloads a format name table can lose a reader on.
+   *
+   * <p>zxing-cpp makes Code 32 (Italian pharmacode) and PZN variants of Code 39, and
+   * `Code39Reader` reports one of them whenever the decoded <em>content</em> parses as
+   * one — ahead of Code 39, and for Code 32 with the text rewritten. Neither has an
+   * equivalent here, so the result was dropped and the frame came back as holding
+   * nothing: an ordinary Code 39 symbol that this library simply could not read, while
+   * the Java backend read it. These six are valid Code 32, and about 9% of six-character
+   * Code 39 contents over Code 32's alphabet are.
+   */
+  private static final String[] CODE_39_ALIASING_ANOTHER_VARIANT = {
+      "5J2451", "NWTNT4", "4NX7JF", "P65HG1", "8F92NF", "F0KDXU", "-10000001",
+  };
+
+  @Test
+  public void aCode39WhoseContentParsesAsAnotherVariantIsStillACode39() throws Exception {
+    FrameDecoder everything = new NativeFrameDecoder(null);
+    FrameDecoder code39 = new NativeFrameDecoder(Arrays.asList(BarcodeFormat.CODE_39));
+    try {
+      for (String payload : CODE_39_ALIASING_ANOTHER_VARIANT) {
+        LuminanceSource frame = frameWith(payload, BarcodeFormat.CODE_39);
+        for (FrameDecoder decoder : new FrameDecoder[] { everything, code39 }) {
+          Result result = decoder.decode(frame);
+          assertNotNull("the native backend found nothing in a Code 39 frame: " + payload,
+                        result);
+          assertEquals(payload, result.getText());
+          assertEquals(BarcodeFormat.CODE_39, result.getBarcodeFormat());
+        }
+      }
+    } finally {
+      everything.close();
+      code39.close();
+    }
+  }
+
+  @Test
+  public void noFormatSelectionAsksForTheNameableFormatsRatherThanAllOfThem() {
+    // An empty string means "every format" to zxing-cpp, and that includes symbologies
+    // and variants this fork cannot name. A result in one of those is dropped, and
+    // because the decoder is configured for a single symbol it also ends the search.
+    //
+    // Checked against the per-format spellings rather than a second copy of the table:
+    // the expected list is what asking for every format this fork can name produces, so
+    // a format added to the table on one side and not the other fails here.
+    StringBuilder expected = new StringBuilder();
+    for (BarcodeFormat format : BarcodeFormat.values()) {
+      String one;
+      try {
+        one = NativeFrameDecoder.nativeFormatList(Collections.singletonList(format));
+      } catch (UnsupportedOperationException noEquivalent) {
+        continue; // zxing-cpp cannot be asked for this one; UPC_EAN_EXTENSION is the case.
+      }
+      if (expected.length() > 0) {
+        expected.append(',');
+      }
+      expected.append(one);
+    }
+    String names = NativeFrameDecoder.nativeFormatList(null);
+    assertTrue("a format selection must never be empty", names.length() > 0);
+    assertEquals(expected.toString(), names);
+    assertEquals(names, NativeFrameDecoder.nativeFormatList(Collections.emptyList()));
+  }
+
   @Test
   public void theFormatSetCanBeChangedBetweenFrames() throws Exception {
     LuminanceSource frame = frameWith("ZX-NATIVE", BarcodeFormat.QR_CODE);

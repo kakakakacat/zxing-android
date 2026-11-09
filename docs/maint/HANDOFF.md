@@ -518,6 +518,37 @@ callback. **A test that tolerates "nothing happened" is a test that reports noth
 happened as success.**
 
 
+**The format name table could lose a reader a symbol it had already decoded, and it did.**
+In zxing-cpp, `Code32` (Italian pharmacode) and `PZN` are *variants of Code 39*, and
+`Code39Reader` reports one of them whenever the decoded **content** of an ordinary Code 39
+symbol parses as one — before Code 39 itself, and for Code 32 with the text rewritten.
+This fork can name neither, so `formatFromNativeName` dropped the result and the frame came
+back as holding nothing. **An ordinary Code 39 symbol that the default backend could not
+read and the Java one could**, and content-triggered, so one barcode fails forever while
+the next one works. About **9.3%** of six-character Code 39 contents over Code 32's
+alphabet are valid Code 32. Fixed 2026-11-09 and now a regression test;
+`reports/native-nameable-formats-DN-ENG41-20261109.md` has the whole of it.
+
+**Two things that were wrong about the first fix, and both generalise.**
+
+- **A format restriction does not exclude a variant.** `operator<=` means "same symbology
+  and the requested one is the base variant", so asking for `Code39` still enables
+  `Code32` and `PZN` — as asking for `PDF417` enables `MicroPDF417`, `QRCode` enables
+  Micro QR and rMQR, `DataBar` enables DataBar Limited. Narrowing the request is not the
+  same as narrowing what can come back; only naming the **specific variants** is.
+- **What is asked for and what comes back are different vocabularies.** Changing only the
+  request table made plain Code 39 start missing too, because the reverse table is built
+  from it and the spelling `Code 39` that a result actually carries vanished with the edit.
+  They are decoupled now. This is the second time in this repository that the two
+  directions of this table have cost reads — the first was the 90-read DataBar loss at the
+  top of this file.
+
+**And the general shape, because it will recur:** the native decoder is configured for a
+single symbol, so a result it cannot name does not merely get dropped — it *ends the
+search* for that frame. Asking for more formats than the caller can name is therefore not
+free breadth; it is a way to lose symbols. "No format selection" now asks for every format
+this fork can name rather than every format zxing-cpp can read.
+
 **`Barcode::setReaderOptions` is private, and only `ZXing::ReadBarcodes` is its friend.**
 That matters to anything that drives `MultiFormatReader` itself rather than going through
 `ReadBarcodes` — which the decoder now does, to stop rebuilding the readers on every
