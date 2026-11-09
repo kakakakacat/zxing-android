@@ -17,6 +17,7 @@
 package io.github.kakakakacat.zxing.android.scanner;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -32,6 +33,7 @@ import io.github.kakakakacat.zxing.MultiFormatWriter;
 import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource;
 import io.github.kakakakacat.zxing.Result;
 import io.github.kakakakacat.zxing.common.BitMatrix;
+import io.github.kakakakacat.zxing.android.camera.LumaFrameData;
 
 import org.junit.Assume;
 import org.junit.Before;
@@ -103,6 +105,43 @@ public final class NativeFrameDecoderTest {
       assertEquals(BarcodeFormat.QR_CODE, result.getBarcodeFormat());
     } finally {
       decoder.close();
+    }
+  }
+
+  @Test
+  public void arrayRoiPreservesNativeResultsAcrossPaddedCrops() throws Exception {
+    BarcodeFormat[] formats = {BarcodeFormat.UPC_A, BarcodeFormat.QR_CODE};
+    String[] payloads = {"012345678905", "ARRAY-ROI"};
+    FrameDecoder baseline = new NativeFrameDecoder(null, null, true, false, null, false);
+    FrameDecoder candidate = new NativeFrameDecoder(null, null, true);
+    try {
+      for (int i = 0; i < formats.length; i++) {
+        BitMatrix bits = new MultiFormatWriter().encode(payloads[i], formats[i], SIZE, SIZE);
+        int imageWidth = bits.getWidth() + 19;
+        int imageHeight = bits.getHeight() + 17;
+        byte[] pixels = new byte[imageWidth * imageHeight];
+        Arrays.fill(pixels, (byte) 0xff);
+        for (int y = 0; y < bits.getHeight(); y++) {
+          for (int x = 0; x < bits.getWidth(); x++) {
+            if (bits.get(x, y)) pixels[(y + 9) * imageWidth + x + 7] = 0;
+          }
+        }
+        LuminanceSource source = new PlanarYUVLuminanceSource(pixels, imageWidth,
+            imageHeight, 7, 9, bits.getWidth(), bits.getHeight(), false);
+        LumaFrameData data = LumaFrameData.Companion.array(pixels, imageWidth, imageHeight,
+            imageWidth, 1, 7, 9, bits.getWidth(), bits.getHeight(), 0, 0L);
+        Result expected = baseline.decode(source);
+        Result actual = ((FrameDataDecoder) candidate).decode(data, source);
+        assertNotNull(expected);
+        assertNotNull(actual);
+        assertEquals(expected.getText(), actual.getText());
+        assertEquals(expected.getBarcodeFormat(), actual.getBarcodeFormat());
+        assertArrayEquals(expected.getRawBytes(), actual.getRawBytes());
+        assertEquals(expected.getResultMetadata(), actual.getResultMetadata());
+      }
+    } finally {
+      baseline.close();
+      candidate.close();
     }
   }
 

@@ -85,7 +85,8 @@ internal class NativeFrameDecoder
     formats: Collection<@JvmSuppressWildcards BarcodeFormat>?,
     private val compatibilityRendering: Boolean,
     private val directBuffer: Boolean = false,
-    private val decodeCall: DecodeCall? = null
+    private val decodeCall: DecodeCall? = null,
+    private val arrayRoi: Boolean = true
 ) : FrameDecoder, FrameDataDecoder {
 
   /** Test seam at the native-call boundary; absent in normal operation. */
@@ -143,12 +144,16 @@ internal class NativeFrameDecoder
       val plane = if (directBuffer && data == null)
         source as? io.github.kakakakacat.zxing.android.camera.YPlaneLuminanceSource else null
       val buffer = if (directBuffer) data?.directRoiBuffer() ?: plane?.directBuffer() else null
+      val array = if (arrayRoi) data?.bytes else null
       val width = data?.cropWidth ?: source.width
       val height = data?.cropHeight ?: source.height
       val rowStride = data?.rowStride ?: plane?.planeRowStride()
       val pixelStride = data?.pixelStride ?: plane?.planePixelStride()
       if (decodeCall != null) {
         decodeCall.decode(handle, source.matrix, source.width, source.height)
+      } else if (array != null && data != null) {
+        nativeDecodeArray(handle, array, data.cropLeft, data.cropTop, data.cropWidth,
+            data.cropHeight, data.rowStride, data.pixelStride)
       } else if (buffer != null && rowStride != null && pixelStride != null) {
         nativeDecodeDirect(handle, buffer, width, height, rowStride, pixelStride)
       } else {
@@ -708,6 +713,9 @@ internal class NativeFrameDecoder
     @JvmStatic private external fun nativeBuildInfo(): String
 
     @JvmStatic private external fun nativeCreate(): Long
+    @JvmStatic private external fun nativeDecodeArray(handle: Long, luminance: ByteArray,
+        cropLeft: Int, cropTop: Int, width: Int, height: Int,
+        rowStride: Int, pixelStride: Int): Array<Any?>?
 
     @JvmStatic private external fun nativeDestroy(handle: Long)
 

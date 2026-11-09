@@ -11,6 +11,14 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
+### Native Camera1 frame input / 原生 Camera1 帧输入
+- Decode cropped Camera1 Y arrays through JNI with their original row stride, avoiding
+  a full ROI copy. On DN-ENG41, all 27 native L2 cases improved; default 1D hits fell
+  by 72–93% across VGA, HD and FHD. HD remains 39% slower than Java on this case.
+- Camera1 裁剪后的 Y 数组携带原始行步幅直接进入 JNI，避免复制整个 ROI。DN-ENG41
+  上原生 L2 的 27 项均提速；默认全码制一维码命中在 VGA、HD、FHD 下降 72–93%。
+  HD 场景仍比 Java 慢 39%。
+
 ### Frame ownership and scheduling / 帧所有权与调度
 - Add opt-in pull-only Camera1 NV21 callback buffering and decode-thread miss scheduling;
   stop gates suppress late requests and retired pools never reuse held frames.

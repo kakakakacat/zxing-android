@@ -26,6 +26,8 @@
 
 [方法与解读](BENCHMARKS.md#106c-the-first-backend-ab-measured) · [完整 27 项结果与判定](reports/l2-ab-602d368c4-DN-ENG41-verdict.md) · [原始数据 CSV](reports/l2-ab-602d368c4-DN-ENG41-cases.csv) · [语料识别正确性与回退项](BENCHMARKS.md#91-l1-on-a-device--the-accuracy-question-the-native-default-was-missing)
 
+**后续优化（2026-11-09）：** Camera1 的原生解码现在直接读取原始 Y 数组的裁剪区域，避免复制 ROI。同机原生路径前后 27 项 L2 对比全部通过；默认全码制的一维码命中耗时在 VGA / HD / FHD 分别降低 71.7% / 86.5% / 93.4%。HD 新路径为 114 µs，另一次 Java 测量为 82 µs，仍慢约 39%。上方图表保留历史提交 `602d368c4` 的结果，不代表这次改动。见[本次报告](reports/l2-native-array-roi-DN-ENG41-20261109.md)。
+
 ### 仓库组成
 
 | 模块 | 用途 |
@@ -306,6 +308,13 @@ to every later release.
 · [All 27 cases and verdict](reports/l2-ab-602d368c4-DN-ENG41-verdict.md)
 · [Source data (CSV)](reports/l2-ab-602d368c4-DN-ENG41-cases.csv)
 · [Corpus correctness, including regressions](BENCHMARKS.md#91-l1-on-a-device--the-accuracy-question-the-native-default-was-missing)
+
+**Later optimization (2026-11-09):** Native Camera1 decoding now reads the cropped
+original Y array without copying the ROI. All 27 native-before/after L2 cases passed
+on the same device. Default all-format 1D hits fell 71.7% / 86.5% / 93.4% at VGA / HD /
+FHD. The new HD path took 114 µs; a separate Java run took 82 µs, leaving a 39% gap.
+The chart above retains the historical `602d368c4` results. See the
+[new report](reports/l2-native-array-roi-DN-ENG41-20261109.md).
 
 ## What is here
 

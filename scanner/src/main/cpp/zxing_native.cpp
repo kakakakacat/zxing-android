@@ -500,6 +500,46 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode
   return decodeImage(env, decoder, frame->image());
 }
 
+/** Reads a cropped Camera1 Y plane in place, preserving its full-frame row stride. */
+JNIEXPORT jobjectArray JNICALL
+Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecodeArray(
+    JNIEnv* env, jclass, jlong handle, jbyteArray luminance, jint cropLeft, jint cropTop,
+    jint width, jint height, jint rowStride, jint pixelStride) {
+  NativeDecoder* decoder = fromHandle(handle);
+  if (decoder == nullptr) {
+    throwJava(env, "java/lang/IllegalStateException", "the native decoder is closed");
+    return nullptr;
+  }
+  if (luminance == nullptr || cropLeft < 0 || cropTop < 0 || width <= 0 || height <= 0 ||
+      rowStride <= 0 || pixelStride <= 0) {
+    throwJava(env, "java/lang/IllegalArgumentException", "invalid array luma crop or strides");
+    return nullptr;
+  }
+  const int64_t rowEnd = (static_cast<int64_t>(cropLeft) + width - 1) * pixelStride + 1;
+  if (rowEnd > rowStride) {
+    throwJava(env, "java/lang/IllegalArgumentException", "array luma crop crosses a row");
+    return nullptr;
+  }
+  const int64_t start = static_cast<int64_t>(cropTop) * rowStride +
+                        static_cast<int64_t>(cropLeft) * pixelStride;
+  const jsize length = env->GetArrayLength(luminance);
+  if (start < 0 || start >= length) {
+    throwJava(env, "java/lang/IllegalArgumentException", "array luma crop starts past storage");
+    return nullptr;
+  }
+  scanner_native::PinnedBytes pixels(env, luminance);
+  if (!pixels.ok()) return nullptr;
+  std::string error;
+  auto frame = LumaFrameView::create(
+      std::span<const uint8_t>(pixels.get() + start, static_cast<size_t>(length - start)),
+      width, height, rowStride, pixelStride, error);
+  if (!frame) {
+    throwJava(env, "java/lang/IllegalArgumentException", error);
+    return nullptr;
+  }
+  return decodeImage(env, decoder, frame->image());
+}
+
 JNIEXPORT jobjectArray JNICALL
 Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecodeDirect(
     JNIEnv* env, jclass, jlong handle, jobject buffer, jint width, jint height,
