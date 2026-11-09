@@ -11,13 +11,30 @@ API may still change between minor versions.
 
 ## [Unreleased]
 
+### Native decoder reader reuse / 原生解码器复用 reader
+- Keep the native decoder's `MultiFormatReader` across frames instead of letting
+  `ZXing::ReadBarcode` rebuild it, and every format reader with it, on every call. Rebuilt
+  only when a decoder option changes; anything but a dense greyscale plane decoded with
+  this decoder's fixed options still goes through `ZXing::ReadBarcode` unchanged. On
+  DN-ENG41, paired before/after in one session: default all-format 1D hits fell 13–15%
+  across VGA, HD and FHD, UPC-A-only 1D hits 12–13%, and every case dominated by 2D work
+  was unresolvable at ±1%. Against the Java backend in the same session the HD all-format
+  1D hit is now 21.9% slower rather than the 39% recorded before, and the deficit is gone
+  by FHD.
+- 原生解码器跨帧保留 `MultiFormatReader`，不再让 `ZXing::ReadBarcode` 每次调用重建它以及它需要的
+  每一个 format reader；仅在 decoder option 变化时重建，非稠密灰度平面或超出本 decoder 固定配置的
+  情况仍原样走 `ZXing::ReadBarcode`。DN-ENG41 同场次配对前后对比：默认全码制一维码命中在 VGA、HD、
+  FHD 下降 13–15%，仅 UPC-A 的一维码命中下降 12–13%，所有以 2D 工作为主的 case 在 ±1% 内不可分辨。
+  同场次与 Java backend 相比，HD 全码制一维码命中现为慢 21.9%，而非此前记录的 39%，到 FHD 该劣势消失。
+
 ### Native Camera1 frame input / 原生 Camera1 帧输入
 - Decode cropped Camera1 Y arrays through JNI with their original row stride, avoiding
   a full ROI copy. On DN-ENG41, all 27 native L2 cases improved; default 1D hits fell
-  by 72–93% across VGA, HD and FHD. HD remains 39% slower than Java on this case.
+  by 72–93% across VGA, HD and FHD. The Java comparison once recorded here is superseded
+  by the paired one above.
 - Camera1 裁剪后的 Y 数组携带原始行步幅直接进入 JNI，避免复制整个 ROI。DN-ENG41
   上原生 L2 的 27 项均提速；默认全码制一维码命中在 VGA、HD、FHD 下降 72–93%。
-  HD 场景仍比 Java 慢 39%。
+  本条原先记录的与 Java 的对比已由上一条的同场次配对结果取代。
 
 ### Frame ownership and scheduling / 帧所有权与调度
 - Add opt-in pull-only Camera1 NV21 callback buffering and decode-thread miss scheduling;

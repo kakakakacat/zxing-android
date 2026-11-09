@@ -745,11 +745,25 @@ measurement error:**
 | `FHD_HIT_1D_DEFAULT` | **0.091 ms** | 1.811 ms | +1889% |
 | `HD_HIT_1D_DEFAULT` | **0.077 ms** | 0.836 ms | +988% |
 
-`HybridBinarizer` is lazy and the 1D readers call `getBlackRow()`, scanning outward from
-the middle row, so a centred 1D hit binarizes a handful of rows and stops. zxing-cpp
-binarizes the whole image before scanning, so it pays a full-frame cost whatever it finds.
 In absolute terms the gap is **1.7 ms, once**, on the single frame of a session that
 succeeds; the miss path it loses is tens of milliseconds on every frame before that.
+
+**The explanation this section carried was wrong, and it is worth leaving the correction
+visible.** It said `HybridBinarizer` is lazy on the Java side — true — while zxing-cpp
+binarizes the whole image before scanning. It does not. zxing-cpp's
+`HybridBinarizer::getPatternRow` delegates to `GlobalHistogramBinarizer`, so its 1D path
+thresholds one row at a time, the same shape as `getBlackRow()`. The gap was two fixed
+per-frame costs on this side of the seam: a full copy of the ROI before the JNI call, and
+a `MultiFormatReader` — with every format reader the options ask for — constructed inside
+`ZXing::ReadBarcode` on every frame. Both were removed on 2026-11-09
+(`reports/l2-native-array-roi-DN-ENG41-20261109.md`,
+`reports/l2-native-cached-reader-DN-ENG41-20261109.md`), and the HD figure above went
+0.836 ms → 0.114 ms → 0.096 ms. Paired against Java in one session it is now +21.9% at
+HD, +44.5% at VGA and unresolvable at FHD.
+
+**The tell was in the table all along.** The native 1D hit barely changes between VGA and
+FHD — six times the pixels for about 8% more time — which no per-pixel explanation
+survives. If a cost does not scale with the frame, stop looking at the pixels.
 
 #### Holding the effort level constant, which the first attempt did not
 
