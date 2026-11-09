@@ -13,7 +13,26 @@ same content in 简体中文 and English. **Write new detail there, in both lang
 keep the README short.** A change only reaches the README when it changes what the
 project *is* or moves one of the headline numbers.
 
-Last updated at commit `ed0b063ea` on branch `maint/android`, **which is pushed**.
+Last updated at commit `c37bc9f1c` on branch `maint/android`, **which is pushed**.
+
+**Two branches carry the same three commits, and that is worth knowing before reading a
+hash here.** `maint/android` and `experiment/java-cpp-arm-device-test` diverged at
+`fbb5add49`, and each then grew a commit titled "Add Java and C++ Android ROI device
+experiment", one titled "Record Java C++ Android ROI device results" and one titled
+"docs(maint): record format-aware decoder results". They are the same work applied twice:
+pairwise identical patch-ids and identical trees. The four commits that were genuinely
+only on the experiment branch were **cherry-picked** onto `maint/android` on 2026-11-09
+rather than merged, because this fork's own history is strictly linear and a merge would
+have shown each duplicated change a second time. So those four have two hashes each. The
+reports and the README cite the experiment-branch hashes, which is where the measurements
+were actually taken; both branches are pushed, so every hash resolves.
+
+| Work | On the experiment branch | On `maint/android` |
+| --- | --- | --- |
+| Camera1 native array ROI | `669cc490d` | `e78577311` |
+| Native decoder reader reuse | `75be15d45` | `857861d07` |
+| Nameable format set | `099d1153a` | `e65f26080` |
+| README chart regenerated | `d2b8b2478` | `c37bc9f1c` |
 
 ---
 
