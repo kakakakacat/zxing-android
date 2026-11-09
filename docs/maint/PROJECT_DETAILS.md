@@ -754,18 +754,22 @@ val options = ScannerOptions.Builder()
     .build()
 ```
 
-These are opt-in controls, not measured improvements. `AUTO` keeps its native-first
-behavior. `FORMAT_AWARE` chooses Java for explicitly 1D-only requests or Java-only hints,
-otherwise AUTO; changing formats replaces the decoder on its owning decode thread.
-Resolution is a request and camera negotiation may choose another size. The interval
-adds a delay after failed attempts, trading responsiveness for less decode work; it does
-not set sensor FPS. Direct input applies only to direct Y-plane buffers, with an array
-fallback for other luminance sources. The camera frame remains owned until decoding ends.
+These remain opt-in controls. A locked-clock, 27-case DN-ENG41 L2 comparison found that
+`FORMAT_AWARE` selects Java for explicitly UPC-A-only requests, avoiding the native 1D
+penalty there; those timings matched the Java baseline within the device's measurement
+floor. Requests with no explicit format list still use native, and the default all-format
+1D hit regression remains. The overall comparison failed on those three cases; see the
+[full report](reports/l2-format-aware-4ad258ac2-DN-ENG41-verdict.md). No default
+backend change follows from this result. `FORMAT_AWARE` also chooses Java for Java-only
+hints; otherwise it uses AUTO. Changing formats replaces the decoder on its owning decode
+thread. Resolution is a request and camera negotiation may choose another size. The
+interval adds a delay after failed attempts, trading responsiveness for less decode work;
+it does not set sensor FPS. Direct input applies only to direct Y-plane buffers, with an
+array fallback for other luminance sources. The camera frame remains owned until decoding
+ends.
 
-以上均为可选控制项，不代表已经测得性能提升。`AUTO` 仍优先 native；`FORMAT_AWARE` 对明确只扫
-一维码或携带 Java 专属 hints 的请求选择 Java，否则按 AUTO 处理；修改码制会在解码线程替换解码器。
-分辨率为协商目标，实际尺寸由设备决定。间隔在失败后延迟下一次请求，以响应速度换取更少解码工作，
-不控制传感器 FPS。直接输入仅用于 direct Y 平面，其余输入回退到数组；解码完成前仍持有相机帧。
+这些控制仍为可选项。DN-ENG41 锁频后的 27 项 L2 对比显示，`FORMAT_AWARE` 对明确限定为 UPC-A 的请求
+选择 Java，避免了该路径的 native 一维码性能退化；计时与 Java 基线的差异低于设备测量门槛。未显式指定码制的请求仍走 native，默认全码制的一维码命中退化依旧存在。完整对比在这三项上失败，见[报告](reports/l2-format-aware-4ad258ac2-DN-ENG41-verdict.md)。本次结果不支持更改默认 backend。`FORMAT_AWARE` 也会对 Java 专属 hints 选择 Java，其余情况按 AUTO 处理；修改码制会在解码线程替换解码器。分辨率为协商目标，实际尺寸由设备决定。间隔在失败后延迟下一次请求，以响应速度换取更少解码工作，不控制传感器 FPS。直接输入仅用于 direct Y 平面，其余输入回退到数组；解码完成前仍持有相机帧。
 
 ### Compare the direct path / 对比直接输入路径
 

@@ -30,5 +30,5 @@ Warnings: AndroidX cooldown wait disabled; thermal status remained severe, Memor
 | FHD_padded | 412720 | 303707 | 26.4% | 3.0% | [-121647, -92251] | cpp_faster |
 | FHD_pixel2 | 27084939 | 1717010 | 93.7% | 6.6% | [-27152704, -25340300] | cpp_faster |
 
-The result does not establish full decode or live camera gains. The production native-direct path can skip this pack operation. Decoder and camera stages are reported separately.
-本结果不代表完整解码或实拍链路收益。生产 native-direct 路径可跳过此打包操作；解码与相机阶段须单独报告。
+The result does not establish full decode or live camera gains. The production native-direct path can skip this pack operation. Decoder and camera stages are reported separately. The repeated same-Java-decoder stage is in [decode-stage.md](decode-stage.md).
+本结果不代表完整解码或实拍链路收益。生产 native-direct 路径可跳过此打包操作；解码与相机阶段须单独报告。同一 Java decoder 的多进程结果见 [decode-stage.md](decode-stage.md)。
