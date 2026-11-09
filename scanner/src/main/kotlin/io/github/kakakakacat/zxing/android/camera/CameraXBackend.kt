@@ -196,7 +196,7 @@ internal class CameraXBackend(
         .build()
     preview.setSurfaceProvider { request -> provideSurface(request) }
 
-    val imageAnalysis = ImageAnalysis.Builder()
+    var imageAnalysis = ImageAnalysis.Builder()
         .setResolutionSelector(resolutionSelector(analysisWidth, analysisHeight))
         .setTargetRotation(rotation)
         // One frame at a time, and the newest one. The decoder pulls, so anything that
@@ -215,15 +215,44 @@ internal class CameraXBackend(
     this.preview = preview
     camera = cameraProvider.bindToLifecycle(
         owner, CameraSelector.DEFAULT_BACK_CAMERA, preview, imageAnalysis)
-    if (options.analysisWidth > 0) {
-      val previewInfo = preview.resolutionInfo
-      val analysisInfo = imageAnalysis.resolutionInfo
-      check(previewInfo != null && analysisInfo != null && StreamGeometry.sameAspect(
-          previewInfo.resolution.width, previewInfo.resolution.height,
-          analysisInfo.resolution.width, analysisInfo.resolution.height)) {
-        "Camera negotiated different preview/analysis aspect ratios; use a shared stream size"
+    if (options.analysisWidth > 0 && !negotiatedAspectsAgree(preview, imageAnalysis)) {
+      // The separate analysis size could not be honoured on this camera. Refusing the
+      // bind here is what the exception used to do, and it is the wrong answer: the host
+      // asked for a smaller analysis stream as an optimisation, not as a condition of
+      // scanning, and a scanner that will not open is worse for it than one running at
+      // the preview's size. The stretched preview mapper does require one field of view,
+      // so the fix is to take the preview's size for both rather than to accept the pair.
+      //
+      // This is not vendor rounding -- StreamGeometry already allows 5% for that. It is
+      // a camera whose size list has nothing matching the request in the preview's
+      // aspect, so CameraX satisfied each use case from a different bucket.
+      Log.w(TAG, "Camera negotiated preview ${resolutionOf(preview)} against analysis " +
+          "${resolutionOf(imageAnalysis)}, which are different fields of view; rebinding " +
+          "with the preview size for both and ignoring the requested analysis size " +
+          "${options.analysisWidth}x${options.analysisHeight}")
+      unbindOurUseCases(cameraProvider)
+      val shared = ImageAnalysis.Builder()
+          .setResolutionSelector(resolutionSelector(previewWidth, previewHeight))
+          .setTargetRotation(rotation)
+          .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+          .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+          .build()
+      shared.setAnalyzer(executor) { image -> onFrame(image) }
+      analysis = shared
+      imageAnalysis = shared
+      camera = cameraProvider.bindToLifecycle(
+          owner, CameraSelector.DEFAULT_BACK_CAMERA, preview, shared)
+      // Both use cases now carry the same request, so a camera that still answers with
+      // two fields of view is one this backend cannot drive at all.
+      check(negotiatedAspectsAgree(preview, shared)) {
+        "Camera negotiated preview ${resolutionOf(preview)} against analysis " +
+            "${resolutionOf(shared)} even for one requested size " +
+            "${previewWidth}x${previewHeight}"
       }
-      Log.i(TAG, "Negotiated preview=${previewInfo.resolution}, analysis=${analysisInfo.resolution}")
+    }
+    if (options.analysisWidth > 0) {
+      Log.i(TAG, "Negotiated preview=${resolutionOf(preview)}, " +
+          "analysis=${resolutionOf(imageAnalysis)}")
     }
     warnAboutOptionsThisBackendIgnores()
 
@@ -375,6 +404,28 @@ internal class CameraXBackend(
    * behaviours. [capabilities] is the same information for a caller that would rather ask
    * than read logcat.
    */
+  // The bound resolution, or `"unbound"` -- only for messages, never for geometry.
+  // Two overloads because `resolutionInfo` belongs to each use case, not to `UseCase`.
+  private fun resolutionOf(preview: Preview): String =
+      preview.resolutionInfo?.resolution?.toString() ?: "unbound"
+
+  private fun resolutionOf(analysis: ImageAnalysis): String =
+      analysis.resolutionInfo?.resolution?.toString() ?: "unbound"
+
+  /**
+   * Whether the two bound streams cover the same field of view.
+   *
+   * False when either is still unbound: an unknown geometry is not an agreeing one, and
+   * the stretched preview mapper would be mapping the viewfinder onto a guess.
+   */
+  private fun negotiatedAspectsAgree(preview: Preview, analysis: ImageAnalysis): Boolean {
+    val previewInfo = preview.resolutionInfo ?: return false
+    val analysisInfo = analysis.resolutionInfo ?: return false
+    return StreamGeometry.sameAspect(
+        previewInfo.resolution.width, previewInfo.resolution.height,
+        analysisInfo.resolution.width, analysisInfo.resolution.height)
+  }
+
   private fun warnAboutOptionsThisBackendIgnores() {
     val set = ArrayList<String>(6)
     if (options.cameraId != OpenCameraInterface.NO_REQUESTED_CAMERA) set.add("cameraId")

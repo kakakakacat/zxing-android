@@ -537,6 +537,35 @@ callback. **A test that tolerates "nothing happened" is a test that reports noth
 happened as success.**
 
 
+**CI was red on `maint/android` before any of the 2026-11-09 decoder work, and for two
+unrelated reasons. Both are fixed.**
+
+- **`aCameraXHostCanRequestSeparatePreviewAndAnalysisSizes` failed on the API 34/35/36
+  emulators** with the backend's own `IllegalStateException` about different
+  preview/analysis aspect ratios. The 5% tolerance added for DN-ENG41's 864x480-against-
+  640x360 was not the issue: a CI emulator's size list simply has nothing in the preview's
+  aspect near the requested analysis size, so CameraX satisfied the two use cases from
+  different buckets. **Refusing to bind was the wrong answer** — the host asked for a
+  smaller analysis stream as an optimisation, not as a condition of scanning, and a
+  scanner that will not open is worse for it than one running at the preview's size. It
+  now rebinds both at the preview size and logs what it ignored. **The exact resolutions
+  were never in the logs**, because the only line naming them was printed *after* the
+  check it would have explained; the failure message carries them now.
+- **CodeQL failed twice in a row** downloading `gradle-9.7.1-bin.zip`, on a 10 s timeout,
+  because `autobuild` runs `./gradlew` cold behind CodeQL's dependency proxy while
+  `build.yml` provisions Gradle first with `gradle/actions/setup-gradle`. The same two
+  steps are in the CodeQL workflow now. **It looked like a flake and was not** — the first
+  read of it here said "infrastructure flake", and the rerun failing identically is what
+  disproved that.
+
+**And the part worth carrying.** The CI emulator could not be reproduced locally — it is
+x86_64 with no device profile, and an Apple Silicon host cannot run an x86_64 image — so
+the fix had to be one that is right without knowing the two resolutions, and the
+diagnostics had to be improved so the next run states them. The fallback branch itself was
+then **forced on purpose** on a local emulator (the condition temporarily replaced with
+`true`) to watch it unbind, rebuild and rebind with every test still green, because a
+branch no run has entered is not a branch anyone has tested.
+
 **The format name table could lose a reader a symbol it had already decoded, and it did.**
 In zxing-cpp, `Code32` (Italian pharmacode) and `PZN` are *variants of Code 39*, and
 `Code39Reader` reports one of them whenever the decoded **content** of an ordinary Code 39

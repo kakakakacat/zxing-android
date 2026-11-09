@@ -12,6 +12,16 @@ API may still change between minor versions.
 ## [Unreleased]
 
 ### Fixed / 修复
+- A CameraX host that asks for a separate analysis size no longer fails to open the camera
+  on a device that cannot honour it. When the two bound streams come back with different
+  fields of view, the backend now rebinds both at the preview's size and says so, instead
+  of throwing its own invariant and reporting `CAMERA_UNAVAILABLE`. The 5% tolerance for
+  vendor rounding is unchanged; this covers the case where the camera's size list has
+  nothing matching the request in the preview's aspect.
+- CameraX 宿主请求独立的分析流尺寸时，在无法满足该请求的设备上不再导致相机打不开。两条流绑定后
+  若视场不同，backend 现在改为以预览尺寸重新绑定两者并记录告警，而不是抛出自身不变式、报
+  `CAMERA_UNAVAILABLE`。厂商取整的 5% 容差未变；本次覆盖的是相机尺寸表中没有与预览同比例的
+  可选尺寸的情况。
 - The native backend could not read an ordinary Code 39 symbol whose content parses as
   Code 32 or PZN — zxing-cpp makes those variants of Code 39 and reports them ahead of it,
   and this fork can name neither, so the result was dropped and the frame reported as
