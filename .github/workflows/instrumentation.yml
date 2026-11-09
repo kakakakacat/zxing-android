@@ -51,7 +51,15 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
-          target: ${{ matrix.api >= 35 && 'google_apis' || 'default' }}
+          # 35 and 36 have no `default` image. 23 is here for a different reason: on the
+          # AOSP image its emulator came up with no camera on 2026-11-09, so
+          # `aCamera1HostCanPauseAndReopenWithBufferedDirectScheduling` skipped itself
+          # with NO_CAMERA while the leg stayed green -- the two runs before it had no
+          # such skip, so that leg's camera coverage was coming and going unnoticed. A
+          # test that verifies nothing is the shape this repository keeps being bitten
+          # by, and the Google APIs image is the configuration the other three legs
+          # already use.
+          target: ${{ (matrix.api >= 35 || matrix.api == 23) && 'google_apis' || 'default' }}
           arch: x86_64
           disable-animations: true
           script: ./gradlew :scanner:connectedDebugAndroidTest
