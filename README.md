@@ -28,11 +28,11 @@
 
 **本分支内部 Java ZXing 与 zxing-cpp 解码后端的对比，不是原版 App 与当前 App 的整体提速。**
 
-本轮无码帧耗时降低 **77–81%**，二维码命中耗时降低 **71.9–82.5%**；居中一维码命中则是 Java 更快。完整 27 项测试为 **19 项通过 / 8 项失败**。
+本轮无码帧耗时降低 **79.3–82.6%**，二维码命中耗时降低 **78.8–86.6%**；居中一维码命中仍是 Java 更快，但差距已从早期的 5–20 倍收窄到 **VGA 慢 41.5%、HD 慢 20.1%、FHD 已低于本机测量门槛**。完整 27 项测试为 **21 项通过 / 3 项失败 / 3 项不可分辨**，按「任一项失败即整轮失败」的规则仍判为失败。
 
-测试条件：DN-ENG41、Android 14、锁频、长期偏热状态；提交 `602d368c4`，每后端一轮，相同生成帧及匹配处理选项。图中展示全部 9 个默认全码制场景，各面板量程不同。结果不代表其他设备、后续版本、真实首扫或续航表现。
+测试条件：DN-ENG41、Android 14、锁频、长期偏热状态；提交 `099d1153a`，两轮背靠背、每后端一轮，相同生成帧及匹配处理选项。图中展示全部 9 个默认全码制场景，各面板量程不同。结果不代表其他设备、后续版本、真实首扫或续航表现。
 
-[测试方法](docs/maint/BENCHMARKS.md#106c-the-first-backend-ab-measured) · [完整结果](docs/maint/reports/l2-ab-602d368c4-DN-ENG41-verdict.md) · [原始数据](docs/maint/reports/l2-ab-602d368c4-DN-ENG41-cases.csv)
+[测试方法](docs/maint/BENCHMARKS.md#106c-the-first-backend-ab-measured) · [完整结果](docs/maint/reports/l2-ab-099d1153a-DN-ENG41-verdict.md) · [一维码差距的两步收窄](docs/maint/reports/l2-native-cached-reader-DN-ENG41-20261109.md)
 
 **后续重点：** 扩大 Android 16、低端及非高通真机覆盖，继续优化一维码性能、真实首扫和持续扫描开销。
 
@@ -66,11 +66,11 @@ Scanning remains **fully offline and GMS-free**, as it was upstream. Kotlin impr
 
 **This compares the Java ZXing and zxing-cpp decoder backends within this fork, not the original app against the current app.**
 
-In this run, time drops **77–81% on no-barcode frames** and **71.9–82.5% on QR hits**; Java wins on centered 1D hits. The full 27-case matrix reports **19 pass / 8 fail**.
+In this run, time drops **79.3–82.6% on no-barcode frames** and **78.8–86.6% on QR hits**. Java still wins on centered 1D hits, but the gap has narrowed from an early 5–20× to **41.5% at VGA, 20.1% at HD, and below this device's measurement floor at FHD**. The full 27-case matrix reports **21 pass / 3 fail / 3 inconclusive**, which is still a failing run under the rule that any failing case fails the matrix.
 
-Conditions: DN-ENG41, Android 14, locked clocks and standing warm thermal conditions; commit `602d368c4`, one run per backend, identical generated frames and matched effort options. The chart shows all nine default/all-format cases, with different scales per panel. Results do not establish performance on other devices, later versions, real-camera first scans or battery life.
+Conditions: DN-ENG41, Android 14, locked clocks and standing warm thermal conditions; commit `099d1153a`, the two runs back to back, one per backend, identical generated frames and matched effort options. The chart shows all nine default/all-format cases, with different scales per panel. Results do not establish performance on other devices, later versions, real-camera first scans or battery life.
 
-[Method](docs/maint/BENCHMARKS.md#106c-the-first-backend-ab-measured) · [Full results](docs/maint/reports/l2-ab-602d368c4-DN-ENG41-verdict.md) · [Raw data](docs/maint/reports/l2-ab-602d368c4-DN-ENG41-cases.csv)
+[Method](docs/maint/BENCHMARKS.md#106c-the-first-backend-ab-measured) · [Full results](docs/maint/reports/l2-ab-099d1153a-DN-ENG41-verdict.md) · [How the 1D gap was narrowed](docs/maint/reports/l2-native-cached-reader-DN-ENG41-20261109.md)
 
 **Next priorities:** broaden Android 16, low-end and non-Qualcomm hardware coverage; improve 1D performance, real-camera first-scan latency and sustained-scanning cost.
 

@@ -18,15 +18,15 @@
 
 ![Java ZXing 与本分支原生解码后端的逐帧耗时中位数对比，包含一维码性能退化](assets/decoder-performance.zh-CN.svg)
 
-**这是解码后端实测对比，不是相对于原版 Barcode Scanner 的整应用提速。** 对比的是本分支在 `602d368c4` 时的 Java ZXing 和 zxing-cpp 两条路径，使用相同的生成帧，并匹配额外重试等处理选项。图中展示**全部 9 个默认全码制场景**，包括 Java 更快的居中一维码命中场景。三个面板分别采用从零开始、量程不同的线性坐标轴；百分比表示**耗时变化**，不是吞吐量变化。
+**这是解码后端实测对比，不是相对于原版 Barcode Scanner 的整应用提速。** 对比的是本分支在 `099d1153a` 时的 Java ZXing 和 zxing-cpp 两条路径，使用相同的生成帧，并匹配额外重试等处理选项。图中展示**全部 9 个默认全码制场景**，包括 Java 更快的居中一维码命中场景。三个面板分别采用从零开始、量程不同的线性坐标轴；百分比表示**耗时变化**，不是吞吐量变化。
 
-本轮在 DN-ENG41（Android 14）上，原生后端的逐帧链路耗时中位数在**无码帧下降低 77–81%**，在**二维码命中时降低 71.9–82.5%**。居中一维码命中则更慢：原生为 **0.372–1.811 ms**，Java 为 **0.066–0.091 ms**。**完整 27 项测试矩阵**的门槛判定为 **19 项通过 / 8 项失败**，因此不能宣称全面领先。
+本轮在 DN-ENG41（Android 14）上，原生后端的逐帧链路耗时中位数在**无码帧下降低 79.3–82.6%**，在**二维码命中时降低 78.8–86.6%**。居中一维码命中仍更慢——原生 **0.087–0.096 ms**，Java **0.062–0.089 ms**——但差距已从最初测得的 5–20 倍收窄到 VGA 慢 41.5%、HD 慢 20.1%，FHD 则低于本机测量门槛。**完整 27 项测试矩阵**的门槛判定为 **21 项通过 / 3 项失败 / 3 项不可分辨**，因此仍不能宣称全面领先。
 
-**限制：** 只有一台真机，每个后端运行一轮，锁定时钟，并处于参考设备长期存在的偏热/热状态条件下（包括报告中明确列出的、按协议允许对等比较的警告）。这些清晰回放帧不能衡量真实相机首扫延迟、续航或一般设备性能。数据仅对应实测提交，不自动代表后续所有版本。
+**限制：** 只有一台真机，两轮背靠背、每个后端一轮，锁定时钟，并处于参考设备长期存在的偏热/热状态条件下（包括报告中明确列出的、按协议允许对等比较的警告）。这些清晰回放帧不能衡量真实相机首扫延迟、续航或一般设备性能。数据仅对应实测提交，不自动代表后续所有版本。
 
-[方法与解读](BENCHMARKS.md#106c-the-first-backend-ab-measured) · [完整 27 项结果与判定](reports/l2-ab-602d368c4-DN-ENG41-verdict.md) · [原始数据 CSV](reports/l2-ab-602d368c4-DN-ENG41-cases.csv) · [语料识别正确性与回退项](BENCHMARKS.md#91-l1-on-a-device--the-accuracy-question-the-native-default-was-missing)
+[方法与解读](BENCHMARKS.md#106c-the-first-backend-ab-measured) · [完整 27 项结果与判定](reports/l2-ab-099d1153a-DN-ENG41-verdict.md) · [原始数据 CSV](reports/l2-ab-099d1153a-DN-ENG41-cases.csv) · [`602d368c4` 的首次历史 A/B](reports/l2-ab-602d368c4-DN-ENG41-verdict.md) · [语料识别正确性与回退项](BENCHMARKS.md#91-l1-on-a-device--the-accuracy-question-the-native-default-was-missing)
 
-**后续优化（2026-11-09），分两步：** Camera1 的原生解码现在直接读取原始 Y 数组的裁剪区域，避免复制 ROI；原生解码器又改为跨帧保留 `MultiFormatReader`，不再每次调用都重建它以及它需要的每一个 format reader。第一步的原生前后 27 项 L2 对比全部通过，第二步 11 项通过、16 项不可分辨，没有任何一项变慢。默认全码制的一维码命中耗时在 VGA / HD / FHD 先因 ROI 改动降低 71.7% / 86.5% / 93.4%，再因复用 reader 降低 14.5% / 14.1% / 13.3%。与同场次配对的 Java 轮相比，HD 全码制一维码命中慢 21.9%，VGA 慢 44.5%，FHD 已不可分辨；矩阵中其余每一项都比 Java 快 63–91%。上方图表保留历史提交 `602d368c4` 的结果，不代表这两次改动。见 [ROI 报告](reports/l2-native-array-roi-DN-ENG41-20261109.md) 与[复用 reader 报告](reports/l2-native-cached-reader-DN-ENG41-20261109.md)。
+**后续优化（2026-11-09），分两步：** Camera1 的原生解码现在直接读取原始 Y 数组的裁剪区域，避免复制 ROI；原生解码器又改为跨帧保留 `MultiFormatReader`，不再每次调用都重建它以及它需要的每一个 format reader。第一步的原生前后 27 项 L2 对比全部通过，第二步 11 项通过、16 项不可分辨，没有任何一项变慢。默认全码制的一维码命中耗时在 VGA / HD / FHD 先因 ROI 改动降低 71.7% / 86.5% / 93.4%，再因复用 reader 降低 14.5% / 14.1% / 13.3%。与同场次配对的 Java 轮相比，HD 全码制一维码命中慢 21.9%，VGA 慢 44.5%，FHD 已不可分辨；矩阵中其余每一项都比 Java 快 63–91%。上方图表已由 `tools/maint/decoder_chart.py` 依据本次测量重新生成。见 [ROI 报告](reports/l2-native-array-roi-DN-ENG41-20261109.md) 与[复用 reader 报告](reports/l2-native-cached-reader-DN-ENG41-20261109.md)。
 
 ### 仓库组成
 
@@ -287,26 +287,30 @@ Android — and to make the scanning pipeline reusable instead of copy-pasteable
 
 **Measured decoder-backend comparison, not a whole-app speedup over the original
 Barcode Scanner.** These are the Java ZXing and zxing-cpp paths inside this fork at
-`602d368c4`, using identical generated frames and matched effort options. The chart
+`099d1153a`, using identical generated frames and matched effort options. The chart
 shows **all nine default/all-format cases**, including the centered 1D cases where Java
 wins. Panels use different, zero-based linear scales; percentages describe **time
 change**, not throughput.
 
 On DN-ENG41 (Android 14), the native backend reduces median frame-pipeline time by
-**77–81% on no-barcode frames** and **71.9–82.5% on QR hits** in this run. It is slower on
-centered 1D hits: **0.372–1.811 ms**, versus Java's **0.066–0.091 ms**. Across the
-**full 27-case matrix**, the comparison gate reports **19 pass / 8 fail**, so this is
-not an across-the-board win.
+**79.3–82.6% on no-barcode frames** and **78.8–86.6% on QR hits** in this run. It is
+still slower on centered 1D hits — **0.087–0.096 ms** against Java's
+**0.062–0.089 ms** — but that gap has narrowed from the 5–20× first measured here to
++41.5% at VGA, +20.1% at HD and, at FHD, below this device's measurement floor. Across
+the **full 27-case matrix**, the comparison gate reports **21 pass / 3 fail / 3
+inconclusive**, so this is still not an across-the-board win.
 
-**Limits:** one physical device, one run per backend, locked clocks and the reference
+**Limits:** one physical device, the two runs back to back, one per backend, locked
+clocks and the reference
 device's standing warm/thermal conditions (including the report's read-through warnings).
 These clean replay frames do not measure real-camera first-scan latency, battery life
 or general device performance. Numbers belong to this measured commit, not automatically
 to every later release.
 
 [Method and interpretation](BENCHMARKS.md#106c-the-first-backend-ab-measured)
-· [All 27 cases and verdict](reports/l2-ab-602d368c4-DN-ENG41-verdict.md)
-· [Source data (CSV)](reports/l2-ab-602d368c4-DN-ENG41-cases.csv)
+· [All 27 cases and verdict](reports/l2-ab-099d1153a-DN-ENG41-verdict.md)
+· [Source data (CSV)](reports/l2-ab-099d1153a-DN-ENG41-cases.csv)
+· [The historical first A/B at `602d368c4`](reports/l2-ab-602d368c4-DN-ENG41-verdict.md)
 · [Corpus correctness, including regressions](BENCHMARKS.md#91-l1-on-a-device--the-accuracy-question-the-native-default-was-missing)
 
 **Later optimization (2026-11-09), in two steps.** Native Camera1 decoding now reads the
@@ -318,7 +322,8 @@ hits fell 71.7% / 86.5% / 93.4% at VGA / HD / FHD for the ROI change and a furth
 14.5% / 14.1% / 13.3% for the reader reuse. Measured against a paired Java run in the
 same session, the HD all-format 1D hit is 21.9% slower than Java, the VGA one 44.5%
 slower, and the FHD one no longer resolvable; every other case in the matrix is 63–91%
-faster than Java. The chart above retains the historical `602d368c4` results. See the
+faster than Java. The chart above was regenerated from this measurement by
+`tools/maint/decoder_chart.py`. See the
 [ROI report](reports/l2-native-array-roi-DN-ENG41-20261109.md) and the
 [reader-reuse report](reports/l2-native-cached-reader-DN-ENG41-20261109.md).
 
