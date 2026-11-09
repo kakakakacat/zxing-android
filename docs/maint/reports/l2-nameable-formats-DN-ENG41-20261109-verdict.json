@@ -1,0 +1,706 @@
+{
+ "verdict": "pass",
+ "comparable": true,
+ "guard_failures": [],
+ "baseline": {
+  "run_id": "native-all-formats-full-DN-ENG41-20261109",
+  "commit": "75be15d45"
+ },
+ "candidate": {
+  "run_id": "native-nameable-formats-full-DN-ENG41-20261109",
+  "commit": "75be15d45-dirty"
+ },
+ "device": "DN-ENG41",
+ "config": "mixed",
+ "baseline_backend": "native",
+ "candidate_backend": "native",
+ "effect_floor": {
+  "split_ns": 100000,
+  "at_or_above_split": 0.03,
+  "below_split": 0.1
+ },
+ "blocking_warnings": [],
+ "waived_warnings": [],
+ "read_through_warnings": [
+  "NO_SUSTAINED_PERFORMANCE_MODE",
+  "THROTTLE_WAIT_DISABLED"
+ ],
+ "cases": [
+  {
+   "name": "endToEnd[FHD_HIT_1D_DEFAULT]",
+   "stage": "endToEnd",
+   "resolution": "fhd",
+   "variant": "hit_1d",
+   "config": "default",
+   "decodes": true,
+   "baseline_ns_p50": 99454.59797979798,
+   "candidate_ns_p50": 95978.51082677166,
+   "baseline_ns_p90": 103818.5505050505,
+   "candidate_ns_p90": 100476.33759842519,
+   "baseline_ci95": [
+    99376.05151515151,
+    99612.21616161616
+   ],
+   "candidate_ci95": [
+    95919.40452755906,
+    96200.12106299213
+   ],
+   "delta": -0.034951497704836285,
+   "alloc_delta": -1.9882333292673934e-06,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by -3.5%, below the 10% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.1
+  },
+  {
+   "name": "endToEnd[FHD_HIT_1D_ONED_ONLY_UPCA]",
+   "stage": "endToEnd",
+   "resolution": "fhd",
+   "variant": "hit_1d",
+   "config": "oned_only_upca",
+   "decodes": true,
+   "baseline_ns_p50": 85261.44838373305,
+   "candidate_ns_p50": 85192.10008779631,
+   "baseline_ns_p90": 88569.96246089677,
+   "candidate_ns_p90": 89739.72080772607,
+   "baseline_ci95": [
+    85186.28362877997,
+    85341.82690302399
+   ],
+   "candidate_ci95": [
+    85134.30114135206,
+    85279.4846356453
+   ],
+   "delta": -0.0008133605193360778,
+   "alloc_delta": -1.2675117308292273e-05,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by -0.1%, below the 10% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.1
+  },
+  {
+   "name": "endToEnd[FHD_HIT_1D_QR_ONLY]",
+   "stage": "endToEnd",
+   "resolution": "fhd",
+   "variant": "hit_1d",
+   "config": "qr_only",
+   "decodes": false,
+   "baseline_ns_p50": 4820081.857142857,
+   "candidate_ns_p50": 4797185.047619048,
+   "baseline_ns_p90": 4854126.952380952,
+   "candidate_ns_p90": 4818524.285714285,
+   "baseline_ci95": [
+    4815032.238095238,
+    4832145.333333333
+   ],
+   "candidate_ci95": [
+    4793075.380952381,
+    4803261.428571428
+   ],
+   "delta": -0.0047502947465257305,
+   "alloc_delta": 0.0,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by -0.5%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[FHD_HIT_QR_DEFAULT]",
+   "stage": "endToEnd",
+   "resolution": "fhd",
+   "variant": "hit_qr",
+   "config": "default",
+   "decodes": true,
+   "baseline_ns_p50": 7190729.153846154,
+   "candidate_ns_p50": 7025022.285714285,
+   "baseline_ns_p90": 7259022.384615385,
+   "candidate_ns_p90": 7073106.357142857,
+   "baseline_ci95": [
+    7184278.846153846,
+    7212303.692307692
+   ],
+   "candidate_ci95": [
+    7012693.428571428,
+    7029892.142857143
+   ],
+   "delta": -0.023044515317787458,
+   "alloc_delta": -0.00043687199650502246,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by -2.3%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[FHD_HIT_QR_ONED_ONLY_UPCA]",
+   "stage": "endToEnd",
+   "resolution": "fhd",
+   "variant": "hit_qr",
+   "config": "oned_only_upca",
+   "decodes": false,
+   "baseline_ns_p50": 191263.04624277458,
+   "candidate_ns_p50": 190053.4723809524,
+   "baseline_ns_p90": 191804.95183044317,
+   "candidate_ns_p90": 191240.47619047618,
+   "baseline_ci95": [
+    191205.54335260115,
+    191327.3737957611
+   ],
+   "candidate_ci95": [
+    189945.33714285714,
+    190249.4057142857
+   ],
+   "delta": -0.006324137806980524,
+   "alloc_delta": -1.0999587515280665e-05,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by -0.6%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[FHD_HIT_QR_QR_ONLY]",
+   "stage": "endToEnd",
+   "resolution": "fhd",
+   "variant": "hit_qr",
+   "config": "qr_only",
+   "decodes": true,
+   "baseline_ns_p50": 6293190.125,
+   "candidate_ns_p50": 6309977.25,
+   "baseline_ns_p90": 6325817.0625,
+   "candidate_ns_p90": 6358424.5,
+   "baseline_ci95": [
+    6282483.75,
+    6297285.1875
+   ],
+   "candidate_ci95": [
+    6300107.375,
+    6320774.75
+   ],
+   "delta": 0.002667506410351777,
+   "alloc_delta": 0.0,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.3%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[FHD_MISS_DEFAULT]",
+   "stage": "endToEnd",
+   "resolution": "fhd",
+   "variant": "miss",
+   "config": "default",
+   "decodes": false,
+   "baseline_ns_p50": 17185218.8,
+   "candidate_ns_p50": 17198583.2,
+   "baseline_ns_p90": 17271177.2,
+   "candidate_ns_p90": 17323885.4,
+   "baseline_ci95": [
+    17163343.8,
+    17209885.4
+   ],
+   "candidate_ci95": [
+    17173187.6,
+    17220177.2
+   ],
+   "delta": 0.0007776683064400966,
+   "alloc_delta": 0.0,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.1%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[FHD_MISS_ONED_ONLY_UPCA]",
+   "stage": "endToEnd",
+   "resolution": "fhd",
+   "variant": "miss",
+   "config": "oned_only_upca",
+   "decodes": false,
+   "baseline_ns_p50": 262446.34006734006,
+   "candidate_ns_p50": 262547.84514435695,
+   "baseline_ns_p90": 262979.6228956229,
+   "candidate_ns_p90": 263771.8713910761,
+   "baseline_ci95": [
+    262288.15824915824,
+    262559.09764309763
+   ],
+   "candidate_ci95": [
+    262451.1968503937,
+    262676.20734908135
+   ],
+   "delta": 0.0003867650697313757,
+   "alloc_delta": -0.0003705419175545473,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.0%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[FHD_MISS_QR_ONLY]",
+   "stage": "endToEnd",
+   "resolution": "fhd",
+   "variant": "miss",
+   "config": "qr_only",
+   "decodes": false,
+   "baseline_ns_p50": 7517191.833333333,
+   "candidate_ns_p50": 7525659.666666667,
+   "baseline_ns_p90": 7602191.833333333,
+   "candidate_ns_p90": 7558732.666666667,
+   "baseline_ci95": [
+    7507113.666666667,
+    7534952.25
+   ],
+   "candidate_ci95": [
+    7515416.666666667,
+    7540043.416666667
+   ],
+   "delta": 0.001126462317455464,
+   "alloc_delta": 0.0,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.1%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[HD_HIT_1D_DEFAULT]",
+   "stage": "endToEnd",
+   "resolution": "hd",
+   "variant": "hit_1d",
+   "config": "default",
+   "decodes": true,
+   "baseline_ns_p50": 94821.1162109375,
+   "candidate_ns_p50": 91767.51125703564,
+   "baseline_ns_p90": 99833.2724609375,
+   "candidate_ns_p90": 96203.9756097561,
+   "baseline_ci95": [
+    94660.6953125,
+    95311.583984375
+   ],
+   "candidate_ci95": [
+    91672.67636022514,
+    91882.76829268293
+   ],
+   "delta": -0.03220384947914826,
+   "alloc_delta": -2.959485072169488e-06,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by -3.2%, below the 10% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.1
+  },
+  {
+   "name": "endToEnd[HD_HIT_1D_ONED_ONLY_UPCA]",
+   "stage": "endToEnd",
+   "resolution": "hd",
+   "variant": "hit_1d",
+   "config": "oned_only_upca",
+   "decodes": true,
+   "baseline_ns_p50": 80335.4832214765,
+   "candidate_ns_p50": 80867.69926047658,
+   "baseline_ns_p90": 84588.31459731543,
+   "candidate_ns_p90": 84797.23007395235,
+   "baseline_ci95": [
+    80273.35067114094,
+    80462.98238255034
+   ],
+   "candidate_ci95": [
+    80644.77156943303,
+    81114.635168447
+   ],
+   "delta": 0.00662491862447401,
+   "alloc_delta": -1.325567346792136e-06,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.7%, below the 10% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.1
+  },
+  {
+   "name": "endToEnd[HD_HIT_1D_QR_ONLY]",
+   "stage": "endToEnd",
+   "resolution": "hd",
+   "variant": "hit_1d",
+   "config": "qr_only",
+   "decodes": false,
+   "baseline_ns_p50": 1912477.3962264152,
+   "candidate_ns_p50": 1917859.6792452831,
+   "baseline_ns_p90": 1917216.0,
+   "candidate_ns_p90": 1936962.4528301887,
+   "baseline_ci95": [
+    1912000.7924528301,
+    1913620.283018868
+   ],
+   "candidate_ci95": [
+    1916011.2075471699,
+    1919204.0188679246
+   ],
+   "delta": 0.00281429889288519,
+   "alloc_delta": 0.0,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.3%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[HD_HIT_QR_DEFAULT]",
+   "stage": "endToEnd",
+   "resolution": "hd",
+   "variant": "hit_qr",
+   "config": "default",
+   "decodes": true,
+   "baseline_ns_p50": 3322413.793103448,
+   "candidate_ns_p50": 3189472.2,
+   "baseline_ns_p90": 3475677.0689655175,
+   "candidate_ns_p90": 3229861.1,
+   "baseline_ci95": [
+    3315596.2413793104,
+    3333933.172413793
+   ],
+   "candidate_ci95": [
+    3183125.0,
+    3193003.466666667
+   ],
+   "delta": -0.040013556824078776,
+   "alloc_delta": -9.170105456219555e-05,
+   "verdict": "pass",
+   "reason": "-4.0% faster, intervals disjoint",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[HD_HIT_QR_ONED_ONLY_UPCA]",
+   "stage": "endToEnd",
+   "resolution": "hd",
+   "variant": "hit_qr",
+   "config": "oned_only_upca",
+   "decodes": false,
+   "baseline_ns_p50": 133054.525606469,
+   "candidate_ns_p50": 133962.67349726777,
+   "baseline_ns_p90": 133474.77358490566,
+   "candidate_ns_p90": 134400.543715847,
+   "baseline_ci95": [
+    132991.07142857142,
+    133212.67115902965
+   ],
+   "candidate_ci95": [
+    133895.50546448087,
+    134088.8975409836
+   ],
+   "delta": 0.006825381449141955,
+   "alloc_delta": 9.199462751253392e-06,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.7%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[HD_HIT_QR_QR_ONLY]",
+   "stage": "endToEnd",
+   "resolution": "hd",
+   "variant": "hit_qr",
+   "config": "qr_only",
+   "decodes": true,
+   "baseline_ns_p50": 2733895.529411765,
+   "candidate_ns_p50": 2728200.088235294,
+   "baseline_ns_p90": 2746155.029411765,
+   "candidate_ns_p90": 2747398.882352941,
+   "baseline_ci95": [
+    2731302.088235294,
+    2737319.2352941176
+   ],
+   "candidate_ci95": [
+    2726634.5,
+    2730562.205882353
+   ],
+   "delta": -0.002083269501412253,
+   "alloc_delta": 0.0,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by -0.2%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[HD_MISS_DEFAULT]",
+   "stage": "endToEnd",
+   "resolution": "hd",
+   "variant": "miss",
+   "config": "default",
+   "decodes": false,
+   "baseline_ns_p50": 9783531.3,
+   "candidate_ns_p50": 9737988.25,
+   "baseline_ns_p90": 9824401.0,
+   "candidate_ns_p90": 9849127.625,
+   "baseline_ci95": [
+    9778718.8,
+    9794744.7
+   ],
+   "candidate_ci95": [
+    9724961.0,
+    9755234.375
+   ],
+   "delta": -0.00465507275476297,
+   "alloc_delta": 0.011904761904761862,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by -0.5%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[HD_MISS_ONED_ONLY_UPCA]",
+   "stage": "endToEnd",
+   "resolution": "hd",
+   "variant": "miss",
+   "config": "oned_only_upca",
+   "decodes": false,
+   "baseline_ns_p50": 181363.62420382164,
+   "candidate_ns_p50": 181688.49448529413,
+   "baseline_ns_p90": 183036.75477707008,
+   "candidate_ns_p90": 182453.18198529413,
+   "baseline_ci95": [
+    181148.65286624205,
+    181546.9076433121
+   ],
+   "candidate_ci95": [
+    181648.66727941178,
+    181819.2775735294
+   ],
+   "delta": 0.0017912648299715464,
+   "alloc_delta": -0.0006721687085008913,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.2%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[HD_MISS_QR_ONLY]",
+   "stage": "endToEnd",
+   "resolution": "hd",
+   "variant": "miss",
+   "config": "qr_only",
+   "decodes": false,
+   "baseline_ns_p50": 3218484.172413793,
+   "candidate_ns_p50": 3219350.6666666665,
+   "baseline_ns_p90": 3240158.0344827585,
+   "candidate_ns_p90": 3237022.566666667,
+   "baseline_ci95": [
+    3214829.4137931033,
+    3221515.827586207
+   ],
+   "candidate_ci95": [
+    3216430.533333333,
+    3222956.6
+   ],
+   "delta": 0.00026922433246696155,
+   "alloc_delta": -0.0005649717514124124,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.0%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[VGA_HIT_1D_DEFAULT]",
+   "stage": "endToEnd",
+   "resolution": "vga",
+   "variant": "hit_1d",
+   "config": "default",
+   "decodes": true,
+   "baseline_ns_p50": 90805.87257617728,
+   "candidate_ns_p50": 87522.6787620064,
+   "baseline_ns_p90": 95269.2650046168,
+   "candidate_ns_p90": 93101.32017075774,
+   "baseline_ci95": [
+    90598.93444136657,
+    91177.6703601108
+   ],
+   "candidate_ci95": [
+    87405.33831376734,
+    87662.97545357524
+   ],
+   "delta": -0.03615618374699942,
+   "alloc_delta": 1.1066508198309424e-05,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by -3.6%, below the 10% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.1
+  },
+  {
+   "name": "endToEnd[VGA_HIT_1D_ONED_ONLY_UPCA]",
+   "stage": "endToEnd",
+   "resolution": "vga",
+   "variant": "hit_1d",
+   "config": "oned_only_upca",
+   "decodes": true,
+   "baseline_ns_p50": 76537.91822429906,
+   "candidate_ns_p50": 76143.54465592973,
+   "baseline_ns_p90": 80331.40264797508,
+   "candidate_ns_p90": 83653.38360175696,
+   "baseline_ci95": [
+    76305.49065420561,
+    77017.05295950155
+   ],
+   "candidate_ci95": [
+    76070.26207906296,
+    76232.3850658858
+   ],
+   "delta": -0.005152656062758353,
+   "alloc_delta": 5.271319923597886e-05,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by -0.5%, below the 10% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.1
+  },
+  {
+   "name": "endToEnd[VGA_HIT_1D_QR_ONLY]",
+   "stage": "endToEnd",
+   "resolution": "vga",
+   "variant": "hit_1d",
+   "config": "qr_only",
+   "decodes": false,
+   "baseline_ns_p50": 601611.7976190476,
+   "candidate_ns_p50": 602150.7005988024,
+   "baseline_ns_p90": 603267.2976190476,
+   "candidate_ns_p90": 604140.4670658683,
+   "baseline_ci95": [
+    601333.0892857143,
+    602069.6904761905
+   ],
+   "candidate_ci95": [
+    601627.994011976,
+    602468.1916167665
+   ],
+   "delta": 0.0008957653122621887,
+   "alloc_delta": 1.776861706851228e-05,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.1%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[VGA_HIT_QR_DEFAULT]",
+   "stage": "endToEnd",
+   "resolution": "vga",
+   "variant": "hit_qr",
+   "config": "default",
+   "decodes": true,
+   "baseline_ns_p50": 1287284.2337662338,
+   "candidate_ns_p50": 1243330.7926829269,
+   "baseline_ns_p90": 1292515.5584415584,
+   "candidate_ns_p90": 1247470.1463414633,
+   "baseline_ci95": [
+    1285985.5194805195,
+    1287646.7792207792
+   ],
+   "candidate_ci95": [
+    1242460.6219512196,
+    1244173.012195122
+   ],
+   "delta": -0.034144317106029824,
+   "alloc_delta": -6.328553166179533e-05,
+   "verdict": "pass",
+   "reason": "-3.4% faster, intervals disjoint",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[VGA_HIT_QR_ONED_ONLY_UPCA]",
+   "stage": "endToEnd",
+   "resolution": "vga",
+   "variant": "hit_qr",
+   "config": "oned_only_upca",
+   "decodes": false,
+   "baseline_ns_p50": 76800.5119887165,
+   "candidate_ns_p50": 76804.71632329635,
+   "baseline_ns_p90": 77260.29901269394,
+   "candidate_ns_p90": 77097.77812995245,
+   "baseline_ci95": [
+    76755.33427362483,
+    76899.02115655853
+   ],
+   "candidate_ci95": [
+    76749.41362916006,
+    76857.58399366085
+   ],
+   "delta": 5.474357489260521e-05,
+   "alloc_delta": -0.0003088043297383689,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.0%, below the 10% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.1
+  },
+  {
+   "name": "endToEnd[VGA_HIT_QR_QR_ONLY]",
+   "stage": "endToEnd",
+   "resolution": "vga",
+   "variant": "hit_qr",
+   "config": "qr_only",
+   "decodes": true,
+   "baseline_ns_p50": 980444.7115384615,
+   "candidate_ns_p50": 980592.0111111111,
+   "baseline_ns_p90": 983921.7692307692,
+   "candidate_ns_p90": 1003041.6666666666,
+   "baseline_ci95": [
+    979787.6634615385,
+    981400.2403846154
+   ],
+   "candidate_ci95": [
+    979462.9666666667,
+    981802.6666666666
+   ],
+   "delta": 0.00015023751050531964,
+   "alloc_delta": 0.00011956614569985305,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.0%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[VGA_MISS_DEFAULT]",
+   "stage": "endToEnd",
+   "resolution": "vga",
+   "variant": "miss",
+   "config": "default",
+   "decodes": false,
+   "baseline_ns_p50": 3852920.8,
+   "candidate_ns_p50": 3821762.1666666665,
+   "baseline_ns_p90": 3867010.44,
+   "candidate_ns_p90": 3835190.9583333335,
+   "baseline_ci95": [
+    3849360.4,
+    3855156.24
+   ],
+   "candidate_ci95": [
+    3819223.0833333335,
+    3823096.7916666665
+   ],
+   "delta": -0.008087016305482662,
+   "alloc_delta": 0.0008169934640521976,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by -0.8%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[VGA_MISS_ONED_ONLY_UPCA]",
+   "stage": "endToEnd",
+   "resolution": "vga",
+   "variant": "miss",
+   "config": "oned_only_upca",
+   "decodes": false,
+   "baseline_ns_p50": 100371.70987654322,
+   "candidate_ns_p50": 100234.45463812436,
+   "baseline_ns_p90": 100651.73765432098,
+   "candidate_ns_p90": 100563.67889908257,
+   "baseline_ci95": [
+    100306.33847736625,
+    100452.40637860082
+   ],
+   "candidate_ci95": [
+    100177.69928644241,
+    100296.99694189602
+   ],
+   "delta": -0.0013674693654983422,
+   "alloc_delta": -4.71686988527285e-06,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by -0.1%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  },
+  {
+   "name": "endToEnd[VGA_MISS_QR_ONLY]",
+   "stage": "endToEnd",
+   "resolution": "vga",
+   "variant": "miss",
+   "config": "qr_only",
+   "decodes": false,
+   "baseline_ns_p50": 1111965.2777777778,
+   "candidate_ns_p50": 1112532.6263736263,
+   "baseline_ns_p90": 1114990.1666666667,
+   "candidate_ns_p90": 1114700.6593406594,
+   "baseline_ci95": [
+    1111414.9222222222,
+    1112828.7
+   ],
+   "candidate_ci95": [
+    1111811.4725274725,
+    1113185.0989010988
+   ],
+   "delta": 0.0005102215034828834,
+   "alloc_delta": -6.0712767895088124e-05,
+   "verdict": "inconclusive",
+   "reason": "the medians differ by 0.1%, below the 3% floor measured for cases of this size: not resolvable on this device",
+   "floor": 0.03
+  }
+ ],
+ "unmatched": []
+}

@@ -337,6 +337,17 @@ zxing-cpp until it was traced.
 | CORRECT_NO_RESULT | 46 | 48 | 45 | 48 |
 | FALSE_POSITIVE | 2 | **0** | 3 | **0** |
 
+**And a defect this table cannot see, which is the point of writing it down.** The 23
+CODE_39 samples contain no symbol whose *content* parses as Code 32 or PZN — variants of
+Code 39 in zxing-cpp, reported ahead of it, and nameable by neither this fork nor this
+corpus. Every such symbol was decoded by the native backend and then thrown away by the
+name table, so an ordinary Code 39 barcode was unreadable by the default decoder while the
+Java one read it, and about 9.3% of six-character Code 39 contents over Code 32's alphabet
+are in that class. Fixed 2026-11-09; re-running L1 against this baseline afterwards gives
+`verdict: same`, **0 regressions and 0 improvements**, which is exactly the problem — a
+1168-sample corpus is a strong instrument only for the classes it contains.
+`reports/native-nameable-formats-DN-ENG41-20261109.md`.
+
 28 samples regress and 58 improve. Right answers per format, where "right" is CORRECT
 plus CORRECT\_NO\_RESULT:
 

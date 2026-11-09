@@ -265,11 +265,28 @@ internal class NativeFrameDecoder
     }
 
     /**
-     * The zxing-cpp names for this fork's formats.
+     * What to *ask* zxing-cpp for, per format of this fork. A value may name more than one
+     * zxing-cpp format, comma-separated.
      *
      * Mapped explicitly rather than by `name()`, because the two projects do not spell every
      * format the same way and a silently unmatched name would widen the format set instead of
      * narrowing it — turning a restriction into the opposite of what the caller asked for.
+     *
+     * **This is not the reverse of [FORMATS_BY_NORMALISED_NAME] and must not be made into
+     * one.** What is asked for and what comes back are different vocabularies: `Code39Std`
+     * and `Code39Ext` are asked for, `Code 39` comes back.
+     *
+     * **Code 39 asks for its two variants rather than the symbology, and that is a
+     * correctness fix.** In zxing-cpp, `Code32` (Italian pharmacode) and `PZN` are variants
+     * of Code 39, and `Code39Reader` reports one of them whenever the *content* of an
+     * ordinary Code 39 symbol happens to parse as one — ahead of Code 39 itself, and for
+     * Code 32 it rewrites the text as well. Neither has an equivalent here, so the result
+     * was dropped and the frame reported as holding nothing. Measured on DN-ENG41: six of
+     * six six-character payloads that are valid Code 32 were missed by the native backend
+     * and read by the Java one, and about 9% of six-character Code 39 contents over Code
+     * 32's alphabet are valid Code 32. Asking only for the two variants this fork can name
+     * makes `hasFormat(Code32)` and `hasFormat(PZN)` false, so the same symbols come back
+     * as Code 39 with their own text.
      *
      * [BarcodeFormat.UPC_EAN_EXTENSION] is deliberately absent: in zxing-cpp an EAN add-on is
      * a property of a UPC/EAN result, not a format that can be requested.
@@ -278,7 +295,7 @@ internal class NativeFrameDecoder
         EnumMap<BarcodeFormat, String>(BarcodeFormat::class.java).apply {
           put(BarcodeFormat.AZTEC, "Aztec")
           put(BarcodeFormat.CODABAR, "Codabar")
-          put(BarcodeFormat.CODE_39, "Code39")
+          put(BarcodeFormat.CODE_39, "Code39Std,Code39Ext")
           put(BarcodeFormat.CODE_93, "Code93")
           put(BarcodeFormat.CODE_128, "Code128")
           put(BarcodeFormat.DATA_MATRIX, "DataMatrix")
@@ -293,6 +310,9 @@ internal class NativeFrameDecoder
           put(BarcodeFormat.UPC_A, "UPC-A")
           put(BarcodeFormat.UPC_E, "UPC-E")
         }
+
+    /** Every name in [NATIVE_NAMES], as one request list. See [nativeFormatList]. */
+    private val ALL_NATIVE_NAMES: String = NATIVE_NAMES.values.joinToString(",")
 
     /**
      * Reverse of [NATIVE_NAMES], keyed on the normalised spelling, plus the names that only
@@ -333,6 +353,9 @@ internal class NativeFrameDecoder
       // format a caller already receives from the Java backend.
       alias("Compact PDF417", BarcodeFormat.PDF_417)
       // PDF417Reader decodes compact PDF417 and reports it as PDF_417.
+      // Asked for as Code39Std/Code39Ext; "Code 39" is what a plain one comes back as, so
+      // the request table no longer carries that spelling and it is registered here.
+      alias("Code 39", BarcodeFormat.CODE_39)
       alias("Code 39 Standard", BarcodeFormat.CODE_39)
       alias("Code 39 Extended", BarcodeFormat.CODE_39)
       alias("ITF-14", BarcodeFormat.ITF)
@@ -683,7 +706,16 @@ internal class NativeFrameDecoder
     @JvmStatic
     fun nativeFormatList(formats: Collection<@JvmSuppressWildcards BarcodeFormat>?): String {
       if (formats == null || formats.isEmpty()) {
-        return ""
+        // "No restriction" means every format this fork can *name*, not every format
+        // zxing-cpp can read. An empty string means "all" there, and all includes
+        // symbologies and variants with no equivalent here -- Telepen, DX Film Edge,
+        // Code 32, PZN, DataBar Limited, MicroPDF417, Micro QR, rMQR, Aztec Rune. A
+        // result in one of those is dropped by formatFromNativeName, and because the
+        // decoder is configured for a single symbol it also ends the search: a symbol
+        // this library could have reported is lost to one it cannot name. Asking for the
+        // nameable set is both the honest request and a smaller one -- the readers that
+        // could only produce a dropped result are not built at all.
+        return ALL_NATIVE_NAMES
       }
       val joined = StringBuilder()
       for (format in formats) {
