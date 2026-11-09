@@ -1245,6 +1245,25 @@ thermal state, at one pinned operating point, run once — every §6 caveat and 
 in §10.6c applies unchanged. CI checks that a claim was measured under the protocol and
 judged against the right baseline. It does not make one device a population.
 
+### 13.4 `decoder_chart.py` — the README's picture, from the result files
+
+The chart in `README.md` is generated from two L2 result envelopes rather than drawn:
+
+```sh
+python3 -I tools/maint/decoder_chart.py \
+    --java docs/maint/reports/l2-ab-<commit>-DN-ENG41-java.json \
+    --native docs/maint/reports/l2-ab-<commit>-DN-ENG41-native.json \
+    --commit <commit> --gate 'Full 27-case gate: 21 pass / 3 fail / 3 inconclusive' \
+    --out-dir docs/maint/assets
+```
+
+It writes both language versions and prints the nine percentages it drew, which is what
+the README prose should quote. **It was hand-maintained before 2026-11-09**, and that is
+the wrong shape for a picture whose only job is to carry measured numbers: a re-measure
+meant re-typing nine pairs of milliseconds and nine percentages into two SVGs with nothing
+checking them against anything. The verdict line is passed in rather than computed —
+`compare.py` owns that judgement, and the picture must not be able to disagree with it.
+
 ---
 
 ## 14. What is not measured today
