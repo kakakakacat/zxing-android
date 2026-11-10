@@ -29,11 +29,16 @@ import sys
 BOOTSTRAP_RESAMPLES = 10000
 BOOTSTRAP_SEED = 20261030
 
+# The fourth field is DetectorAttributionBenchmark's reader group, which only that class
+# emits. Optional rather than a second pattern: every other field means the same thing in
+# both, and a case whose name does not parse is dropped into skipped_benchmarks, so a
+# forgotten group name would quietly shrink a result set instead of failing.
 CASE_NAME = re.compile(
     r"^(?P<stage>[A-Za-z0-9]+)"
     r"\[(?P<resolution>VGA|HD|FHD)_"
     r"(?P<variant>HIT_QR|HIT_1D|MISS)_"
-    r"(?P<config>DEFAULT|QR_ONLY|ONED_ONLY_UPCA)\]$"
+    r"(?P<config>DEFAULT|QR_ONLY|ONED_ONLY_UPCA)"
+    r"(?:_(?P<group>ONED|QRCODE|DATAMATRIX|AZTEC|PDF417|MAXICODE))?\]$"
 )
 
 # Which (variant, config) pairs decode. Mirrors L2Config#canDecode; a case that is a miss
@@ -110,6 +115,12 @@ def convert_case(benchmark):
         "resolution": match.group("resolution").lower(),
         "variant": variant.lower(),
         "config": config.lower(),
+        # Which of the six readers this case timed, or null for a case that is the whole
+        # decoder or the whole reader loop. A group case's `decodes` is about the frame
+        # and the configuration, not about this reader: the group that finds the symbol is
+        # one of six, and the other five legitimately report a miss on a frame that
+        # decodes. Read the groups against the `detect` case, not against `decodes`.
+        "group": (match.group("group") or "").lower() or None,
         "decodes": DECODES.get((variant, config)),
         "ns_p50": percentile(time_runs, 0.50),
         "ns_p90": percentile(time_runs, 0.90),
@@ -216,7 +227,8 @@ def build_report(microbenchmark, goldens_path, run_id, commit, device_label, con
             skipped.append(benchmark.get("name", "<unnamed>"))
         else:
             cases.append(case)
-    cases.sort(key=lambda c: (c["resolution"], c["variant"], c["config"], c["stage"]))
+    cases.sort(key=lambda c: (c["resolution"], c["variant"], c["config"], c["stage"],
+                              c.get("group") or ""))
 
     golden_version, frames = load_goldens(goldens_path)
     device = device_from_context(context, device_label)

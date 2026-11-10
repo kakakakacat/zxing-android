@@ -1,11 +1,13 @@
 /* Copyright (C) 2026 ZXing Android maintenance fork contributors
  * SPDX-License-Identifier: Apache-2.0 */
 #include "native_decoder.h"
+#include <algorithm>
 #include <cstddef>
 #include <limits>
 #include <new>
 #include <utility>
 #include "BinaryBitmap.h"
+#include "BarcodeFormat.h"
 #include "BitMatrix.h"
 #include "GlobalHistogramBinarizer.h"
 #include "HybridBinarizer.h"
@@ -160,7 +162,60 @@ bool NativeDecoder::detectOnly() {
   return !reader->read(*stageBitmap, 1).empty();
 }
 
+int NativeDecoder::detectOnlyGroup(const std::string& formats, std::string& error) {
+  if (!stageBitmap) {
+    error = "a group detection needs a frame held by prepareStages";
+    return -1;
+  }
+  for (const auto& group : stageGroups) {
+    if (group->id == formats) {
+      return group->reader->read(*stageBitmap, 1).empty() ? 0 : 1;
+    }
+  }
+  ZXing::BarcodeFormats parsed;
+  try {
+    parsed = ZXing::BarcodeFormatsFromString(formats);
+  } catch (const std::exception& e) {
+    error = "zxing-cpp rejected the format group \"" + formats + "\": " + e.what();
+    return -1;
+  }
+  if (parsed.empty()) {
+    // An empty set means "every format" to ReaderOptions, so it would build every reader
+    // and the group would be the whole of detectOnly under another name.
+    error = "a reader group has to name at least one format";
+    return -1;
+  }
+  // `ReaderOptions::hasAnyFormat` is declared under ZXING_INTERNAL, which this build does
+  // not define and should not start defining for one predicate. Its body is this, over
+  // the public operator&: an empty set means every format.
+  const bool buildsAReader =
+      options.formats().empty() ||
+      std::any_of(parsed.begin(), parsed.end(),
+                  [this](ZXing::BarcodeFormat f) { return f & options.formats(); });
+  if (!buildsAReader) {
+    error = "this decoder's format set builds no reader for the group \"" + formats +
+            "\", so timing it would describe a reader the frame never reaches";
+    return -1;
+  }
+  auto group = std::make_unique<GroupReader>();
+  group->id = formats;
+  group->options = options;
+  if (options.formats().empty()) {
+    group->options.setFormats(ZXing::BarcodeFormats(parsed));
+  } else {
+    // Narrowed to what this decoder was already restricted to, so that a group under,
+    // say, a QR-only configuration is that configuration's QR reader and not a wider one.
+    ZXing::BarcodeFormats intersection = parsed;
+    group->options.setFormats(intersection & options.formats());
+  }
+  group->reader = std::make_unique<ZXing::MultiFormatReader>(group->options);
+  GroupReader* const built = group.get();
+  stageGroups.push_back(std::move(group));
+  return built->reader->read(*stageBitmap, 1).empty() ? 0 : 1;
+}
+
 void NativeDecoder::releaseStages() noexcept {
+  stageGroups.clear();
   stageBitmap.reset();
   stageStorage.clear();
   stageStorage.shrink_to_fit();

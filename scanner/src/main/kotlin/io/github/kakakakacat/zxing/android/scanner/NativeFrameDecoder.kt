@@ -254,6 +254,11 @@ internal class NativeFrameDecoder
     return nativeStageDetect(handle)
   }
 
+  override fun detectOnlyGroup(formats: String): Boolean {
+    check(handle != 0L) { "decoder already closed" }
+    return nativeStageDetectGroup(handle, formats)
+  }
+
   override fun releaseStages() {
     if (handle != 0L) {
       nativeStageRelease(handle)
@@ -796,6 +801,9 @@ internal class NativeFrameDecoder
     @JvmStatic private external fun nativeStageBinarize(handle: Long): Long
 
     @JvmStatic private external fun nativeStageDetect(handle: Long): Boolean
+
+    @JvmStatic private external fun nativeStageDetectGroup(
+        handle: Long, formats: String): Boolean
 
     @JvmStatic private external fun nativeStageRelease(handle: Long)
 

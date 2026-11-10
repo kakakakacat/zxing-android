@@ -81,6 +81,33 @@ class CaseNameTest(unittest.TestCase):
         self.assertEqual("hit_1d", case["variant"])
         self.assertEqual("oned_only_upca", case["config"])
 
+    def test_a_reader_group_is_carried_and_absent_elsewhere(self):
+        for group in ("ONED", "QRCODE", "DATAMATRIX", "AZTEC", "PDF417", "MAXICODE"):
+            name = "detectGroup[FHD_MISS_DEFAULT_%s]" % group
+            case = l2_report.convert_case({"name": name,
+                                           "metrics": {"timeNs": {"runs": [1, 2]}}})
+            self.assertIsNotNone(case, name)
+            self.assertEqual("detectGroup", case["stage"])
+            self.assertEqual("miss", case["variant"])
+            self.assertEqual("default", case["config"])
+            self.assertEqual(group.lower(), case["group"])
+        # A case that is the whole reader loop has no group, and must not acquire one --
+        # the sum check reads `detect` against the six groups and would double count it.
+        whole = l2_report.convert_case({"name": "detect[FHD_MISS_DEFAULT]",
+                                        "metrics": {"timeNs": {"runs": [1, 2]}}})
+        self.assertIsNone(whole["group"])
+
+    def test_an_unknown_fourth_field_is_not_silently_read_as_a_group(self):
+        # ONED_ONLY_UPCA already ends in a word that looks like a group name. A pattern
+        # that guessed would turn a whole-loop case into a group case and break the sum.
+        case = l2_report.convert_case({"name": "detect[HD_HIT_1D_ONED_ONLY_UPCA]",
+                                       "metrics": {"timeNs": {"runs": [1]}}})
+        self.assertEqual("oned_only_upca", case["config"])
+        self.assertIsNone(case["group"])
+        self.assertIsNone(l2_report.convert_case(
+            {"name": "detectGroup[HD_MISS_DEFAULT_POSTAL]",
+             "metrics": {"timeNs": {"runs": [1]}}}))
+
     def test_a_benchmark_from_another_class_is_not_an_l2_case(self):
         self.assertIsNone(l2_report.convert_case(
             {"name": "somethingElse", "metrics": {"timeNs": {"runs": [1]}}}))

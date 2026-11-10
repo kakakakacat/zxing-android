@@ -189,6 +189,107 @@ public final class NativeStageSplitTest {
     }
   }
 
+  /**
+   * A group finds what the whole reader loop finds, and the other groups do not.
+   *
+   * <p>The attribution's whole claim is that a group is one of the readers the
+   * all-format loop runs. A group that silently decoded through a different path, or
+   * through every reader, would still produce a plausible median -- this is what
+   * distinguishes the two.
+   */
+  @Test
+  public void oneGroupFindsTheSymbolAndTheOthersDoNot() throws Exception {
+    Frame hit = frameWith("STAGE-GROUP", BarcodeFormat.QR_CODE);
+    NativeFrameDecoder decoder = new NativeFrameDecoder(null, null, true);
+    try {
+      decoder.prepareStages(hit.data());
+      assertTrue("the whole loop missed a symbol the same frame decodes",
+          decoder.detectOnly());
+      assertTrue("the QR group missed the QR symbol the whole loop finds",
+          decoder.detectOnlyGroup("QRCode"));
+      assertFalse("the 1D group found a QR symbol", decoder.detectOnlyGroup("AllLinear"));
+      assertFalse(decoder.detectOnlyGroup("DataMatrix"));
+      assertFalse(decoder.detectOnlyGroup("Aztec"));
+      assertFalse(decoder.detectOnlyGroup("PDF417"));
+      assertFalse(decoder.detectOnlyGroup("MaxiCode"));
+      // Repeats, because the benchmark calls one group thousands of times against the
+      // reader it cached on the first call.
+      for (int i = 0; i < 32; i++) {
+        assertTrue("the QR group stopped finding the symbol at iteration " + i,
+            decoder.detectOnlyGroup("QRCode"));
+      }
+    } finally {
+      decoder.close();
+    }
+  }
+
+  /** Every group runs over a frame that holds nothing, which is the attributed case. */
+  @Test
+  public void everyGroupRunsOverAMissFrame() {
+    Frame miss = blankFrame();
+    NativeFrameDecoder decoder = new NativeFrameDecoder(null, null, true);
+    try {
+      decoder.prepareStages(miss.data());
+      for (String group : new String[] {
+          "AllLinear", "QRCode", "DataMatrix", "Aztec", "PDF417", "MaxiCode" }) {
+        assertFalse("group " + group + " found a symbol in a blank frame",
+            decoder.detectOnlyGroup(group));
+      }
+    } finally {
+      decoder.close();
+    }
+  }
+
+  /**
+   * A group the decoder's own formats build no reader for is refused, not measured.
+   *
+   * <p>Timing the 1D reader under a QR-only scanner would attribute work that
+   * configuration never does. Refusing is the only answer that cannot be mistaken for a
+   * cheap reader.
+   */
+  @Test
+  public void aGroupOutsideTheConfiguredFormatsIsRefused() throws Exception {
+    Frame hit = frameWith("STAGE-NARROW", BarcodeFormat.QR_CODE);
+    NativeFrameDecoder decoder =
+        new NativeFrameDecoder(null, Arrays.asList(BarcodeFormat.QR_CODE), true);
+    try {
+      decoder.prepareStages(hit.data());
+      assertTrue("the QR group is inside a QR-only format set and should still run",
+          decoder.detectOnlyGroup("QRCode"));
+      try {
+        decoder.detectOnlyGroup("AllLinear");
+        fail("a QR-only decoder timed the 1D reader it never builds");
+      } catch (IllegalStateException expected) {
+        // The only safe answer.
+      }
+    } finally {
+      decoder.close();
+    }
+  }
+
+  /** An unparsable group is a mistake in the caller, not a zero in the results. */
+  @Test
+  public void anUnknownGroupIsRefused() {
+    NativeFrameDecoder decoder = new NativeFrameDecoder(null, null, true);
+    try {
+      decoder.prepareStages(blankFrame().data());
+      try {
+        decoder.detectOnlyGroup("NotAFormatName");
+        fail("an unparsable format group was measured as a reader");
+      } catch (IllegalStateException expected) {
+        // Expected.
+      }
+      try {
+        decoder.detectOnlyGroup("");
+        fail("an empty format group was measured, which is every reader at once");
+      } catch (IllegalStateException expected) {
+        // Expected: an empty format set means "all formats" to ReaderOptions.
+      }
+    } finally {
+      decoder.close();
+    }
+  }
+
   /** Neither stage invents a number when no frame is held. */
   @Test
   public void bothStagesRefuseWithoutAFrame() {
@@ -202,6 +303,12 @@ public final class NativeStageSplitTest {
       decoder.releaseStages();
       assertEquals(-1L, decoder.binarizeOnly());
       assertFalse(decoder.detectOnly());
+      try {
+        decoder.detectOnlyGroup("QRCode");
+        fail("a group reported an outcome with no frame held");
+      } catch (IllegalStateException expected) {
+        // The matrix is gone; there is nothing to run a reader over.
+      }
     } finally {
       decoder.close();
     }
@@ -223,6 +330,12 @@ public final class NativeStageSplitTest {
     try {
       decoder.detectOnly();
       fail("detection ran on a closed decoder");
+    } catch (IllegalStateException expected) {
+      // Likewise.
+    }
+    try {
+      decoder.detectOnlyGroup("QRCode");
+      fail("a group ran on a closed decoder");
     } catch (IllegalStateException expected) {
       // Likewise.
     }

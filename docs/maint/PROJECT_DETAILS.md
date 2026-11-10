@@ -197,6 +197,7 @@ benchmark/tools/l1_device.sh --backend native            # 设备端 L1 正确�
 - [x] 已提交 L2 基线：DN-ENG41、锁频，完整 135 项矩阵两轮及 HD/default 子集，见 `docs/maint/reports/`。
 - [x] 根据相同代码两轮完整矩阵实测效应下限：≥100 µs 的项目为 3%，更短项目为 10%。
 - [x] **解码器阶段归因**：`DecoderStageBenchmark` 把两种后端各自的阈值化与检测分开计时，原生侧经 `StagedFrameDecoder` 的四个仅测量用 JNI 入口。实测**检测占主导**——阈值化只占原生全码制未命中的 5.5–7.8%、Java 的 8.9–15.3%，因此手写 NEON 优化 binarizer 不是杠杆；原生 binarizer 约比 Java 快 9.4 倍，检测那一半快 4.5–5.6 倍。另发现 `tryHarder` 关闭时 1D reader 排在所有 2D reader 之前，一维码命中因此从不构建矩阵，见[判定报告](reports/l2-stage-split-DN-ENG41-20261109.md)。
+- [x] **检测半边的 reader 归因**：`DetectorAttributionBenchmark` + `ReaderGroup` 把六个 reader 分开计时——两个 `MultiFormatReader` 的 reader 列表都是私有的，所以用「每个 reader 一个格式集合」从外部达到同样的分解。**两种后端的检测时间花在完全不同的地方**：FHD 全码制未命中，Java 上 PDF417（54.0%）加 1D（28.2%）占 82%，原生上这两个只占 39%、最大的是 QR（38.5%）。**可操作的发现**：原生的 DataMatrix 与 Aztec 合计占原生未命中的 20–30%，而 Java 上只占 0.3–0.5%——其余每个 reader 原生都快 1.9–14.6 倍，这两个却慢 5–10 倍。方法自带三重校验（六组相加 = `detect` 的 97.8–99.8%；命中时按 reader 顺序取前缀能复现 `detect`，六组全加则超出最多 50459 倍；`qrcode` 组与 `QR_ONLY` 下的整体 `detect` 相差 1.4% 以内），见[判定报告](reports/l2-detector-attribution-DN-ENG41-20261110.md)。
 - [x] 已提交 L3 基线：DN-ENG41、两种相机后端，每轮 12 次冷启动、两组配对同会话，见 `docs/maint/reports/l3-*-DN-ENG41-20261102.json`。
 - [x] 已提交 L4 基线：同会话两种后端各 12 分钟。**CameraX 持续扫描 CPU 约高 60%**（按单核心计 118%，对比 74%）；本轮均未观察到泄漏，见 [判定报告](reports/l4-verdict-DN-ENG41-20261102.md)。
 - [x] CI 评估实测结果而不自己计时：`.github/workflows/l2-compare.yml`、`benchmark/tools/ci_compare.py`。共享 runner 没有锁频真机，不运行 benchmark；操作者提交结果到 `docs/maint/reports/candidates/`，CI 按设备、配置和**解码后端**选基线并发布判定。不确定不导致构建失败，无法判定候选则失败。
@@ -612,6 +613,19 @@ audit IDs from [AUDIT.md](AUDIT.md), so nothing here is a vague intention.
       cheaper than the Java one and the detection half 4.5–5.6×. Also found: with
       `tryHarder` off the 1D reader runs ahead of every 2D one, so a 1D hit never builds a
       matrix (`docs/maint/reports/l2-stage-split-DN-ENG41-20261109.md`)
+- [x] **Which reader the detection half is**: `DetectorAttributionBenchmark` and
+      `ReaderGroup` time the six readers apart — both `MultiFormatReader`s keep their
+      reader list private, so the decomposition is reached from outside with one format
+      set per reader. **The two backends spend their detection in different places**: at
+      an FHD all-format miss, PDF417 (54.0%) and the 1D reader (28.2%) are 82% of it on
+      Java, while on native those two are 39% and QR is the largest at 38.5%. **The
+      actionable finding**: native DataMatrix and Aztec together are 20–30% of a native
+      miss against 0.3–0.5% of a Java one — every other reader is 1.9–14.6× faster on
+      native, these two are 5–10× slower. The method checks itself three ways (the six sum
+      to 97.8–99.8% of `detect`; a prefix of the reader order reproduces `detect` on a hit
+      while all six overshoot by up to 50459×; the `qrcode` group matches `QR_ONLY`'s whole
+      `detect` within 1.4%)
+      (`docs/maint/reports/l2-detector-attribution-DN-ENG41-20261110.md`)
 - [x] L3 baseline committed: DN-ENG41, both camera backends, 12 cold launches each, both
       pairs in one session (`docs/maint/reports/l3-*-DN-ENG41-20261102.json`)
 - [x] L4 baseline committed: DN-ENG41, both backends, 12-minute soaks in one session.

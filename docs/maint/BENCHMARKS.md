@@ -587,6 +587,78 @@ Run-to-run, two sessions at the same commit: within 0.27% on every all-format mi
 Everything, including the three things the split cannot settle, is in
 `reports/l2-stage-split-DN-ENG41-20261109.md`.
 
+#### 10.3d Which reader the detection half is, 2026-11-10
+
+§10.3c left 90–93% of an all-format miss inside "detection", which is six readers in a
+loop. Neither loop can be timed from inside — zxing-cpp's `MultiFormatReader` keeps
+`_readers` private and this fork's Java one keeps `readers` private — so
+`DetectorAttributionBenchmark` reaches the decomposition from outside: a second reader
+built from the same options with the format set narrowed to one symbology, which makes
+the constructor build exactly one of the six. `ReaderGroup` holds the six sets, and both
+decoders build the same six readers in the same order.
+
+Method, and the three things it is not:
+
+* **A group is a whole symbology and never less.** `QRReader` skips Micro-QR and rMQR
+  detection unless those formats are in its set; `ODReader` builds one sub-reader per
+  linear symbology. A narrower group would time a reader doing less work than it does in
+  the all-format run.
+* **A group is intersected with the decoder's own formats and refused when that is
+  empty.** Timing the 1D reader under a QR-only scanner would attribute work that
+  configuration never performs.
+* **PDF417 covers two native readers.** zxing-cpp builds `Pdf417::Reader` and
+  `MicroPdf417::Reader` separately and no format set selects the first without the
+  second, so they are reported together.
+* **The groups sum on a miss and not on a hit.** Both loops return at the first symbol.
+
+Run it the way §10.3b's split is run, with the class swapped:
+
+```
+./gradlew :benchmark-android:connectedReleaseAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=io.github.kakakakacat.zxing.benchmark.DetectorAttributionBenchmark \
+  -Pl2.backend=native -Pl2.matrix=full
+```
+
+On DN-ENG41 at `5492da41c`, clocks locked, four runs in one session — the groups and the
+stage split for each backend, full matrix. All-format miss, medians in ms and as a share
+of that backend's own `detect`:
+
+| reader | native FHD | share | Java FHD | share | Java ÷ native |
+| --- | --- | --- | --- | --- | --- |
+| 1D | 1.331 | 8.7% | 19.398 | 28.2% | 14.6× |
+| QR | 5.892 | **38.5%** | 11.474 | 16.7% | 1.9× |
+| DataMatrix | 0.275 | 1.8% | 0.039 | 0.1% | **0.1×** |
+| Aztec | 2.821 | 18.4% | 0.168 | 0.2% | **0.1×** |
+| PDF417 | 4.614 | 30.1% | 37.158 | **54.0%** | 8.1× |
+| MaxiCode | 0.045 | 0.3% | 0.291 | 0.4% | 6.5× |
+| six summed | 14.977 | 97.8% | 68.528 | 99.7% | |
+| `detect` | 15.310 | 100% | 68.754 | 100% | 4.5× |
+
+**The two backends spend their detection in different places.** On Java, PDF417 and the
+1D reader are 82% of an FHD miss. On native they are 39%, and QR is the largest single
+reader at 38.5%.
+
+**Two native readers are slower than their Java counterparts, and only those two.**
+DataMatrix and Aztec together are 20–30% of a native all-format miss (3.095 ms of 15.310
+at FHD) against 0.3–0.5% of a Java one (0.207 ms of 68.754). Every other reader is 1.9×
+to 14.6× faster on native. These two are where the native backend's 4.5× overall margin
+is being spent back, and the clearest optimisation target this project has found.
+
+Three independent checks, all of which the method had to pass before any of the above
+could be read:
+
+1. **The six sum to `detect` on a miss**: 97.8–99.0% (native), 99.5–99.8% (Java).
+2. **The loop stops at the first hit.** For a 1D hit the `oned` group alone is 98.1–98.2%
+   (native) and 88.3–92.8% (Java) of `detect`; for a QR hit `oned + qrcode` is 97.5–99.7%
+   (native) and 99.0–99.6% (Java). All six summed are 188–50459% of it. The reader order
+   §10.3c predicted from source is therefore also measured.
+3. **The same reader reached two ways.** The `qrcode` group under `DEFAULT` against the
+   whole `detect` under `QR_ONLY`, which is a separate run of a separate class: 99.8–101.0%
+   (native), 98.6–100.2% (Java).
+
+Full tables, the per-resolution scaling, and the run-level event that cost the first
+attempt are in `reports/l2-detector-attribution-DN-ENG41-20261110.md`.
+
 ### 10.4 Fixed replay inputs
 
 Three resolutions, because the cost is dominated by pixel count and the preview size varies

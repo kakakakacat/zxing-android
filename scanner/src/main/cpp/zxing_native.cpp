@@ -692,6 +692,42 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeStageD
   }
 }
 
+/**
+ * Measurement only: detection by one reader group, over that same matrix.
+ *
+ * <p>`formats` is a zxing-cpp format list naming one symbology, which makes
+ * `MultiFormatReader`'s constructor build exactly one of the readers the all-format run
+ * builds. See `NativeDecoder::detectOnlyGroup` for why the group may not be narrower
+ * than a symbology, and for when the groups sum to `nativeStageDetect` and when they do
+ * not.
+ */
+JNIEXPORT jboolean JNICALL
+Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeStageDetectGroup(
+    JNIEnv* env, jclass, jlong handle, jstring formats) {
+  NativeDecoder* decoder = fromHandle(handle);
+  if (decoder == nullptr) {
+    throwJava(env, "java/lang/IllegalStateException", "the native decoder is closed");
+    return JNI_FALSE;
+  }
+  const std::string names = toStdString(env, formats);
+  if (env->ExceptionCheck()) return JNI_FALSE;
+  std::string error;
+  try {
+    const int outcome = decoder->detectOnlyGroup(names, error);
+    if (outcome < 0) {
+      throwJava(env, "java/lang/IllegalStateException", error);
+      return JNI_FALSE;
+    }
+    return outcome > 0 ? JNI_TRUE : JNI_FALSE;
+  } catch (const std::exception& failure) {
+    throwJava(env, kDecodeExceptionClass, failure.what());
+    return JNI_FALSE;
+  } catch (...) {
+    throwJava(env, kDecodeExceptionClass, "detection failed for an unknown reason");
+    return JNI_FALSE;
+  }
+}
+
 /** Measurement only: drops the held frame and its matrix. */
 JNIEXPORT void JNICALL
 Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeStageRelease(

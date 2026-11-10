@@ -60,6 +60,29 @@ internal interface StagedFrameDecoder {
   /** Detection alone, over the matrix [prepareStages] built. @return whether it hit */
   fun detectOnly(): Boolean
 
+  /**
+   * Detection by one reader group, over the same matrix [detectOnly] runs against.
+   *
+   * [detectOnly] is the whole reader loop and says nothing about which reader inside it
+   * is expensive; the loop lives in zxing-cpp and keeps its reader list private, so there
+   * is no seam to time from within. This reaches the same decomposition from outside: a
+   * second reader built from this decoder's options with [formats] narrowed to one
+   * symbology, which makes exactly one of the all-format run's readers exist.
+   *
+   * [formats] is a zxing-cpp format list. The six groups that partition the reader set
+   * are `AllLinear`, `QRCode`, `DataMatrix`, `Aztec`, `PDF417` and `MaxiCode`; narrower
+   * than a symbology is refused by the measurement, not by this call, because the readers
+   * branch on their own format set and would then do less work than they do in the
+   * all-format run.
+   *
+   * **On a miss the groups sum to [detectOnly]; on a hit they do not** — the reader loop
+   * stops at the first symbol, so a hit charges nothing to the readers behind it.
+   *
+   * @throws IllegalStateException if no frame is held, or if this decoder's own format
+   *     set would build no reader for the group
+   */
+  fun detectOnlyGroup(formats: String): Boolean
+
   /** Drops the held frame and its matrix. */
   fun releaseStages()
 }

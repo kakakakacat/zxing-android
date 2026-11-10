@@ -46,7 +46,12 @@ struct NativeDecoder {
   ZXing::Barcode read(const ZXing::ImageView& image);
 
   /** Drops the cached readers. Every option setter must call this. */
-  void optionsChanged() noexcept { reader.reset(); }
+  void optionsChanged() noexcept {
+    reader.reset();
+    // Built from a copy of `options` and holding it by reference, so they describe the
+    // format set as it was. Dropped rather than rebuilt: nothing is timed yet.
+    stageGroups.clear();
+  }
 
   /**
    * Measurement only: holds one frame so thresholding and detection can be timed apart.
@@ -100,6 +105,35 @@ struct NativeDecoder {
    */
   bool detectOnly();
 
+  /**
+   * Detection by one reader group, over the same matrix `detectOnly` runs against.
+   *
+   * `MultiFormatReader::read` loops over readers that `_readers` keeps private, so there
+   * is no seam inside it to time. This reaches the same decomposition from outside: a
+   * second `MultiFormatReader` built from this decoder's own options with the format set
+   * narrowed to one symbology, which makes its constructor build exactly one of the
+   * readers the all-format run builds. `formats` is a zxing-cpp format list -- the six
+   * groups that partition the reader set are "AllLinear", "QRCode", "DataMatrix",
+   * "Aztec", "PDF417" and "MaxiCode".
+   *
+   * The groups are narrowed to a symbology, never below it, because the readers branch
+   * on their own format set: `QRReader` skips Micro-QR and rMQR detection unless they are
+   * in it, `ODReader` builds one sub-reader per linear symbology. A group narrower than a
+   * symbology would time a reader doing less than it does in the all-format run.
+   *
+   * Intersected with this decoder's own formats and refused when that is empty, so a
+   * group never times a reader the live decode would not construct.
+   *
+   * **On a miss the groups sum; on a hit they do not.** `read` returns as soon as a
+   * reader produces a symbol, so a hit charges nothing to the readers behind it -- and
+   * under this fork's shipping default the 1D reader is first (see `detectOnly`). A miss
+   * runs every reader to the end, which is the frame a live preview decodes thousands of
+   * and the one these groups are meant to attribute.
+   *
+   * @return 1 for a hit, 0 for a miss, -1 with `error` filled, which the JNI layer throws
+   */
+  int detectOnlyGroup(const std::string& formats, std::string& error);
+
   /** Drops the held frame and its bitmap. */
   void releaseStages() noexcept;
 
@@ -133,6 +167,23 @@ struct NativeDecoder {
   int stageRowStride = 0;
   int stagePixelStride = 0;
   std::unique_ptr<ZXing::BinaryBitmap> stageBitmap;
+
+  /**
+   * One reader group's own reader, with the options it was built from.
+   *
+   * `MultiFormatReader` holds its `ReaderOptions` by reference, so the copy has to
+   * outlive it and must not move -- hence a member here, declared before the reader that
+   * references it, and held through a `unique_ptr` in `stageGroups` so that growing the
+   * vector does not relocate it.
+   */
+  struct GroupReader {
+    std::string id;
+    ZXing::ReaderOptions options;
+    std::unique_ptr<ZXing::MultiFormatReader> reader;
+  };
+
+  /** Built on first use, keyed by the format string the caller named the group with. */
+  std::vector<std::unique_ptr<GroupReader>> stageGroups;
 
   /** The view over `stageStorage`, with the geometry the caller's frame had. */
   ZXing::ImageView stageImage() const noexcept;

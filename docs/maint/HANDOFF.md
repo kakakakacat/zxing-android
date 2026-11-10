@@ -139,10 +139,11 @@ were actually taken; both branches are pushed, so every hash resolves.
 | `cd1f8f16b` | The release state, recorded |
 | `d759c47eb` | **v0.1.0 released**, and checked from the published side |
 
-**Uncommitted as of 2026-11-09:** the decoder stage split (`StagedFrameDecoder`, its four
-JNI entry points, `DecoderStageBenchmark`, `NativeStageSplitTest`) and the four result
-envelopes and report it produced. Measured and tested on DN-ENG41 — `./gradlew test`
-green, `:scanner` instrumentation 64/0/0 — but not yet committed or pushed.
+**Nothing is uncommitted.** The 2026-11-09/10 measurement work went in as three commits
+on `maint/android`: `993142e03` (the audit register's stale status), `1e123447d` (the
+decoder stage split) and the one that follows it (the reader attribution). Each was built
+and tested at its own tree state rather than only at the end, so the two code commits are
+separately bisectable.
 
 All three workflows were green on `6d4ab48b1`: Build
 `41468529666`, Instrumentation `41468529072`, and the new **L2 comparison** `41468529824`
@@ -928,9 +929,48 @@ once from the inside (`build.gradle.kts:151`); the fix holds, and what failed wa
 around it from the command line. All four runs were re-taken rather than having the field
 edited.
 
-`reports/l2-stage-split-DN-ENG41-20261109.md`, with the four envelopes beside it. What it
-does not settle: which detector, on a device that is permanently throttled, with
-`armeabi-v7a` still never run anywhere.
+`reports/l2-stage-split-DN-ENG41-20261109.md`, with the four envelopes beside it.
+
+### Phase 4 — which reader the detection half is
+
+**Closed 2026-11-10**, answering what the stage split explicitly left open. "Detection" is
+six readers in a loop and neither loop can be timed from inside — zxing-cpp keeps
+`_readers` private and this fork's Java `MultiFormatReader` keeps `readers` private.
+`ReaderGroup` reaches the decomposition from outside instead: a format set per reader, so
+that a decode restricted to it builds that reader and no other. `DetectorAttributionBenchmark`
+times one group per case over a matrix built before timing starts. The native side needed
+one more measurement-only JNI entry point; the Java side needed no new API at all, because
+`MultiFormatReader` already chooses its readers from `POSSIBLE_FORMATS`.
+
+**The two backends spend their detection in different places**, so a conclusion drawn on
+one does not transfer. All-format miss at FHD: on Java, PDF417 (54.0%) and the 1D reader
+(28.2%) are 82% of it; on native those two are 39% and the largest single reader is QR at
+38.5%.
+
+**The finding worth acting on: two native readers are slower than their Java counterparts,
+and only those two.** DataMatrix and Aztec together are 20–30% of a native all-format miss
+(3.095 ms of 15.310 at FHD) against 0.3–0.5% of a Java one (0.207 ms of 68.754). Every
+other reader is 1.9× to 14.6× faster on native. A fifth of the native miss is two detectors
+the Java backend dismisses for nothing, which means the work is not inherent to the frame.
+The next cut is reading `DMDetector`/`AZDetector` against their Java counterparts, not
+another benchmark.
+
+**Three things worth carrying forward.** The method checks itself three ways and all three
+had to pass before the numbers could be read: the six groups sum to `detect` on a miss
+(97.8–99.8%); a *prefix* of the reader order reproduces `detect` on a hit while all six
+overshoot by up to 50459×, which measures the reader order that the stage split had only
+predicted from source; and the `qrcode` group under `DEFAULT` matches the whole `detect`
+under `QR_ONLY` to within 1.4%, the same reader reached by two separate runs of two
+separate classes. Second: **a group must be a whole symbology and never less** — the
+readers branch on their own format set, so a narrower group would time a reader doing less
+work than the real run does. Third: re-running the stage split here gave 2026-11-09's
+figures a second session a day apart, and every one reproduced inside ±1.6% against a 3%
+effect floor.
+
+`reports/l2-detector-attribution-DN-ENG41-20261110.md`, with four more envelopes beside
+it. What it does not settle: *why* zxing-cpp's DataMatrix and Aztec detectors do real work
+on a blank frame, on a device that is permanently throttled, with `armeabi-v7a` still never
+run anywhere.
 
 ### Phase 4 — L1 and L2
 

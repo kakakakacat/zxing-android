@@ -156,4 +156,17 @@ public final class FramePipeline {
     reader.setHints(config.hints());
     return reader;
   }
+
+  /**
+   * A reader restricted to one of the six groups {@link ReaderGroup} defines.
+   *
+   * <p>{@code MultiFormatReader} chooses its readers from {@code POSSIBLE_FORMATS} in its
+   * constructor, so naming one symbology there builds one reader -- which is the whole
+   * trick by which the reader loop is attributed from outside without a seam inside it.
+   */
+  public static MultiFormatReader reader(L2Config config, ReaderGroup group) {
+    MultiFormatReader reader = new MultiFormatReader();
+    reader.setHints(group.hints(config));
+    return reader;
+  }
 }
