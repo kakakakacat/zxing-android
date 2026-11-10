@@ -21,6 +21,7 @@ import io.github.kakakakacat.zxing.MultiFormatReader;
 import io.github.kakakakacat.zxing.android.scanner.FrameDecoder;
 import io.github.kakakakacat.zxing.android.scanner.FrameDataDecoder;
 import io.github.kakakakacat.zxing.android.scanner.FrameDecoders;
+import io.github.kakakakacat.zxing.android.scanner.StagedFrameDecoder;
 import io.github.kakakakacat.zxing.android.camera.LumaFrameData;
 import io.github.kakakakacat.zxing.NotFoundException;
 import io.github.kakakakacat.zxing.PlanarYUVLuminanceSource;
@@ -111,12 +112,37 @@ public final class FramePipeline {
     int[] crop = crop(frame.width, frame.height);
     PlanarYUVLuminanceSource source = luminanceSource(frame, crop);
     if (decoder instanceof FrameDataDecoder) {
-      LumaFrameData data = LumaFrameData.Companion.array(frame.luminance, frame.width,
-          frame.height, frame.width, 1, crop[0], crop[1], crop[2] - crop[0],
-          crop[3] - crop[1], 0, 0L);
-      return ((FrameDataDecoder) decoder).decode(data, source);
+      return ((FrameDataDecoder) decoder).decode(frameData(frame, crop), source);
     }
     return decoder.decode(source);
+  }
+
+  /**
+   * The camera-plane geometry a backend that understands strides is handed.
+   *
+   * <p>One call rather than two copies of it: {@link #endToEnd(FrameDecoder,
+   * FrameFactory.Frame)} and the stage split have to describe the same frame, or the
+   * split is attributing the cost of a different crop.
+   */
+  public static LumaFrameData frameData(FrameFactory.Frame frame, int[] crop) {
+    return LumaFrameData.Companion.array(frame.luminance, frame.width, frame.height,
+        frame.width, 1, crop[0], crop[1], crop[2] - crop[0], crop[3] - crop[1], 0, 0L);
+  }
+
+  /**
+   * Stage 3 and stage 4 apart, for whichever backend is under test.
+   *
+   * <p>The Java side already had this split — {@link #binarize} and {@link #decode} —
+   * because {@code BinaryBitmap} caches its matrix and so a pre-warmed bitmap measures
+   * the reader alone. The native side could not be split at all until
+   * {@code StagedFrameDecoder} existed, which is why {@code DecoderBackendBenchmark} has
+   * an end-to-end case and nothing narrower.
+   *
+   * <p>Returns null when this backend cannot be split, which only the stage benchmark
+   * asks about and which it reports as a skip rather than as a zero.
+   */
+  public static StagedFrameDecoder staged(FrameDecoder decoder) {
+    return decoder instanceof StagedFrameDecoder ? (StagedFrameDecoder) decoder : null;
   }
 
   /** A backend configured the way the decode thread configures its decoder. */

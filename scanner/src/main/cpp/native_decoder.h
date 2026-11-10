@@ -4,7 +4,9 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 #include "Barcode.h"
+#include "BinaryBitmap.h"
 #include "ImageView.h"
 #include "MultiFormatReader.h"
 #include "ReaderOptions.h"
@@ -46,6 +48,61 @@ struct NativeDecoder {
   /** Drops the cached readers. Every option setter must call this. */
   void optionsChanged() noexcept { reader.reset(); }
 
+  /**
+   * Measurement only: holds one frame so thresholding and detection can be timed apart.
+   *
+   * `read` is one call from a greyscale plane to a `Barcode`, so the share of it that is
+   * thresholding has never been measured -- `DecoderBackendBenchmark` has an `endToEnd`
+   * case and nothing narrower, and its own comment says why: a native backend brings its
+   * own thresholding, so there is no stage the two backends share. That is an argument
+   * against a *comparable* stage, not against measuring this one, and without the split
+   * there is no way to tell whether the 18.7 ms an FHD all-format miss costs is mostly
+   * the binarizer or mostly the detectors.
+   *
+   * Copies the frame rather than viewing the caller's buffer: the bitmap built here
+   * outlives the JNI call that prepared it, and a Java array is only pinned for the
+   * duration of one call. Geometry -- both strides included -- is preserved exactly, so
+   * the binarizer sees the same packed-or-strided shape it sees on the live path, and
+   * `GlobalHistogramBinarizer`'s `__ARM_NEON` packed-copy branch makes the same decision.
+   *
+   * Refuses any configuration `read` would not take the cached-reader path for. With one
+   * of those, the live path runs `ZXing::ReadBarcodes` -- a downscale pyramid, an
+   * inversion pass, `isPure` -- and a two-stage split of a decode that never happens
+   * would attribute time to stages the frame does not go through.
+   *
+   * @return false with `error` filled, which the JNI layer throws
+   */
+  bool prepareStages(const ZXing::ImageView& image, std::string& error);
+
+  /**
+   * Thresholding alone: a fresh binarizer over the held frame, forced to produce its
+   * matrix. The allocation is inside, because the live path pays it per frame too.
+   *
+   * @return the matrix cell count, so the call has a result the optimiser cannot drop,
+   *     or -1 if no frame is held
+   */
+  int64_t binarizeOnly();
+
+  /**
+   * Detection alone, against the matrix `prepareStages` already built and cached.
+   *
+   * `BinaryBitmap` caches its matrix on first use and `MultiFormatReader::read` takes it
+   * by const reference, so repeating this re-runs the readers over a matrix that is
+   * built once. **That matrix is also warm in cache, which it is not on a live frame**,
+   * so `binarizeOnly + detectOnly` is a floor for `read` rather than a partition of it.
+   * The two are reported next to the existing end-to-end case for exactly that reason.
+   *
+   * One-dimensional readers do not use the matrix at all -- `getPatternRow` thresholds a
+   * row at a time -- and with `tryHarder` off, which is how this decoder is configured,
+   * `MultiFormatReader` runs the 1D reader before every 2D one. So a 1D hit ends the read
+   * before anything requests a matrix, and `binarizeOnly` for such a frame measures work
+   * `read` never does. The two halves are not additive there.
+   */
+  bool detectOnly();
+
+  /** Drops the held frame and its bitmap. */
+  void releaseStages() noexcept;
+
   ZXing::ReaderOptions options;
   uint64_t hits = 0;
   uint64_t misses = 0;
@@ -62,6 +119,23 @@ struct NativeDecoder {
    * destroyed before it, and is dropped rather than mutated whenever `options` changes.
    */
   std::unique_ptr<ZXing::MultiFormatReader> reader;
+
+  /**
+   * The frame `prepareStages` copied, and the bitmap over it.
+   *
+   * Declared in this order on purpose: the bitmap holds an `ImageView` into the storage,
+   * so it has to be destroyed first, and members are destroyed in reverse declaration
+   * order. Nothing may reallocate the storage while the bitmap is alive.
+   */
+  std::vector<uint8_t> stageStorage;
+  int stageWidth = 0;
+  int stageHeight = 0;
+  int stageRowStride = 0;
+  int stagePixelStride = 0;
+  std::unique_ptr<ZXing::BinaryBitmap> stageBitmap;
+
+  /** The view over `stageStorage`, with the geometry the caller's frame had. */
+  ZXing::ImageView stageImage() const noexcept;
 };
 
 std::unique_ptr<NativeDecoder> createNativeDecoder() noexcept;

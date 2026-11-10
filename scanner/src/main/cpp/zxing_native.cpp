@@ -213,6 +213,37 @@ bool setElement(JNIEnv* env, jobjectArray array, jsize index, jobject value) {
   return !env->ExceptionCheck();
 }
 
+/**
+ * Validates a cropped Camera1 Y plane and yields where its first pixel sits in the array.
+ *
+ * Shared by the decode entry point and the measurement stage entry point so that a bounds
+ * check cannot be tightened on one and left alone on the other. Throws and returns false
+ * rather than reporting through an out parameter, because every caller's response to a
+ * bad crop is to return immediately.
+ */
+bool arrayCropBounds(JNIEnv* env, jbyteArray luminance, jint cropLeft, jint cropTop,
+                     jint width, jint height, jint rowStride, jint pixelStride,
+                     int64_t& start, jsize& length) {
+  if (luminance == nullptr || cropLeft < 0 || cropTop < 0 || width <= 0 || height <= 0 ||
+      rowStride <= 0 || pixelStride <= 0) {
+    throwJava(env, "java/lang/IllegalArgumentException", "invalid array luma crop or strides");
+    return false;
+  }
+  const int64_t rowEnd = (static_cast<int64_t>(cropLeft) + width - 1) * pixelStride + 1;
+  if (rowEnd > rowStride) {
+    throwJava(env, "java/lang/IllegalArgumentException", "array luma crop crosses a row");
+    return false;
+  }
+  start = static_cast<int64_t>(cropTop) * rowStride +
+          static_cast<int64_t>(cropLeft) * pixelStride;
+  length = env->GetArrayLength(luminance);
+  if (start < 0 || start >= length) {
+    throwJava(env, "java/lang/IllegalArgumentException", "array luma crop starts past storage");
+    return false;
+  }
+  return true;
+}
+
 }  // namespace
 
 extern "C" {
@@ -517,21 +548,10 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode
     throwJava(env, "java/lang/IllegalStateException", "the native decoder is closed");
     return nullptr;
   }
-  if (luminance == nullptr || cropLeft < 0 || cropTop < 0 || width <= 0 || height <= 0 ||
-      rowStride <= 0 || pixelStride <= 0) {
-    throwJava(env, "java/lang/IllegalArgumentException", "invalid array luma crop or strides");
-    return nullptr;
-  }
-  const int64_t rowEnd = (static_cast<int64_t>(cropLeft) + width - 1) * pixelStride + 1;
-  if (rowEnd > rowStride) {
-    throwJava(env, "java/lang/IllegalArgumentException", "array luma crop crosses a row");
-    return nullptr;
-  }
-  const int64_t start = static_cast<int64_t>(cropTop) * rowStride +
-                        static_cast<int64_t>(cropLeft) * pixelStride;
-  const jsize length = env->GetArrayLength(luminance);
-  if (start < 0 || start >= length) {
-    throwJava(env, "java/lang/IllegalArgumentException", "array luma crop starts past storage");
+  int64_t start = 0;
+  jsize length = 0;
+  if (!arrayCropBounds(env, luminance, cropLeft, cropTop, width, height, rowStride,
+                       pixelStride, start, length)) {
     return nullptr;
   }
   scanner_native::PinnedBytes pixels(env, luminance);
@@ -573,6 +593,113 @@ Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeDecode
     return nullptr;
   }
   return decodeImage(env, decoder, frame->image());
+}
+
+/**
+ * Measurement only: holds one frame so thresholding and detection can be timed apart.
+ *
+ * <p>Four entry points rather than one, because a microbenchmark's timed region has to
+ * contain one stage and nothing else. `nativeStagePrepareArray` copies the frame and
+ * builds the matrix once, outside anyone's measurement; `nativeStageBinarize` and
+ * `nativeStageDetect` are the two halves, each callable in a loop; `nativeStageRelease`
+ * gives the copy back.
+ *
+ * <p>Not on the scanning path and not reachable from it. `DecoderThread` calls `decode`,
+ * which calls `read`; nothing in `:scanner` calls these, and `StagedFrameDecoder` -- the
+ * interface that exposes them -- is internal, so only the benchmark module reaches them.
+ * They exist for the same reason `nativeSetReturnErrors` does.
+ *
+ * <p>The geometry arguments are the ones `nativeDecodeArray` takes, checked by the same
+ * `arrayCropBounds`, so a frame prepared here is the frame that entry point would decode.
+ */
+JNIEXPORT jboolean JNICALL
+Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeStagePrepareArray(
+    JNIEnv* env, jclass, jlong handle, jbyteArray luminance, jint cropLeft, jint cropTop,
+    jint width, jint height, jint rowStride, jint pixelStride) {
+  NativeDecoder* decoder = fromHandle(handle);
+  if (decoder == nullptr) {
+    throwJava(env, "java/lang/IllegalStateException", "the native decoder is closed");
+    return JNI_FALSE;
+  }
+  int64_t start = 0;
+  jsize length = 0;
+  if (!arrayCropBounds(env, luminance, cropLeft, cropTop, width, height, rowStride,
+                       pixelStride, start, length)) {
+    return JNI_FALSE;
+  }
+  scanner_native::PinnedBytes pixels(env, luminance);
+  if (!pixels.ok()) return JNI_FALSE;
+  std::string error;
+  auto frame = LumaFrameView::create(
+      std::span<const uint8_t>(pixels.get() + start, static_cast<size_t>(length - start)),
+      width, height, rowStride, pixelStride, error);
+  if (!frame) {
+    throwJava(env, "java/lang/IllegalArgumentException", error);
+    return JNI_FALSE;
+  }
+  try {
+    if (!decoder->prepareStages(frame->image(), error)) {
+      throwJava(env, "java/lang/IllegalStateException", error);
+      return JNI_FALSE;
+    }
+  } catch (const std::exception& failure) {
+    throwJava(env, kDecodeExceptionClass, failure.what());
+    return JNI_FALSE;
+  } catch (...) {
+    throwJava(env, kDecodeExceptionClass, "the stage split failed for an unknown reason");
+    return JNI_FALSE;
+  }
+  return JNI_TRUE;
+}
+
+/** Measurement only: thresholding alone. Returns the matrix cell count, or -1. */
+JNIEXPORT jlong JNICALL
+Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeStageBinarize(
+    JNIEnv* env, jclass, jlong handle) {
+  NativeDecoder* decoder = fromHandle(handle);
+  if (decoder == nullptr) {
+    throwJava(env, "java/lang/IllegalStateException", "the native decoder is closed");
+    return -1;
+  }
+  try {
+    return static_cast<jlong>(decoder->binarizeOnly());
+  } catch (const std::exception& failure) {
+    throwJava(env, kDecodeExceptionClass, failure.what());
+    return -1;
+  } catch (...) {
+    throwJava(env, kDecodeExceptionClass, "thresholding failed for an unknown reason");
+    return -1;
+  }
+}
+
+/** Measurement only: detection alone, over the matrix `nativeStagePrepareArray` built. */
+JNIEXPORT jboolean JNICALL
+Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeStageDetect(
+    JNIEnv* env, jclass, jlong handle) {
+  NativeDecoder* decoder = fromHandle(handle);
+  if (decoder == nullptr) {
+    throwJava(env, "java/lang/IllegalStateException", "the native decoder is closed");
+    return JNI_FALSE;
+  }
+  try {
+    return decoder->detectOnly() ? JNI_TRUE : JNI_FALSE;
+  } catch (const std::exception& failure) {
+    throwJava(env, kDecodeExceptionClass, failure.what());
+    return JNI_FALSE;
+  } catch (...) {
+    throwJava(env, kDecodeExceptionClass, "detection failed for an unknown reason");
+    return JNI_FALSE;
+  }
+}
+
+/** Measurement only: drops the held frame and its matrix. */
+JNIEXPORT void JNICALL
+Java_io_github_kakakakacat_zxing_android_scanner_NativeFrameDecoder_nativeStageRelease(
+    JNIEnv*, jclass, jlong handle) {
+  NativeDecoder* decoder = fromHandle(handle);
+  if (decoder != nullptr) {
+    decoder->releaseStages();
+  }
 }
 
 /**

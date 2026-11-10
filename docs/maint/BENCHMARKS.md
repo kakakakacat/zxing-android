@@ -482,6 +482,111 @@ own benchmark case, and the whole path is timed as one more:
 `endToEnd` is the headline number. The per-stage cases exist so a regression can be
 attributed instead of guessed at.
 
+#### 10.3b The same split inside the native backend
+
+Those five stages are the **Java** pipeline's, and `DecoderBackendBenchmark` deliberately
+has only `endToEnd`: a native backend brings its own thresholding, so there is no stage
+the two backends *share*. That rules out a comparable stage. It does not rule out a
+measured one — and for a long time it left the largest number in this file unattributed.
+An FHD all-format miss costs 18.677 ms on the native backend (§10.6c) and nothing said
+whether that was mostly the binarizer or mostly the detectors. Hand-written NEON for the
+binarizer, a different binarizer, `-O3`, ThinLTO and a smaller analysis resolution are
+five different answers depending on which it is.
+
+`DecoderStageBenchmark` splits it, for **either** backend, under two case names:
+
+| Case name | What it covers |
+| --- | --- |
+| `binarize` | a fresh binarizer over the frame, forced to produce its black matrix |
+| `detect` | the readers over a matrix built once, before timing started |
+
+The backend is in the result envelope rather than in the case names, the convention
+§10.6b established, so a native run and a Java run compare case for case. `binarize` is
+deliberately the name §10.3 already uses: run against the Java backend it is the same work
+as that pipeline's stage 3, so the two classes cross-check each other, and `l2_report.py`
+parses both without a change. `detect` is a new name rather than `decode`, because it is
+not stage 4 — stage 4 is handed a warm bitmap by a caller that chose to warm it, while
+`detect` is defined by that warming. On the Java side
+this needs no new code — `BinaryBitmap` caches its matrix, so a pre-warmed bitmap measures
+the reader alone. On the native side it needs a seam: `StagedFrameDecoder`, four JNI entry
+points reachable only from the benchmark module, which hold one frame and run
+`HybridBinarizer::getBlackMatrix` and `MultiFormatReader::read` apart.
+
+**Three things this split is not, each of which would otherwise be read out of it:**
+
+- **`binarize + detect` is a floor for `endToEnd`, not a partition of it.** The matrix
+  `detect` reads is warm in cache, which it is not on a live frame, and the crop, the
+  luminance source, the JNI transition and the array pin are outside both halves. Read the
+  pair against the end-to-end case for the same frame; a split that falls well short of it
+  is a finding about those excluded costs.
+- **One-dimensional readers never touch the matrix, and on this fork's defaults they run
+  first.** Only the 2D readers call `getBitMatrix` — `ODReader` thresholds a row at a time
+  through `getPatternRow`. And `MultiFormatReader`'s constructor puts the 1D reader
+  *before* every 2D reader when `tryHarder` is off (`MultiFormatReader.cpp:45`) and *after*
+  all of them when it is on (line 74). With `tryHarder` off, which is what this fork ships,
+  a 1D symbol is found before any 2D reader asks for a matrix, `maxSymbols` reaches zero
+  and the loop breaks — **so the matrix is never built at all on that frame.** For every
+  `hit_1d` case, therefore, `binarize` measures work the live decode does not do, and the
+  two halves must not be added. The measured pair says so plainly: at HD, `hit_1d_default`
+  is 0.612 ms of thresholding against 0.047 ms of detection, while §10.6c's end-to-end
+  figure for that frame is 0.096 ms — a decode cheaper than the matrix it supposedly built.
+  (This is also a large part of why `TRY_HARDER` costs what it does: turning it on moves
+  the 1D reader behind the 2D ones, so a 1D hit starts paying for a matrix.)
+- **The native half refuses configurations it would misdescribe.** `prepareStages` fails
+  rather than measuring when the options are ones the live path would run through
+  `ZXing::ReadBarcodes` — a downscale pyramid, an inversion pass, `isPure` — because a
+  two-stage timing of a decode that never happens would attribute cost to stages the frame
+  does not go through.
+
+`NativeStageSplitTest` pins the invariants a reader of these medians depends on: that the
+split detects what an ordinary decode of the same frame detects, that detection repeats
+over the held frame rather than being consumed by the first read, that thresholding covers
+the crop rather than the padded plane, and that both halves refuse rather than return a
+plausible number when no frame is held. Five tests, run on DN-ENG41 and an API 36
+emulator.
+
+```sh
+# One backend per run, in its own process, as in §10.6b. The backend goes through
+# -Pl2.backend, not through -Pandroid.testInstrumentationRunnerArguments.l2.backend:
+# the latter reaches the instrumentation but not defaultConfig, so recordL2RunnerArgs
+# writes the default and the result file describes the wrong run. See the report.
+./gradlew :benchmark-android:connectedReleaseAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.class=io.github.kakakakacat.zxing.benchmark.DecoderStageBenchmark \
+  -Pl2.backend=native -Pl2.matrix=full
+```
+
+#### 10.3c What the split measured, 2026-11-09
+
+On DN-ENG41 at `5492da41c`, clocks locked, all four runs in one session — the split and
+the end-to-end case for each backend, full matrix. All-format miss, the frame a session
+actually spends its time on, medians in ms:
+
+| | native binarize | native detect | binarize share | Java binarize | Java detect | binarize share |
+| --- | --- | --- | --- | --- | --- | --- |
+| VGA | 0.209 | 3.556 | **5.5%** | 1.947 | 19.783 | **8.9%** |
+| HD | 0.614 | 8.865 | **6.4%** | 5.754 | 42.677 | **11.9%** |
+| FHD | 1.315 | 15.150 | **7.8%** | 12.407 | 68.709 | **15.3%** |
+
+**Detection dominates on both backends; thresholding is 5.5–7.8% of a native all-format
+miss.** So the standing idea of hand-writing NEON for the binarizer is dead: a disassembly
+of the shipped library had shown `HybridBinarizer::getBlackMatrix` vectorised only to
+`.8b`, with a `uminv`/`umaxv` reduction per 8×8 block, which is genuinely suboptimal — and
+sits on 8% of the path. The instruction reading was right and the conclusion from it was
+wrong. The native binarizer is also about **9.4× cheaper than the Java one** at every
+resolution, against 4.5–5.6× for the detection half.
+
+**The split validates against end to end, and where it does not is itself the result.**
+`binarize + detect` lands at 92–99% (native) and 96–101% (Java) of the end-to-end case for
+15 of the 27 frames, the residual being the costs listed above as excluded. For the other
+12 it overshoots by 286–12214%, and those are exactly the frames where no 2D reader ever
+requests a matrix — predicted from the reader order before it was seen in the data. At HD,
+`hit_1d_default` is 0.612 ms of thresholding against 0.047 ms of detection for a frame
+whose whole decode is 0.092 ms.
+
+Run-to-run, two sessions at the same commit: within 0.27% on every all-format miss stage.
+Everything, including the three things the split cannot settle, is in
+`reports/l2-stage-split-DN-ENG41-20261109.md`.
+
 ### 10.4 Fixed replay inputs
 
 Three resolutions, because the cost is dominated by pixel count and the preview size varies

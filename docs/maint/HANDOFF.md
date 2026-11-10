@@ -139,7 +139,12 @@ were actually taken; both branches are pushed, so every hash resolves.
 | `cd1f8f16b` | The release state, recorded |
 | `d759c47eb` | **v0.1.0 released**, and checked from the published side |
 
-Nothing is uncommitted. All three workflows were green on `6d4ab48b1`: Build
+**Uncommitted as of 2026-11-09:** the decoder stage split (`StagedFrameDecoder`, its four
+JNI entry points, `DecoderStageBenchmark`, `NativeStageSplitTest`) and the four result
+envelopes and report it produced. Measured and tested on DN-ENG41 — `./gradlew test`
+green, `:scanner` instrumentation 64/0/0 — but not yet committed or pushed.
+
+All three workflows were green on `6d4ab48b1`: Build
 `41468529666`, Instrumentation `41468529072`, and the new **L2 comparison** `41468529824`
 — which validated the baseline manifest against the real committed files on a clean
 checkout and reported, correctly, that no candidate was submitted. The two commits after
@@ -890,6 +895,42 @@ no soak had hit it), leaving a cached process that `pidof` still answers for. `l
 now checks the result view before and after, and the focused window at the end. Also: that
 device's unfiltered logcat was **717 MB in twelve minutes** of `AppsFilter` spam, inside a
 measurement of its own power draw — the stream is `logcat --pid` now.
+
+### Phase 4 — the decoder's stages are attributed
+
+**Closed 2026-11-09.** The largest number in `BENCHMARKS.md` had no attribution: an FHD
+all-format miss cost 18.677 ms on the native backend and nothing said whether that was the
+binarizer or the detectors. `DecoderStageBenchmark` now times each backend's own
+thresholding apart from its own detection — on the native side through
+`StagedFrameDecoder`, four measurement-only JNI entry points that the scanning path cannot
+reach and that the published Kotlin API does not expose.
+
+**Detection dominates, on both backends.** Thresholding is 5.5–7.8% of a native all-format
+miss and 8.9–15.3% of a Java one. **That kills the standing idea of hand-writing NEON for
+the binarizer**, which came out of a disassembly of the shipped library showing
+`HybridBinarizer::getBlackMatrix` vectorised only to `.8b` with a `uminv`/`umaxv` reduction
+per 8×8 block. The instruction reading was right; the conclusion drawn from it was not. The
+code is suboptimal and it sits on 8% of the path. The native binarizer is also ~9.4× cheaper
+than the Java one at every resolution, against 4.5–5.6× for detection.
+
+**Two things worth carrying forward.** `binarize + detect` lands at 92–101% of the
+end-to-end case for 15 of 27 frames and overshoots wildly for the other 12 — and those 12
+are exactly the frames where no 2D reader ever requests a matrix, which was predicted from
+the reader order and then seen in the data: **with `tryHarder` off, which is what this fork
+ships, `MultiFormatReader` puts the 1D reader ahead of every 2D one** (`.cpp:45`,
+`.java:119`), so a 1D hit ends the read before anything asks for a matrix. A large part of
+what `TRY_HARDER` costs is that it moves the 1D reader behind the 2D ones and a 1D hit
+starts paying for a matrix it never reads. And: **the backend goes through `-Pl2.backend`,
+never through `-Pandroid.testInstrumentationRunnerArguments.l2.backend`** — the latter
+reaches the instrumentation but not `defaultConfig`, so `recordL2RunnerArgs` writes the
+default and the result file names the wrong backend. This repository already fixed that bug
+once from the inside (`build.gradle.kts:151`); the fix holds, and what failed was a route
+around it from the command line. All four runs were re-taken rather than having the field
+edited.
+
+`reports/l2-stage-split-DN-ENG41-20261109.md`, with the four envelopes beside it. What it
+does not settle: which detector, on a device that is permanently throttled, with
+`armeabi-v7a` still never run anywhere.
 
 ### Phase 4 — L1 and L2
 

@@ -51,6 +51,12 @@ import java.util.List;
  * measuring anything narrower would compare two halves of one decoder. Crop and luminance
  * source are identical on both sides and together cost under a microsecond.
  *
+ * <p><strong>That is an argument against a comparable stage, not against a measured one.</strong>
+ * {@link DecoderStageBenchmark} splits each backend's own thresholding from its own
+ * detection, under case names {@code binarize} and {@code detect}, and reads them against
+ * the {@code endToEnd} figure this class produces for the same frame. The two classes are
+ * meant to be run together: neither number means much without the other.
+ *
  * <p><strong>The case names carry no backend.</strong> The backend is the independent
  * variable of this comparison and is recorded in the result envelope instead, so that two
  * runs differing only by backend compare case for case rather than coming back as a

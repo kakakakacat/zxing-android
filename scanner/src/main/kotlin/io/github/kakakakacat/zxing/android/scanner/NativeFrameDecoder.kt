@@ -87,7 +87,7 @@ internal class NativeFrameDecoder
     private val directBuffer: Boolean = false,
     private val decodeCall: DecodeCall? = null,
     private val arrayRoi: Boolean = true
-) : FrameDecoder, FrameDataDecoder {
+) : FrameDecoder, FrameDataDecoder, StagedFrameDecoder {
 
   /** Test seam at the native-call boundary; absent in normal operation. */
   internal fun interface DecodeCall {
@@ -229,6 +229,35 @@ internal class NativeFrameDecoder
   override fun setFormats(formats: Collection<@JvmSuppressWildcards BarcodeFormat>?) {
     check(handle != 0L) { "decoder already closed" }
     nativeSetFormats(handle, nativeFormatList(formats))
+  }
+
+  // Measurement only -- see StagedFrameDecoder. The scanning path does not call these.
+
+  override fun prepareStages(data: LumaFrameData) {
+    check(handle != 0L) { "decoder already closed" }
+    val bytes = checkNotNull(data.bytes) {
+      "the stage split reads a heap frame; this one carries only a direct buffer"
+    }
+    check(nativeStagePrepareArray(handle, bytes, data.cropLeft, data.cropTop,
+        data.cropWidth, data.cropHeight, data.rowStride, data.pixelStride)) {
+      "the native decoder did not take the frame for a stage split"
+    }
+  }
+
+  override fun binarizeOnly(): Long {
+    check(handle != 0L) { "decoder already closed" }
+    return nativeStageBinarize(handle)
+  }
+
+  override fun detectOnly(): Boolean {
+    check(handle != 0L) { "decoder already closed" }
+    return nativeStageDetect(handle)
+  }
+
+  override fun releaseStages() {
+    if (handle != 0L) {
+      nativeStageRelease(handle)
+    }
   }
 
   override fun close() {
@@ -758,6 +787,17 @@ internal class NativeFrameDecoder
     @JvmStatic private external fun nativeSetReturnErrors(handle: Long, returnErrors: Boolean)
 
     @JvmStatic private external fun nativeDiagnostics(handle: Long): String
+
+    @JvmStatic private external fun nativeStagePrepareArray(
+        handle: Long, luminance: ByteArray, cropLeft: Int, cropTop: Int,
+        width: Int, height: Int, rowStride: Int, pixelStride: Int
+    ): Boolean
+
+    @JvmStatic private external fun nativeStageBinarize(handle: Long): Long
+
+    @JvmStatic private external fun nativeStageDetect(handle: Long): Boolean
+
+    @JvmStatic private external fun nativeStageRelease(handle: Long)
 
     @JvmStatic private external fun nativeDecodeDirect(
         handle: Long, buffer: java.nio.ByteBuffer, width: Int, height: Int,

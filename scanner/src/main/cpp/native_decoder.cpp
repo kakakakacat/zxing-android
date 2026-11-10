@@ -1,9 +1,12 @@
 /* Copyright (C) 2026 ZXing Android maintenance fork contributors
  * SPDX-License-Identifier: Apache-2.0 */
 #include "native_decoder.h"
+#include <cstddef>
+#include <limits>
 #include <new>
 #include <utility>
 #include "BinaryBitmap.h"
+#include "BitMatrix.h"
 #include "GlobalHistogramBinarizer.h"
 #include "HybridBinarizer.h"
 #include "ReadBarcode.h"
@@ -81,6 +84,90 @@ ZXing::Barcode NativeDecoder::read(const ZXing::ImageView& image) {
   auto bitmap = createBitmap(options.binarizer(), image);
   auto barcodes = reader->read(*bitmap, 1);
   return barcodes.empty() ? ZXing::Barcode() : std::move(barcodes.front());
+}
+
+ZXing::ImageView NativeDecoder::stageImage() const noexcept {
+  // Only called with a frame held; `stageStorage.data()` is the crop's top-left pixel and
+  // the strides are the caller's, so this is the same view `prepareStages` was given.
+  return ZXing::ImageView(stageStorage.data(), stageWidth, stageHeight,
+                          ZXing::ImageFormat::Lum, stageRowStride, stagePixelStride);
+}
+
+bool NativeDecoder::prepareStages(const ZXing::ImageView& image, std::string& error) {
+  releaseStages();
+  if (image.width() <= 0 || image.height() <= 0 || image.rowStride() <= 0 ||
+      image.pixStride() <= 0 || image.data() == nullptr) {
+    error = "a stage split needs a frame with positive dimensions and strides";
+    return false;
+  }
+  if (!canReuseReader(options, image)) {
+    // Refused rather than measured: see prepareStages' contract. Without this, a caller
+    // that had left tryDownscale or tryInvert on would get two stage timings for a decode
+    // whose real path is ZXing::ReadBarcodes, which does neither of these stages once.
+    error = "these options decode through ZXing::ReadBarcodes, which this split does not "
+            "reproduce; a stage timing from it would describe work the frame never does";
+    return false;
+  }
+  const int64_t rowBytes = static_cast<int64_t>(image.width() - 1) * image.pixStride() + 1;
+  const int64_t required =
+      static_cast<int64_t>(image.height() - 1) * image.rowStride() + rowBytes;
+  if (required <= 0 || static_cast<uint64_t>(required) >
+                           static_cast<uint64_t>(std::numeric_limits<ptrdiff_t>::max())) {
+    error = "the frame's dimensions and strides do not describe a copyable span";
+    return false;
+  }
+  const uint8_t* const begin = image.data();
+  stageStorage.assign(begin, begin + required);
+  stageWidth = image.width();
+  stageHeight = image.height();
+  stageRowStride = image.rowStride();
+  stagePixelStride = image.pixStride();
+  auto bitmap = createBitmap(options.binarizer(), stageImage());
+  if (bitmap->getBitMatrix() == nullptr) {
+    releaseStages();
+    error = "the binarizer produced no matrix for this frame";
+    return false;
+  }
+  stageBitmap = std::move(bitmap);
+  if (!reader) {
+    reader = std::make_unique<ZXing::MultiFormatReader>(options);
+  }
+  return true;
+}
+
+int64_t NativeDecoder::binarizeOnly() {
+  if (stageStorage.empty()) {
+    return -1;
+  }
+  auto bitmap = createBitmap(options.binarizer(), stageImage());
+  const ZXing::BitMatrix* matrix = bitmap->getBitMatrix();
+  if (matrix == nullptr) {
+    return -1;
+  }
+  return static_cast<int64_t>(matrix->width()) * matrix->height();
+}
+
+bool NativeDecoder::detectOnly() {
+  if (!stageBitmap) {
+    return false;
+  }
+  if (!reader) {
+    // An option changed between prepare and here, so the readers were dropped. Rebuilt
+    // rather than refused -- a benchmark's warmup absorbs one construction -- but the
+    // matrix in stageBitmap was thresholded under the binarizer the options had then.
+    reader = std::make_unique<ZXing::MultiFormatReader>(options);
+  }
+  return !reader->read(*stageBitmap, 1).empty();
+}
+
+void NativeDecoder::releaseStages() noexcept {
+  stageBitmap.reset();
+  stageStorage.clear();
+  stageStorage.shrink_to_fit();
+  stageWidth = 0;
+  stageHeight = 0;
+  stageRowStride = 0;
+  stagePixelStride = 0;
 }
 
 std::unique_ptr<NativeDecoder> createNativeDecoder() noexcept {

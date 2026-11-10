@@ -196,6 +196,7 @@ benchmark/tools/l1_device.sh --backend native            # 设备端 L1 正确�
 - [x] 对比工具输出通过、失败或**不确定**，带 95% 区间：`benchmark/tools/compare.py`，退出码 0 / 1 / 2；两组数据不可比时为 3。
 - [x] 已提交 L2 基线：DN-ENG41、锁频，完整 135 项矩阵两轮及 HD/default 子集，见 `docs/maint/reports/`。
 - [x] 根据相同代码两轮完整矩阵实测效应下限：≥100 µs 的项目为 3%，更短项目为 10%。
+- [x] **解码器阶段归因**：`DecoderStageBenchmark` 把两种后端各自的阈值化与检测分开计时，原生侧经 `StagedFrameDecoder` 的四个仅测量用 JNI 入口。实测**检测占主导**——阈值化只占原生全码制未命中的 5.5–7.8%、Java 的 8.9–15.3%，因此手写 NEON 优化 binarizer 不是杠杆；原生 binarizer 约比 Java 快 9.4 倍，检测那一半快 4.5–5.6 倍。另发现 `tryHarder` 关闭时 1D reader 排在所有 2D reader 之前，一维码命中因此从不构建矩阵，见[判定报告](reports/l2-stage-split-DN-ENG41-20261109.md)。
 - [x] 已提交 L3 基线：DN-ENG41、两种相机后端，每轮 12 次冷启动、两组配对同会话，见 `docs/maint/reports/l3-*-DN-ENG41-20261102.json`。
 - [x] 已提交 L4 基线：同会话两种后端各 12 分钟。**CameraX 持续扫描 CPU 约高 60%**（按单核心计 118%，对比 74%）；本轮均未观察到泄漏，见 [判定报告](reports/l4-verdict-DN-ENG41-20261102.md)。
 - [x] CI 评估实测结果而不自己计时：`.github/workflows/l2-compare.yml`、`benchmark/tools/ci_compare.py`。共享 runner 没有锁频真机，不运行 benchmark；操作者提交结果到 `docs/maint/reports/candidates/`，CI 按设备、配置和**解码后端**选基线并发布判定。不确定不导致构建失败，无法判定候选则失败。
@@ -603,6 +604,14 @@ audit IDs from [AUDIT.md](AUDIT.md), so nothing here is a vague intention.
       plus an hd/default slice (`docs/maint/reports/`)
 - [x] Effect floor measured instead of guessed: 3% for cases at or above 100 µs, 10%
       below, from two full-matrix runs of identical code
+- [x] **Decoder stages attributed**: `DecoderStageBenchmark` times each backend's own
+      thresholding apart from its own detection, through four measurement-only JNI entry
+      points behind `StagedFrameDecoder` on the native side. **Detection dominates** —
+      thresholding is 5.5–7.8% of a native all-format miss and 8.9–15.3% of a Java one, so
+      hand-written NEON for the binarizer is not the lever; the native binarizer is ~9.4×
+      cheaper than the Java one and the detection half 4.5–5.6×. Also found: with
+      `tryHarder` off the 1D reader runs ahead of every 2D one, so a 1D hit never builds a
+      matrix (`docs/maint/reports/l2-stage-split-DN-ENG41-20261109.md`)
 - [x] L3 baseline committed: DN-ENG41, both camera backends, 12 cold launches each, both
       pairs in one session (`docs/maint/reports/l3-*-DN-ENG41-20261102.json`)
 - [x] L4 baseline committed: DN-ENG41, both backends, 12-minute soaks in one session.
